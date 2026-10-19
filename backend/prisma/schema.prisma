@@ -1,0 +1,449 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  QA_MANAGER
+  QC_ANALYST
+  LAB_TECHNICIAN
+  AUDITOR
+}
+
+enum BatchStatus {
+  QUARANTINE
+  RELEASED
+  REJECTED
+  CONDITIONAL
+}
+
+enum SampleType {
+  RAW_MATERIAL
+  IN_PROCESS
+  FINISHED_PRODUCT
+  STABILITY
+  WATER_PURIFIED
+  ENVIRONMENTAL_SWAB
+}
+
+enum Priority {
+  ROUTINE
+  URGENT
+  STAT
+}
+
+enum SampleStatus {
+  RECEIVED
+  LOGGED
+  ASSIGNED
+  TESTING_IN_PROGRESS
+  REVIEW_PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
+  CANCELLED
+}
+
+enum TestCategory {
+  CHEMICAL
+  PHYSICAL
+  MICROBIOLOGICAL
+  CHROMATOGRAPHY
+  STABILITY
+}
+
+enum TestStatus {
+  PENDING
+  IN_ANALYSIS
+  COMPLETED
+  VERIFIED
+  RETEST_REQUIRED
+}
+
+enum ResultStatus {
+  NOT_TESTED
+  WITHIN_SPEC
+  OUT_OF_SPEC
+  OUT_OF_TREND
+}
+
+enum InstrumentStatus {
+  QUALIFIED
+  CALIBRATION_DUE
+  OUT_OF_SERVICE
+  MAINTENANCE
+}
+
+enum LaboratoryType {
+  SAF
+  PENICILLIN
+  GENERAL
+}
+
+model Laboratory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  samples           Sample[]
+  sampleSubmissions SampleSubmission[]
+
+  @@map("laboratories")
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  username           String?   @unique
+  passwordHash       String
+  fullName           String
+  employeeId         String    @unique
+  department         String
+  role               Role      @default(QC_ANALYST)
+  isActive           Boolean   @default(true)
+  lastLogin          DateTime?
+  hashedRefreshToken String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  submittedSamples   Sample[]                @relation("SubmittedSamples")
+  receivedSamples    Sample[]                @relation("ReceivedSamples")
+  accessionedSamples Sample[]                @relation("AccessionedBy")
+  assignedSamples    Sample[]                @relation("AssignedTo")
+  performedTests     SampleTest[]            @relation("PerformedBy")
+  calibrations       CalibrationLog[]        @relation("CalibratedBy")
+  reportedOos        OosIncident[]           @relation("ReportedBy")
+  approvedOos        OosIncident[]           @relation("ApprovedBy")
+  authorizedCoas     CertificateOfAnalysis[] @relation("AuthorizedBy")
+  auditTrails        AuditTrail[]
+  auditLogs          AuditLog[]              @relation("UserAuditLogs")
+  sampleSubmissions  SampleSubmission[]      @relation("WorkflowSubmittedBy")
+
+  @@map("users")
+}
+
+model Batch {
+  id                String       @id @default(uuid())
+  batchNumber       String       @unique
+  drugProduct       String
+  dosageForm        String
+  batchSize         String
+  manufacturingDate DateTime
+  expiryDate        DateTime
+  status            BatchStatus  @default(QUARANTINE)
+  releaseDate       DateTime?
+  releasedBy        String?
+  notes             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  samples Sample[]
+  coa     CertificateOfAnalysis?
+
+  @@index([batchNumber])
+  @@index([status])
+  @@map("batches")
+}
+
+model Sample {
+  id                 String       @id @default(uuid())
+  recordNumber       String?      @unique
+  laboratoryId       String?
+  laboratory         Laboratory?  @relation(fields: [laboratoryId], references: [id], onDelete: SetNull)
+  nomenclature       String
+  sampleId           String?      @unique
+  stageType          String       @default("FINISHED_PRODUCT")
+  quantity           Float        @default(1.0)
+  quantityUnit       String       @default("units")
+  batchLotNumber     String?
+  manufacturingDate  DateTime?
+  expiryDate         DateTime?
+  submittedByUserId  String?
+  submittedByUser    User?        @relation("SubmittedSamples", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  receivedByUserId   String?
+  receivedByUser     User?        @relation("ReceivedSamples", fields: [receivedByUserId], references: [id], onDelete: SetNull)
+  sampledAt          DateTime     @default(now())
+  status             SampleStatus @default(RECEIVED)
+  isArchived         Boolean      @default(false)
+  archivedAt         DateTime?
+  archivedByUserId   String?
+  cancellationReason String?
+
+  // Compatibility fields for legacy workflows & frontend
+  sampleType       SampleType?     @default(FINISHED_PRODUCT)
+  accessionNo      String?         @unique
+  sampleCode       String?         @unique
+  materialName     String?
+  lotNumber        String?
+  mfgDate          DateTime?
+  expDate          DateTime?
+  submittedBy      String?
+  sourceSupplier   String?
+  samplingLocation String?
+  samplingDate     DateTime        @default(now())
+  sampleQty        Float?
+  unit             String          @default("units")
+  storageCondition String          @default("Controlled Room Temp 20-25°C")
+  priority         Priority        @default(ROUTINE)
+  laboratoryType   LaboratoryType? @default(GENERAL)
+  chainOfCustody   String?
+  barcode          String?
+  accessionedById  String?
+  assignedToId     String?
+  remarks          String?
+  batchId          String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  batch         Batch?                  @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  accessionedBy User?                   @relation("AccessionedBy", fields: [accessionedById], references: [id], onDelete: SetNull)
+  assignedTo    User?                   @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  tests         SampleTest[]
+  oosIncidents  OosIncident[]
+  coas          CertificateOfAnalysis[]
+  submissions   SampleSubmission[]
+
+  @@index([sampleId])
+  @@index([recordNumber])
+  @@index([batchLotNumber])
+  @@index([laboratoryId])
+  @@index([status])
+  @@index([sampledAt])
+  @@index([createdAt])
+  @@map("samples")
+}
+
+model TestSpecification {
+  id                 String       @id @default(uuid())
+  testCode           String       @unique
+  name               String
+  category           TestCategory @default(CHEMICAL)
+  pharmacopeiaMethod String       @default("USP")
+  defaultMinLimit    Float?
+  defaultMaxLimit    Float?
+  defaultTarget      Float?
+  unit               String?
+  procedureOverview  String?
+  requiresInstrument Boolean      @default(true)
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  sampleTests SampleTest[]
+
+  @@index([testCode])
+  @@index([category])
+  @@map("test_specifications")
+}
+
+model SampleTest {
+  id                  String            @id @default(uuid())
+  sampleId            String
+  testSpecificationId String
+  instrumentId        String?
+  analystId           String?
+  status              TestStatus        @default(PENDING)
+  minLimit            Float?
+  maxLimit            Float?
+  targetValue         Float?
+  unit                String?
+  numericResult       Float?
+  textResult          String?
+  resultStatus        ResultStatus      @default(NOT_TESTED)
+  testDate            DateTime?
+  completedAt         DateTime?
+  rawDataReference    String?
+  comments            String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  sample            Sample            @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+  testSpecification TestSpecification @relation(fields: [testSpecificationId], references: [id], onDelete: Restrict)
+  instrument        Instrument?       @relation(fields: [instrumentId], references: [id], onDelete: SetNull)
+  analyst           User?             @relation("PerformedBy", fields: [analystId], references: [id], onDelete: SetNull)
+  oosIncidents      OosIncident[]
+
+  @@index([sampleId])
+  @@index([status])
+  @@index([resultStatus])
+  @@map("sample_tests")
+}
+
+model Instrument {
+  id                       String           @id @default(uuid())
+  equipmentCode            String           @unique
+  name                     String
+  model                    String
+  serialNumber             String
+  manufacturer             String
+  laboratoryRoom           String
+  status                   InstrumentStatus @default(QUALIFIED)
+  lastCalibrationDate      DateTime?
+  nextCalibrationDue       DateTime
+  calibrationFrequencyDays Int              @default(90)
+  remarks                  String?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  calibrationLogs CalibrationLog[]
+  sampleTests     SampleTest[]
+
+  @@index([equipmentCode])
+  @@index([status])
+  @@map("instruments")
+}
+
+model CalibrationLog {
+  id                String     @id @default(uuid())
+  instrumentId      String
+  calibrationDate   DateTime   @default(now())
+  calibratedById    String?
+  certificateNumber String
+  standardUsed      String?
+  passed            Boolean    @default(true)
+  nextDue           DateTime
+  remarks           String?
+  createdAt         DateTime   @default(now())
+
+  instrument   Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  calibratedBy User?      @relation("CalibratedBy", fields: [calibratedById], references: [id], onDelete: SetNull)
+
+  @@index([instrumentId])
+  @@map("calibration_logs")
+}
+
+model OosIncident {
+  id                String    @id @default(uuid())
+  incidentNumber    String    @unique
+  sampleTestId      String
+  sampleId          String
+  reportedById      String
+  phaseOneStatus    String    @default("INVESTIGATING")
+  labErrorConfirmed Boolean   @default(false)
+  rootCauseCategory String?
+  phaseTwoRequired  Boolean   @default(false)
+  capaDescription   String?
+  qaApprovalStatus  String    @default("PENDING")
+  qaManagerId       String?
+  closedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  sampleTest SampleTest @relation(fields: [sampleTestId], references: [id], onDelete: Cascade)
+  sample     Sample     @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+  reportedBy User       @relation("ReportedBy", fields: [reportedById], references: [id], onDelete: Restrict)
+  qaManager  User?      @relation("ApprovedBy", fields: [qaManagerId], references: [id], onDelete: SetNull)
+
+  @@index([incidentNumber])
+  @@index([qaApprovalStatus])
+  @@map("oos_incidents")
+}
+
+model CertificateOfAnalysis {
+  id                String   @id @default(uuid())
+  certificateNumber String   @unique
+  batchId           String   @unique
+  sampleId          String?
+  issuedDate        DateTime @default(now())
+  authorizedById    String
+  status            String   @default("ISSUED")
+  remarks           String?
+  signatureHash     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  batch        Batch   @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  sample       Sample? @relation(fields: [sampleId], references: [id], onDelete: SetNull)
+  authorizedBy User    @relation("AuthorizedBy", fields: [authorizedById], references: [id], onDelete: Restrict)
+
+  @@index([certificateNumber])
+  @@map("certificates_of_analysis")
+}
+
+model AuditTrail {
+  id              String   @id @default(uuid())
+  entityName      String
+  entityId        String
+  action          String
+  performedById   String?
+  performedByName String
+  role            String
+  timestamp       DateTime @default(now())
+  ipAddress       String?
+  reasonForChange String?
+  diffPayload     String?
+
+  performedBy User? @relation(fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([entityName, entityId])
+  @@index([action])
+  @@index([timestamp])
+  @@map("audit_trails")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  userId         String?
+  action         String
+  entityType     String
+  entityId       String
+  previousValues Json?
+  newValues      Json?
+  timestamp      DateTime @default(now())
+
+  user User? @relation("UserAuditLogs", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+enum SubmissionDestination {
+  MICROBIOLOGY
+  CHEMICAL
+  PHYSICAL
+}
+
+enum SubmissionStatus {
+  DRAFT
+  REGISTERED
+  SUBMITTED
+  RECEIVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+model SampleSubmission {
+  id                    String                 @id @default(uuid())
+  sampleId              String
+  sample                Sample                 @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+  destinationLaboratory String                 @default("General Lab")
+  destinationLabId      String?
+  laboratory            Laboratory?            @relation(fields: [destinationLabId], references: [id], onDelete: SetNull)
+  submittedByUserId     String?
+  submittedByUser       User?                  @relation("WorkflowSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  submittedByName       String?
+  submittedAt           DateTime               @default(now())
+  submissionDate        DateTime               @default(now())
+  destinationLabEnum    SubmissionDestination?
+  status                SubmissionStatus       @default(SUBMITTED)
+  remarks               String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([sampleId])
+  @@index([destinationLaboratory])
+  @@index([status])
+  @@map("sample_submissions")
+}
