@@ -242,7 +242,7 @@ function SamplesPageInner() {
     queryFn: () => samplingService.getMetrics(),
   });
 
-  // Dynamic counts for Semi Base and Formulation for the active laboratory
+  // Dynamic counts for Semi Basics and Formulation for the active laboratory
   const { data: semiBaseCountData } = useQuery({
     queryKey: ['samples-count-sb', isAllLabs ? 'all' : activeLab.key],
     queryFn: () =>
@@ -530,12 +530,12 @@ function SamplesPageInner() {
               </span>
             </div>
             <span className="text-[11px] font-bold text-blue-700 bg-blue-100/70 px-2.5 py-0.5 rounded-full border border-blue-200">
-              Active: {activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'}
+              Active: {activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Option 1: Semi Base */}
+            {/* Option 1: Semi Basics */}
             <button
               type="button"
               onClick={() => selectSection('semi-base')}
@@ -568,7 +568,7 @@ function SamplesPageInner() {
                         activeSection === 'semi-base' ? 'text-blue-950 font-bold' : 'text-slate-900'
                       )}
                     >
-                      1. Semi Base
+                      1. Semi Basics
                     </h4>
                     <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                       {semiBaseCount} Samples
@@ -651,14 +651,14 @@ function SamplesPageInner() {
             <span>{isAllLabs ? 'All Facilities' : activeLab.name}</span>
             <span>•</span>
             <span className="text-blue-600 font-bold">
-              {activeSection === 'semi-base' ? 'Semi Base Section' : 'Formulation Section'}
+              {activeSection === 'semi-base' ? 'Semi Basics Section' : 'Formulation Section'}
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <span>{isAllLabs ? 'Sampling Records' : activeLab.heading}</span>
             <span className="text-slate-300 font-normal">/</span>
             <span className="text-blue-700">
-              {activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'}
+              {activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
             </span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
@@ -676,7 +676,7 @@ function SamplesPageInner() {
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
           >
             <PlusCircle className="h-4 w-4 text-white" />
-            <span>Add New Sample ({activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'})</span>
+            <span>Add New Sample ({activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'})</span>
           </Button>
         </div>
       </div>
@@ -835,7 +835,7 @@ function SamplesPageInner() {
           {/* Filter by Stage / Type */}
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              {activeSection === 'semi-base' ? 'Semi Base Category' : 'Formulation Category'}
+              {activeSection === 'semi-base' ? 'Semi Basics Category' : 'Formulation Category'}
             </label>
             <select
               value={stageFilter}
@@ -846,7 +846,7 @@ function SamplesPageInner() {
               className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium"
             >
               <option value="">
-                All Categories ({activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'})
+                All Categories ({activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'})
               </option>
               {(activeSection === 'semi-base' ? SEMI_BASE_STAGES : FORMULATION_STAGES).map((stg) => (
                 <option key={stg} value={stg}>
@@ -889,8 +889,8 @@ function SamplesPageInner() {
           <div className="flex items-center gap-2">
             <span className="font-bold text-xs text-navy-950 uppercase tracking-wider">
               {isAllLabs
-                ? `All Sampling Records — ${activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'}`
-                : `${activeLab.name} — ${activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'} Records`}
+                ? `All Sampling Records — ${activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}`
+                : `${activeLab.name} — ${activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'} Records`}
             </span>
             <span className="text-xs text-slate-400 font-medium">
               ({meta.total} {meta.total === 1 ? 'record' : 'records'} total)
@@ -1213,7 +1213,7 @@ function SamplesPageInner() {
                       {/* 5. Stage / Type */}
                       <td className="py-3 px-3.5">
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 inline-block whitespace-nowrap">
-                          {(sample.stageType || (sample.sampleType ? sample.sampleType.replace(/_/g, ' ') : '—')).replace(/^\[(Semi Base|Formulation)\]\s*/i, '')}
+                          {(sample.stageType || (sample.sampleType ? sample.sampleType.replace(/_/g, ' ') : '—')).replace(/^\[(Semi Basics?|Semi Base|Formulation)\]\s*/i, '')}
                         </span>
                       </td>
 

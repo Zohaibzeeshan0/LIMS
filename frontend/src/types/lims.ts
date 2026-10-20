@@ -46,7 +46,7 @@ export function getUserLabAccess(
   return 'GENERAL';
 }
 
-export const SEMI_BASE_STAGES = [
+export const SEMI_BASICS_STAGES = [
   'Bulk / Blended Product',
   'Core Tablet',
   'Granulation / Blend',
@@ -58,6 +58,8 @@ export const SEMI_BASE_STAGES = [
   'Raw Material',
   'Other',
 ] as const;
+
+export const SEMI_BASE_STAGES = SEMI_BASICS_STAGES;
 
 export const FORMULATION_STAGES = [
   'Finished Product',
@@ -85,7 +87,8 @@ export const SAMPLE_STAGES = [
 ] as const;
 
 export type SampleStage = typeof SAMPLE_STAGES[number];
-export type SemiBaseStage = typeof SEMI_BASE_STAGES[number];
+export type SemiBasicsStage = typeof SEMI_BASICS_STAGES[number];
+export type SemiBaseStage = SemiBasicsStage;
 export type FormulationStage = typeof FORMULATION_STAGES[number];
 export type LabSection = 'semi-base' | 'formulation';
 
@@ -100,10 +103,20 @@ export function getSampleSection(sample: {
 
   // Explicit tags
   if (
+    stage.includes('[semi basics]') ||
+    stage.includes('[semi basic]') ||
     stage.includes('[semi base]') ||
+    type.includes('[semi basics]') ||
+    type.includes('[semi basic]') ||
     type.includes('[semi base]') ||
+    remarks.includes('[semi basics]') ||
+    remarks.includes('[semi basic]') ||
     remarks.includes('[semi base]') ||
+    stage.includes('semi basics') ||
+    stage.includes('semi basic') ||
     stage.includes('semi base') ||
+    stage.includes('semi-basics') ||
+    stage.includes('semi-basic') ||
     stage.includes('semi-base')
   ) {
     return 'semi-base';

@@ -62,7 +62,7 @@
 
 | Date / Commit | Feature / Change | Key Files Modified | Summary |
 |---|---|---|---|
-| **2026-10-20** | RBAC Admin-Only Edit & Lab Subsections (Semi Base / Formulation) | `samples/page.tsx`, `NewSampleModal.tsx`, `EditSampleModal.tsx`, `sampling.service.ts`, `samples.controller.ts`, `lims.ts` | Restricted all sample record edits strictly to Administrator (non-admins can only enter new data). Added interactive Semi Base & Formulation subsections inside all 3 Labs (SEF, Penicillin, General) with partitioned stage categories and sample records. |
+| **2026-10-20** | RBAC Admin-Only Edit & Lab Subsections (Semi Basics / Formulation) | `samples/page.tsx`, `NewSampleModal.tsx`, `EditSampleModal.tsx`, `sampling.service.ts`, `samples.controller.ts`, `lims.ts` | Restricted all sample record edits strictly to Administrator (non-admins can only enter new data). Added interactive Semi Basics & Formulation subsections inside all 3 Labs (Cephalosporin, Penicillin, General) with partitioned stage categories and sample records. |
 | **2026-10-20** | Dashboard KPI Cards Overhaul | `page.tsx`, `samples/page.tsx`, `sampling.service.ts` | Actual DB counts, removed percentage/trend sublines, and added click-through navigation for Total, Received, Active Batches, and Approved. |
 | **2026-10-20** (`86a5ee2`) | API Network Error Handling | `frontend/src/lib/api.ts` | Wrapped fetch in try/catch to catch connection drops gracefully. |
 | **2026-10-20** (`b77c25a`) | Quantity Units & All Emergency Records | `NewSampleModal.tsx`, `EditSampleModal.tsx`, `page.tsx`, `sampling.service.ts` | Quantity unit restricted to Tablets, Capsules, Raw Data, Other (with manual text input). Dashboard admin priority banner displays all expedited samples without limit. |

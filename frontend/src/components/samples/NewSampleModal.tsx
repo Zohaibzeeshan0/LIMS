@@ -368,7 +368,7 @@ export function NewSampleModal({
         ? (formData.customStage?.trim() || 'Other')
         : formData.sampleType;
 
-    const sectionTag = selectedSection === 'semi-base' ? '[Semi Base]' : '[Formulation]';
+    const sectionTag = selectedSection === 'semi-base' ? '[Semi Basics]' : '[Formulation]';
     const finalStageWithTag = `${sectionTag} ${finalStage}`;
 
     const finalUnit =
@@ -679,7 +679,7 @@ export function NewSampleModal({
             )}
           </div>
 
-          {/* Section 4: Lab Subsection (Semi Base vs Formulation), Stage / Category, Batch / Lot No., Quantity & Units */}
+          {/* Section 4: Lab Subsection (Semi Basics vs Formulation), Stage / Category, Batch / Lot No., Quantity & Units */}
           <div className="p-3 rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/40 border border-slate-200/90 space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -688,7 +688,7 @@ export function NewSampleModal({
                 <span className="text-rose-500">*</span>
               </label>
               <span className="text-[11px] font-semibold text-blue-700 bg-blue-100/60 px-2 py-0.5 rounded-md border border-blue-200/60">
-                {selectedSection === 'semi-base' ? 'Semi Base Active' : 'Formulation Active'}
+                {selectedSection === 'semi-base' ? 'Semi Basics Active' : 'Formulation Active'}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -706,7 +706,7 @@ export function NewSampleModal({
                 )}
               >
                 <Layers className="h-3.5 w-3.5" />
-                <span>1. Semi Base (In-Process / Bulk)</span>
+                <span>1. Semi Basics (In-Process / Bulk)</span>
               </button>
               <button
                 type="button"
@@ -731,7 +731,7 @@ export function NewSampleModal({
             {/* Stage / Type */}
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">
-                {selectedSection === 'semi-base' ? 'Semi Base Category' : 'Formulation Category'}{' '}
+                {selectedSection === 'semi-base' ? 'Semi Basics Category' : 'Formulation Category'}{' '}
                 <span className="text-rose-500">*</span>
               </label>
               <select

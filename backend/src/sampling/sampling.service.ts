@@ -35,7 +35,7 @@ export class SamplingService {
       labPrefix = 'GL';
     }
 
-    // 2. Determine Section Prefix (SB = Semi Base / Semi Basic, F = Formulation)
+    // 2. Determine Section Prefix (SB = Semi Basics / Semi Basic, F = Formulation)
     let secPrefix = 'SB';
     const s = ((explicitSection || stageOrType) || '').toString().toLowerCase();
 
@@ -402,8 +402,20 @@ export class SamplingService {
     if (query.section) {
       const sec = query.section.toString().toLowerCase();
       let sectionCond: any[] = [];
-      if (sec === 'semi-base' || sec === 'semibase' || sec === 'semi') {
+      if (
+        sec === 'semi-base' ||
+        sec === 'semi-basics' ||
+        sec === 'semi-basic' ||
+        sec === 'semibase' ||
+        sec === 'semibasics' ||
+        sec === 'semibasic' ||
+        sec === 'semi' ||
+        sec === 'basic' ||
+        sec === 'basics'
+      ) {
         sectionCond = [
+          { stageType: { contains: '[Semi Basics]', mode: 'insensitive' } },
+          { stageType: { contains: '[Semi Basic]', mode: 'insensitive' } },
           { stageType: { contains: '[Semi Base]', mode: 'insensitive' } },
           { stageType: { contains: 'Bulk', mode: 'insensitive' } },
           { stageType: { contains: 'Core', mode: 'insensitive' } },
@@ -413,6 +425,8 @@ export class SamplingService {
           { stageType: { contains: 'Water', mode: 'insensitive' } },
           { stageType: { contains: 'Cleaning', mode: 'insensitive' } },
           { sampleType: { in: ['IN_PROCESS', 'RAW_MATERIAL', 'WATER_PURIFIED'] } },
+          { remarks: { contains: '[Semi Basics]', mode: 'insensitive' } },
+          { remarks: { contains: '[Semi Basic]', mode: 'insensitive' } },
           { remarks: { contains: '[Semi Base]', mode: 'insensitive' } },
         ];
       } else if (sec === 'formulation') {
