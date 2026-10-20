@@ -14,6 +14,9 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { SAMPLE_STAGES, SEMI_BASE_STAGES, FORMULATION_STAGES, LabSection, getUserLabAccess } from '@/types/lims';
 import { format } from 'date-fns';
+import QRCode from 'qrcode';
+import { QrScannerModal, ScannedSampleData } from '@/components/samples/QrScannerModal';
+import { SampleQrLabelModal } from '@/components/samples/SampleQrLabelModal';
 import {
   FlaskConical,
   Microscope,
@@ -34,6 +37,11 @@ import {
   FileText,
   Building,
   Lock,
+  Camera,
+  ScanLine,
+  Printer,
+  Download,
+  QrCode,
 } from 'lucide-react';
 
 // Zod Validation Schema enforcing cGMP / 21 CFR Part 11 requirements
@@ -289,6 +297,78 @@ export function NewSampleModal({
     return `${prefix}/${sec}-1`;
   }, [nextIdData, watchedLab, selectedSection]);
 
+  // QR Code & Barcode Integration States
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [isQrLabelModalOpen, setIsQrLabelModalOpen] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
+
+  const activeSampleCode =
+    watchedPolicy === 'MANUAL' && watchedCustomId ? watchedCustomId : nextAutoSampleCode;
+  const watchedNomenclature = watch('nomenclature');
+  const watchedLotNumber = watch('lotNumber');
+
+  // Real-time dynamic QR code generation
+  useEffect(() => {
+    let isMounted = true;
+    const payload = JSON.stringify({
+      app: 'STAR-LIMS',
+      sampleId: activeSampleCode,
+      barcode: scannedBarcode || `CP-${activeSampleCode}`,
+      nomenclature: watchedNomenclature || 'Pharmaceutical Sample',
+      lot: watchedLotNumber || 'N/A',
+      lab: watchedLab,
+      section: selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation',
+      timestamp: liveDate.toISOString(),
+    });
+
+    QRCode.toDataURL(payload, {
+      width: 220,
+      margin: 1,
+      color: { dark: '#0f172a', light: '#ffffff' },
+    })
+      .then((url) => {
+        if (isMounted) setQrDataUrl(url);
+      })
+      .catch((err) => console.error('QR Gen error:', err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeSampleCode, watchedNomenclature, watchedLotNumber, watchedLab, selectedSection, scannedBarcode, liveDate]);
+
+  // Handle scanned QR code / Barcode data to autofill form
+  const handleScanResult = (data: ScannedSampleData) => {
+    if (data.nomenclature) {
+      setValue('nomenclature', data.nomenclature, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.lotNumber) {
+      setValue('lotNumber', data.lotNumber, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.sampleQty) {
+      setValue('sampleQty', data.sampleQty, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.unit) {
+      setValue('unit', data.unit, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.mfgDate) {
+      setValue('mfgDate', data.mfgDate.slice(0, 10), { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.expDate) {
+      setValue('expDate', data.expDate.slice(0, 10), { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.sampleCode) {
+      setValue('idGenerationPolicy', 'MANUAL', { shouldDirty: true });
+      setValue('customSampleId', data.sampleCode, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.stageType) {
+      setValue('sampleType', data.stageType, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.barcode) {
+      setScannedBarcode(data.barcode);
+    }
+  };
+
   // When a batch is selected from the dropdown, autofill Lot No., MFG Date, EXP Date
   useEffect(() => {
     if (watchedBatchId && batches) {
@@ -399,6 +479,7 @@ export function NewSampleModal({
     const payload: any = {
       laboratory: formData.laboratory,
       section: selectedSection,
+      barcode: scannedBarcode || `CP-${activeSampleCode}`,
       samplingDate: isLiveClock
         ? new Date().toISOString()
         : new Date(formData.samplingDateTime).toISOString(),
@@ -467,6 +548,17 @@ export function NewSampleModal({
                   <strong className="font-mono">{successInfo.sampleCode}</strong> has been saved to
                   PostgreSQL in {successInfo.laboratory} Lab.
                 </p>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => setIsQrLabelModalOpen(true)}
+                    className="text-xs px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>Print Sample QR Label</span>
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -479,6 +571,66 @@ export function NewSampleModal({
                 <h5 className="font-bold text-sm text-rose-950">Submission Failed</h5>
                 <p className="text-xs text-rose-700 mt-0.5">{submitError}</p>
               </div>
+            </div>
+          )}
+
+          {/* QR Code & Barcode Integration Card */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-gradient-to-r from-indigo-50/70 via-blue-50/50 to-slate-50 border border-indigo-200/80 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <ScanLine className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs text-slate-900">QR Code & Barcode Integration</span>
+                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/80 px-2 py-0.2 rounded-full border border-indigo-200">
+                    2D Scanner & Label
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Scan incoming material labels or generate a live 2D QR label for sample containers
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsQrScannerOpen(true)}
+                className="text-xs px-3 py-1.5 bg-white hover:bg-slate-50 text-indigo-700 border-indigo-300 font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <Camera className="h-3.5 w-3.5 text-indigo-600" />
+                <span>Scan QR / Barcode</span>
+              </Button>
+
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsQrLabelModalOpen(true)}
+                className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white border-transparent font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <QrCode className="h-3.5 w-3.5" />
+                <span>View / Print QR Label</span>
+              </Button>
+            </div>
+          </div>
+
+          {scannedBarcode && (
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
+              <div className="flex items-center gap-2 truncate">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>
+                  Scanned Barcode Linked: <strong className="font-mono">{scannedBarcode}</strong>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setScannedBarcode(null)}
+                className="text-emerald-700 hover:text-emerald-900 text-[11px] underline ml-2 cursor-pointer"
+              >
+                Clear
+              </button>
             </div>
           )}
 
@@ -693,9 +845,20 @@ export function NewSampleModal({
                     <Sparkles className="h-3.5 w-3.5 text-blue-600" />
                     <span>Auto: {nextAutoSampleCode}</span>
                   </span>
-                  <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-sans font-medium">
-                    Auto-Sequential
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsQrLabelModalOpen(true)}
+                      title="Click to view & print QR label"
+                      className="flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 hover:bg-blue-200/80 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                    >
+                      <QrCode className="h-3 w-3" />
+                      <span>QR Label</span>
+                    </button>
+                    <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-sans font-medium">
+                      Auto-Sequential
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <div>
@@ -1191,6 +1354,34 @@ export function NewSampleModal({
           </div>
         </Modal>
       )}
+
+      {/* QR Code Scanner Modal */}
+      <QrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        onScan={handleScanResult}
+      />
+
+      {/* QR Code Label Print / Preview Modal */}
+      <SampleQrLabelModal
+        isOpen={isQrLabelModalOpen}
+        onClose={() => setIsQrLabelModalOpen(false)}
+        qrDataUrl={qrDataUrl}
+        sampleCode={activeSampleCode}
+        nomenclature={watchedNomenclature || 'Pharmaceutical Sample'}
+        lotNumber={watchedLotNumber || 'N/A'}
+        laboratoryName={
+          watchedLab === 'SAF' || watchedLab === 'SEF'
+            ? 'Cephalosporin Lab'
+            : watchedLab === 'PENICILLIN'
+            ? 'Penicillin Lab'
+            : 'General Lab'
+        }
+        sectionName={selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
+        samplingDate={format(liveDate, 'dd MMM yyyy, hh:mm a')}
+        sampleQty={watch('sampleQty')}
+        unit={watch('unit')}
+      />
     </>
   );
 }

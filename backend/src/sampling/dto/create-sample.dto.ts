@@ -21,6 +21,11 @@ export class CreateSampleDto {
   @IsOptional()
   sampleCode?: string;
 
+  @ApiProperty({ example: 'CP-GL/SB-1', required: false, description: 'Optional QR code or Barcode payload' })
+  @IsString()
+  @IsOptional()
+  barcode?: string;
+
   @ApiProperty({ example: '2026-10-18T14:30:00Z', required: false, description: 'Sampling Date & Time' })
   @IsString()
   @IsOptional()

@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sample } from '@/types/lims';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { formatDateTime } from '@/lib/date';
 import { CityPharmaLogo } from '@/components/ui/CityPharmaLogo';
 import { Printer, X, ShieldCheck, QrCode, FileText, CheckCircle2 } from 'lucide-react';
+import QRCode from 'qrcode';
 
 interface PrintSampleModalProps {
   isOpen: boolean;
@@ -15,6 +16,24 @@ interface PrintSampleModalProps {
 }
 
 export function PrintSampleModal({ isOpen, onClose, sample }: PrintSampleModalProps) {
+  const [qrUrl, setQrUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (sample) {
+      const payload = JSON.stringify({
+        app: 'STAR-LIMS',
+        sampleId: sample.sampleCode,
+        barcode: sample.barcode || `CP-${sample.sampleCode}`,
+        nomenclature: sample.nomenclature || sample.materialName,
+        lot: sample.lotNumber || 'N/A',
+        accessionNo: sample.accessionNo,
+      });
+      QRCode.toDataURL(payload, { width: 140, margin: 1 })
+        .then(setQrUrl)
+        .catch((err) => console.error('QR error in print modal:', err));
+    }
+  }, [sample]);
+
   if (!sample) return null;
 
   const handlePrint = () => {
@@ -99,12 +118,21 @@ export function PrintSampleModal({ isOpen, onClose, sample }: PrintSampleModalPr
               </span>
             </div>
 
-            <div className="text-center font-mono">
-              <div className="text-xs font-bold tracking-widest text-slate-800 bg-white px-3 py-1 rounded border border-slate-300">
-                * {sample.barcode || `CP-${sample.sampleCode}`} *
-              </div>
-              <div className="text-[10px] text-slate-500 mt-0.5 font-mono">
-                {sample.sampleCode}
+            <div className="flex items-center gap-3">
+              {qrUrl && (
+                <img
+                  src={qrUrl}
+                  alt="Sample QR Code"
+                  className="w-12 h-12 rounded border border-slate-300 p-0.5 bg-white shrink-0 shadow-2xs"
+                />
+              )}
+              <div className="text-center font-mono">
+                <div className="text-xs font-bold tracking-widest text-slate-800 bg-white px-3 py-1 rounded border border-slate-300">
+                  * {sample.barcode || `CP-${sample.sampleCode}`} *
+                </div>
+                <div className="text-[10px] text-slate-500 mt-0.5 font-mono">
+                  {sample.sampleCode}
+                </div>
               </div>
             </div>
 

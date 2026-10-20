@@ -190,7 +190,7 @@ export class SamplingService {
       throw new BadRequestException('Validation Failed: Sample Quantity must be a positive number greater than 0.');
     }
 
-    const barcode = `CP-${sampleCode}`;
+    const barcode = createSampleDto.barcode?.trim() || `CP-${sampleCode}`;
     const accessionNo = createSampleDto.accessionNo || (await this.generateAccessionNo());
     const samplingDate = createSampleDto.samplingDate ? new Date(createSampleDto.samplingDate) : new Date();
 
