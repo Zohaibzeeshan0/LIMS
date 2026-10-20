@@ -94,8 +94,8 @@ export class SamplingController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.QA_MANAGER, Role.QC_ANALYST)
-  @ApiOperation({ summary: 'Update sample status or attributes with audit trail entry' })
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Update sample status or attributes with audit trail entry (Admin only)' })
   update(
     @Param('id') id: string,
     @Body() updateSampleDto: UpdateSampleDto,

@@ -12,7 +12,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import { SAMPLE_STAGES } from '@/types/lims';
+import { SAMPLE_STAGES, SEMI_BASE_STAGES, FORMULATION_STAGES, LabSection } from '@/types/lims';
 import {
   FlaskConical,
   Microscope,
@@ -118,6 +118,7 @@ interface NewSampleModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultLaboratory?: 'SAF' | 'SEF' | 'PENICILLIN' | 'GENERAL';
+  defaultSection?: LabSection;
   onSampleCreated?: (createdSample: any) => void;
 }
 
@@ -125,10 +126,14 @@ export function NewSampleModal({
   isOpen,
   onClose,
   defaultLaboratory = 'GENERAL',
+  defaultSection = 'semi-base',
   onSampleCreated,
 }: NewSampleModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Active lab section: Semi Base vs Formulation
+  const [selectedSection, setSelectedSection] = useState<LabSection>(defaultSection);
 
   // Confirmation modal state for unsaved changes
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -155,7 +160,6 @@ export function NewSampleModal({
     enabled: isOpen,
   });
 
-
   // Fetch active users for Received By selection
   const { data: usersList } = useQuery({
     queryKey: ['users-list'],
@@ -177,7 +181,7 @@ export function NewSampleModal({
     nomenclature: '',
     idGenerationPolicy: 'AUTO',
     customSampleId: '',
-    sampleType: 'Finished Product',
+    sampleType: defaultSection === 'semi-base' ? SEMI_BASE_STAGES[0] : FORMULATION_STAGES[0],
     customStage: '',
     sampleQty: 100,
     unit: 'tablets',
@@ -210,7 +214,9 @@ export function NewSampleModal({
   // Update defaults when modal opens or laboratory switches
   useEffect(() => {
     if (isOpen) {
+      setSelectedSection(defaultSection);
       setValue('laboratory', defaultLaboratory);
+      setValue('sampleType', defaultSection === 'semi-base' ? SEMI_BASE_STAGES[0] : FORMULATION_STAGES[0]);
       setValue('samplingDateTime', currentLocalISOString);
       if (user?.fullName) {
         setValue('submittedBy', `${user.fullName} (${user.department || 'Production'})`);
@@ -222,7 +228,7 @@ export function NewSampleModal({
       setIdCheckStatus('idle');
       setDuplicateMessage(null);
     }
-  }, [isOpen, defaultLaboratory, currentLocalISOString, user, setValue]);
+  }, [isOpen, defaultLaboratory, defaultSection, currentLocalISOString, user, setValue]);
 
   const watchedLab = watch('laboratory');
   const watchedPolicy = watch('idGenerationPolicy');
@@ -332,6 +338,9 @@ export function NewSampleModal({
         ? (formData.customStage?.trim() || 'Other')
         : formData.sampleType;
 
+    const sectionTag = selectedSection === 'semi-base' ? '[Semi Base]' : '[Formulation]';
+    const finalStageWithTag = `${sectionTag} ${finalStage}`;
+
     const finalUnit =
       formData.unit === 'Other'
         ? (formData.customUnit?.trim() || 'units')
@@ -342,8 +351,8 @@ export function NewSampleModal({
       samplingDate: new Date(formData.samplingDateTime).toISOString(),
       nomenclature: formData.nomenclature.trim(),
       materialName: formData.nomenclature.trim(),
-      stageType: finalStage,
-      sampleType: finalStage,
+      stageType: finalStageWithTag,
+      sampleType: finalStageWithTag,
       sampleCode:
         formData.idGenerationPolicy === 'MANUAL' && formData.customSampleId?.trim()
           ? formData.customSampleId.trim()
@@ -359,7 +368,7 @@ export function NewSampleModal({
       storageCondition: formData.storageCondition?.trim() || 'Controlled Room Temp 20-25°C',
       priority: formData.priority,
       testSpecificationIds: formData.testSpecificationIds || [],
-      remarks: formData.remarks?.trim() || undefined,
+      remarks: [sectionTag, formData.remarks?.trim()].filter(Boolean).join(' '),
     };
 
     createMutation.mutate(payload);
@@ -614,18 +623,66 @@ export function NewSampleModal({
             )}
           </div>
 
-          {/* Section 4: Stage / Type, Batch / Lot No., Quantity & Units */}
+          {/* Section 4: Lab Subsection (Semi Base vs Formulation), Stage / Category, Batch / Lot No., Quantity & Units */}
+          <div className="p-3 rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/40 border border-slate-200/90 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <Layers className="h-4 w-4 text-blue-600" />
+                <span>Laboratory Section</span>
+                <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-[11px] font-semibold text-blue-700 bg-blue-100/60 px-2 py-0.5 rounded-md border border-blue-200/60">
+                {selectedSection === 'semi-base' ? 'Semi Base Active' : 'Formulation Active'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSection('semi-base');
+                  setValue('sampleType', SEMI_BASE_STAGES[0]);
+                }}
+                className={cn(
+                  'px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-2 cursor-pointer',
+                  selectedSection === 'semi-base'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-500/20'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                )}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span>1. Semi Base (In-Process / Bulk)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSection('formulation');
+                  setValue('sampleType', FORMULATION_STAGES[0]);
+                }}
+                className={cn(
+                  'px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-2 cursor-pointer',
+                  selectedSection === 'formulation'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-500/20'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                )}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>2. Formulation (Finished Product)</span>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Stage / Type */}
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">
-                Stage / Type <span className="text-rose-500">*</span>
+                {selectedSection === 'semi-base' ? 'Semi Base Category' : 'Formulation Category'}{' '}
+                <span className="text-rose-500">*</span>
               </label>
               <select
                 {...register('sampleType')}
                 className="w-full px-2.5 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium text-slate-800"
               >
-                {SAMPLE_STAGES.map((stg) => (
+                {(selectedSection === 'semi-base' ? SEMI_BASE_STAGES : FORMULATION_STAGES).map((stg) => (
                   <option key={stg} value={stg}>
                     {stg}
                   </option>

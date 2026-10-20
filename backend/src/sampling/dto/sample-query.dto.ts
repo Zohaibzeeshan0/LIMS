@@ -63,6 +63,11 @@ export class SamplingQueryDto {
   @IsOptional()
   endDate?: string;
 
+  @ApiProperty({ required: false, description: 'Lab Section filter (semi-base or formulation)' })
+  @IsString()
+  @IsOptional()
+  section?: string;
+
   @ApiProperty({ required: false, default: 1 })
   @IsOptional()
   page?: number | string;

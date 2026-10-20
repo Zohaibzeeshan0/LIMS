@@ -5,8 +5,9 @@ import { Sample, SampleType, Priority, SampleStatus, SAMPLE_STAGES } from '@/typ
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
 import { samplingService } from '@/services/sampling.service';
-import { ShieldCheck, AlertCircle, Save, X, Calendar, User, Package, FileText } from 'lucide-react';
+import { ShieldCheck, AlertCircle, Save, X, Calendar, User, Package, FileText, Lock } from 'lucide-react';
 
 interface EditSampleModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface EditSampleModalProps {
 
 export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProps) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     nomenclature: '',
@@ -137,6 +139,36 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
   };
 
   if (!sample) return null;
+
+  // Strict RBAC: Only Administrator is authorized to modify existing sample records
+  if (user && user.role !== 'ADMIN') {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Access Restricted: Administrator Only"
+        subtitle="21 CFR Part 11 Electronic Records Security"
+        maxWidth="md"
+      >
+        <div className="space-y-4 text-xs text-slate-700 py-1 font-sans">
+          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3">
+            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-amber-950">Record Modification Restricted</p>
+              <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                Under cGMP and 21 CFR Part 11 regulatory compliance rules, existing sample records can only be edited by the <strong>System Administrator</strong>. Operational staff (QA Managers, QC Analysts, and Technicians) are authorized for new data accessioning and test result entry only.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} className="text-xs">
+              Close Window
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal

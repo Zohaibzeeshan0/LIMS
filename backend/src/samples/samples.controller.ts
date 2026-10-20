@@ -59,8 +59,8 @@ export class SamplesController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.QA_MANAGER, Role.QC_ANALYST)
-  @ApiOperation({ summary: 'Update sample status or attributes with 21 CFR Part 11 audit logging' })
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Update sample status or attributes with 21 CFR Part 11 audit logging (Admin only)' })
   @ApiResponse({ status: 200, description: 'Sample updated successfully' })
   update(
     @Param('id') id: string,
@@ -79,8 +79,8 @@ export class SamplesController {
   }
 
   @Patch(':id/archive')
-  @Roles(Role.ADMIN, Role.QA_MANAGER)
-  @ApiOperation({ summary: 'Auditable archival workflow for sample retention' })
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Auditable archival workflow for sample retention (Admin only)' })
   archive(
     @Param('id') id: string,
     @Body() body: { reason?: string },
@@ -90,8 +90,8 @@ export class SamplesController {
   }
 
   @Patch(':id/cancel')
-  @Roles(Role.ADMIN, Role.QA_MANAGER)
-  @ApiOperation({ summary: 'Auditable cancellation workflow with mandatory regulatory justification' })
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Auditable cancellation workflow with mandatory regulatory justification (Admin only)' })
   cancel(
     @Param('id') id: string,
     @Body() body: { reason: string },

@@ -27,24 +27,32 @@
 
 ## 2. Current Task Specification
 
-- **Task Name:** Dashboard Executive KPI Cards Enhancement
+- **Task Name:** Role-Based Access Control (Admin-Only Edit) & Lab Subsections (Semi Base / Formulation)
 - **Status:** `COMPLETED`
 - **Objective:**
-  1. Display actual live database counts for all 4 KPI cards (Total Samples, Received Samples, Active Batches, Approved Samples) without fake fallback numbers.
-  2. Remove percentage badges and "vs last week / in workflow" sublines completely.
-  3. Make all 4 KPI cards clickable with routing: Total Samples -> /samples, Received Samples -> /samples?status=RECEIVED, Active Batches -> /batches, Approved Samples -> /samples?status=APPROVED.
+  1. Enforce strict RBAC: Admin has full access to all features. Non-admin staff (QA Manager, QC Analyst, Lab Technician, Auditor) can only enter/add new data (samples, worksheets, results) and cannot edit existing records (Edit Sample restricted strictly to ADMIN on both frontend and backend).
+  2. Implement 2 sub-sections inside all 3 Labs (SEF, Penicillin, General): **Semi Base** and **Formulation**.
+  3. Ensure that in each Lab, sample records and accession categories appear organized under these two sub-sections upon selection.
 - **Files Involved:**
-  - `frontend/src/app/page.tsx`
-  - `frontend/src/app/samples/page.tsx`
+  - `backend/src/sampling/sampling.controller.ts`
+  - `backend/src/samples/samples.controller.ts`
+  - `backend/src/sampling/dto/sample-query.dto.ts`
   - `backend/src/sampling/sampling.service.ts`
+  - `frontend/src/app/samples/page.tsx`
+  - `frontend/src/components/samples/NewSampleModal.tsx`
+  - `frontend/src/components/samples/EditSampleModal.tsx`
+  - `frontend/src/services/sampling.service.ts`
+  - `frontend/src/types/lims.ts`
 - **Checklist:**
-  - [x] Integrate real `activeBatches` and `totalBatches` count in backend `getSampleMetrics`.
-  - [x] Query live batches in `page.tsx` and compute actual active batches.
-  - [x] Remove percentage and trend badges from all 4 KPI cards on Dashboard.
-  - [x] Convert 4 KPI cards into interactive `<Link>` elements with hover transitions.
-  - [x] Support `status` URL query parameter in `samples/page.tsx` to automatically filter on click.
-  - [x] Verify frontend with `npx tsc --noEmit` and backend with `nest build`.
-  - [x] Push to GitHub.
+  - [x] Restrict `@Patch(':id')` in `backend/src/sampling/sampling.controller.ts` to `Role.ADMIN` only.
+  - [x] Restrict `@Patch(':id')`, `@Patch(':id/archive')`, and `@Patch(':id/cancel')` in `backend/src/samples/samples.controller.ts` to `Role.ADMIN` only.
+  - [x] Update `canEdit` in `frontend/src/app/samples/page.tsx` to `user?.role === 'ADMIN'` only; show clear Admin-only lock icons and tooltips for non-admins.
+  - [x] Add guard in `EditSampleModal.tsx` to prevent non-admins from submitting modifications.
+  - [x] In `frontend/src/app/samples/page.tsx`, create the 2 Lab Sub-Section options: **Semi Base** and **Formulation** with counts and active indicators.
+  - [x] Support section filtering in `frontend/src/app/samples/page.tsx` and backend so samples belonging to Semi Base vs Formulation are filtered and displayed upon clicking either option.
+  - [x] Update `NewSampleModal.tsx` to accept and default the active section (**Semi Base** vs **Formulation**) and tailor the stage categories accordingly.
+  - [x] Verify TypeScript compilation with `npx tsc --noEmit` and backend build with `nest build`.
+  - [x] Commit and push to GitHub repository.
 
 ---
 
@@ -52,6 +60,7 @@
 
 | Date / Commit | Feature / Change | Key Files Modified | Summary |
 |---|---|---|---|
+| **2026-10-20** | RBAC Admin-Only Edit & Lab Subsections (Semi Base / Formulation) | `samples/page.tsx`, `NewSampleModal.tsx`, `EditSampleModal.tsx`, `sampling.service.ts`, `samples.controller.ts`, `lims.ts` | Restricted all sample record edits strictly to Administrator (non-admins can only enter new data). Added interactive Semi Base & Formulation subsections inside all 3 Labs (SEF, Penicillin, General) with partitioned stage categories and sample records. |
 | **2026-10-20** | Dashboard KPI Cards Overhaul | `page.tsx`, `samples/page.tsx`, `sampling.service.ts` | Actual DB counts, removed percentage/trend sublines, and added click-through navigation for Total, Received, Active Batches, and Approved. |
 | **2026-10-20** (`86a5ee2`) | API Network Error Handling | `frontend/src/lib/api.ts` | Wrapped fetch in try/catch to catch connection drops gracefully. |
 | **2026-10-20** (`b77c25a`) | Quantity Units & All Emergency Records | `NewSampleModal.tsx`, `EditSampleModal.tsx`, `page.tsx`, `sampling.service.ts` | Quantity unit restricted to Tablets, Capsules, Raw Data, Other (with manual text input). Dashboard admin priority banner displays all expedited samples without limit. |

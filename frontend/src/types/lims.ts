@@ -14,6 +14,30 @@ export type Priority = 'ROUTINE' | 'URGENT' | 'STAT';
 
 export type LaboratoryType = 'SAF' | 'SEF' | 'PENICILLIN' | 'GENERAL';
 
+export const SEMI_BASE_STAGES = [
+  'Bulk / Blended Product',
+  'Core Tablet',
+  'Granulation / Blend',
+  'In-Process Semi-Finished',
+  'Raw Water',
+  'Purified Water',
+  'Distilled Water',
+  'Cleaning Validation Sample',
+  'Raw Material',
+  'Other',
+] as const;
+
+export const FORMULATION_STAGES = [
+  'Finished Product',
+  'Coated Product',
+  'Filled Product',
+  'Finished Formulation',
+  'Process Validation Sample',
+  'Packaging Material',
+  'Stability Sample',
+  'Other',
+] as const;
+
 export const SAMPLE_STAGES = [
   'Bulk / Blended Product',
   'Core Tablet',
@@ -29,6 +53,72 @@ export const SAMPLE_STAGES = [
 ] as const;
 
 export type SampleStage = typeof SAMPLE_STAGES[number];
+export type SemiBaseStage = typeof SEMI_BASE_STAGES[number];
+export type FormulationStage = typeof FORMULATION_STAGES[number];
+export type LabSection = 'semi-base' | 'formulation';
+
+export function getSampleSection(sample: {
+  stageType?: string | null;
+  sampleType?: string | null;
+  remarks?: string | null;
+}): LabSection {
+  const stage = (sample.stageType || '').toLowerCase();
+  const type = (sample.sampleType || '').toLowerCase();
+  const remarks = (sample.remarks || '').toLowerCase();
+
+  // Explicit tags
+  if (
+    stage.includes('[semi base]') ||
+    type.includes('[semi base]') ||
+    remarks.includes('[semi base]') ||
+    stage.includes('semi base') ||
+    stage.includes('semi-base')
+  ) {
+    return 'semi-base';
+  }
+  if (
+    stage.includes('[formulation]') ||
+    type.includes('[formulation]') ||
+    remarks.includes('[formulation]') ||
+    stage.includes('formulation')
+  ) {
+    return 'formulation';
+  }
+
+  // Semi Base classifications: Bulk, Core, Granulation, Blend, In-Process, Water, Cleaning
+  if (
+    stage.includes('bulk') ||
+    stage.includes('core') ||
+    stage.includes('blend') ||
+    stage.includes('granul') ||
+    stage.includes('in-process') ||
+    stage.includes('water') ||
+    stage.includes('cleaning') ||
+    type.includes('in_process') ||
+    type.includes('raw_material') ||
+    type.includes('water') ||
+    type.includes('environmental')
+  ) {
+    return 'semi-base';
+  }
+
+  // Formulation classifications: Finished, Coated, Filled, Packaging, Stability, Release
+  if (
+    stage.includes('finish') ||
+    stage.includes('coat') ||
+    stage.includes('fill') ||
+    stage.includes('packag') ||
+    stage.includes('stabilit') ||
+    stage.includes('process validation') ||
+    type.includes('finished_product') ||
+    type.includes('stability')
+  ) {
+    return 'formulation';
+  }
+
+  // Default fallback
+  return 'semi-base';
+}
 
 export type SampleType =
   | 'RAW_MATERIAL'

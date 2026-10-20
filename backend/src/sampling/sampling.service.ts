@@ -248,6 +248,52 @@ export class SamplingService {
       }
     }
 
+    // Lab Section filter (semi-base or formulation)
+    if (query.section) {
+      const sec = query.section.toString().toLowerCase();
+      let sectionCond: any[] = [];
+      if (sec === 'semi-base' || sec === 'semibase' || sec === 'semi') {
+        sectionCond = [
+          { stageType: { contains: '[Semi Base]', mode: 'insensitive' } },
+          { stageType: { contains: 'Bulk', mode: 'insensitive' } },
+          { stageType: { contains: 'Core', mode: 'insensitive' } },
+          { stageType: { contains: 'Blend', mode: 'insensitive' } },
+          { stageType: { contains: 'Granul', mode: 'insensitive' } },
+          { stageType: { contains: 'In-Process', mode: 'insensitive' } },
+          { stageType: { contains: 'Water', mode: 'insensitive' } },
+          { stageType: { contains: 'Cleaning', mode: 'insensitive' } },
+          { sampleType: { contains: 'IN_PROCESS', mode: 'insensitive' } },
+          { sampleType: { contains: 'RAW_MATERIAL', mode: 'insensitive' } },
+          { sampleType: { contains: 'WATER', mode: 'insensitive' } },
+          { remarks: { contains: '[Semi Base]', mode: 'insensitive' } },
+        ];
+      } else if (sec === 'formulation') {
+        sectionCond = [
+          { stageType: { contains: '[Formulation]', mode: 'insensitive' } },
+          { stageType: { contains: 'Finish', mode: 'insensitive' } },
+          { stageType: { contains: 'Coat', mode: 'insensitive' } },
+          { stageType: { contains: 'Fill', mode: 'insensitive' } },
+          { stageType: { contains: 'Packag', mode: 'insensitive' } },
+          { stageType: { contains: 'Stabilit', mode: 'insensitive' } },
+          { stageType: { contains: 'Process Validation', mode: 'insensitive' } },
+          { sampleType: { contains: 'FINISHED', mode: 'insensitive' } },
+          { sampleType: { contains: 'STABILITY', mode: 'insensitive' } },
+          { remarks: { contains: '[Formulation]', mode: 'insensitive' } },
+        ];
+      }
+
+      if (sectionCond.length > 0) {
+        if (where.AND) {
+          where.AND.push({ OR: sectionCond });
+        } else if (where.OR) {
+          where.AND = [{ OR: where.OR }, { OR: sectionCond }];
+          delete where.OR;
+        } else {
+          where.OR = sectionCond;
+        }
+      }
+    }
+
     // Date range filter
     if (query.startDate || query.endDate) {
       const dateFilter: any = {};

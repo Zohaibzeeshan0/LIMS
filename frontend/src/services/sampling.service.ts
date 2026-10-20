@@ -14,6 +14,7 @@ export interface SamplingFilters {
   batchNumber?: string;
   startDate?: string;
   endDate?: string;
+  section?: string;
   page?: number;
   limit?: number;
   sortBy?: string;
@@ -35,6 +36,7 @@ export const samplingService = {
     if (query?.batchNumber) params.append('batchNumber', query.batchNumber);
     if (query?.startDate) params.append('startDate', query.startDate);
     if (query?.endDate) params.append('endDate', query.endDate);
+    if (query?.section) params.append('section', query.section);
     if (query?.page !== undefined) params.append('page', query.page.toString());
     if (query?.limit !== undefined) params.append('limit', query.limit.toString());
     if (query?.sortBy) params.append('sortBy', query.sortBy);

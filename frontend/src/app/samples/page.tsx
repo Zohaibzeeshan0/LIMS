@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { samplingService, SamplingFilters } from '@/services/sampling.service';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Sample, SampleType, Priority, SampleStatus, SAMPLE_STAGES } from '@/types/lims';
+import { Sample, SampleType, Priority, SampleStatus, SAMPLE_STAGES, SEMI_BASE_STAGES, FORMULATION_STAGES, LabSection, getSampleSection } from '@/types/lims';
 import { StatusBadge, Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -53,6 +53,7 @@ import {
   Hash,
   FileText,
   User,
+  Lock,
 } from 'lucide-react';
 
 const LAB_TABS = [
@@ -88,8 +89,9 @@ function SamplesPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Permissions check: ADMIN, QA_MANAGER, and QC_ANALYST can edit records
-  const canEdit = user?.role === 'ADMIN' || user?.role === 'QA_MANAGER' || user?.role === 'QC_ANALYST';
+  // Permissions check: Strict RBAC — Only Administrator can edit existing records
+  // Non-admin staff (QA Manager, QC Analyst, Lab Technician, Auditor) can enter new data only
+  const canEdit = user?.role === 'ADMIN';
 
   // Active laboratory from search query param (defaults to 'general')
   const labParam = searchParams.get('lab')?.toLowerCase() || 'general';
@@ -98,6 +100,17 @@ function SamplesPageInner() {
     LAB_TABS.find(
       (l) => l.id === labParam || (l.id === 'sef' && (labParam === 'saf' || labParam === 'sef'))
     ) || LAB_TABS[2]; // Default: General Lab
+
+  // Active laboratory subsection: 'semi-base' | 'formulation' (defaults to 'semi-base')
+  const sectionParam = searchParams.get('section')?.toLowerCase();
+  const activeSection: LabSection = sectionParam === 'formulation' ? 'formulation' : 'semi-base';
+
+  const selectSection = (section: LabSection) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('section', section);
+    setPage(1);
+    router.push(`/samples?${params.toString()}`);
+  };
 
   // Dedicated Search & Filter states as per specification:
   // 1. Search by Sample ID
@@ -164,6 +177,9 @@ function SamplesPageInner() {
   const selectLaboratory = (labId: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('lab', labId);
+    if (!params.has('section')) {
+      params.set('section', 'semi-base');
+    }
     setPage(1); // Reset to page 1 on lab switch
     router.push(`/samples?${params.toString()}`);
   };
@@ -196,10 +212,35 @@ function SamplesPageInner() {
     queryFn: () => samplingService.getMetrics(),
   });
 
+  // Dynamic counts for Semi Base and Formulation for the active laboratory
+  const { data: semiBaseCountData } = useQuery({
+    queryKey: ['samples-count-sb', isAllLabs ? 'all' : activeLab.key],
+    queryFn: () =>
+      samplingService.getAll({
+        laboratory: isAllLabs ? undefined : activeLab.key,
+        section: 'semi-base',
+        limit: 1,
+      }),
+  });
+
+  const { data: formulationCountData } = useQuery({
+    queryKey: ['samples-count-fm', isAllLabs ? 'all' : activeLab.key],
+    queryFn: () =>
+      samplingService.getAll({
+        laboratory: isAllLabs ? undefined : activeLab.key,
+        section: 'formulation',
+        limit: 1,
+      }),
+  });
+
+  const semiBaseCount = semiBaseCountData?.meta?.total ?? 0;
+  const formulationCount = formulationCountData?.meta?.total ?? 0;
+
   // Query laboratory records with server-side filtering, sorting, and pagination
   const queryFilters: SamplingFilters = useMemo(
     () => ({
       laboratory: isAllLabs ? undefined : activeLab.key,
+      section: isAllLabs ? undefined : activeSection,
       sampleId: debouncedSampleId || undefined,
       nomenclature: debouncedNomenclature || undefined,
       batchNumber: debouncedBatch || undefined,
@@ -215,6 +256,7 @@ function SamplesPageInner() {
     [
       isAllLabs,
       activeLab.key,
+      activeSection,
       debouncedSampleId,
       debouncedNomenclature,
       debouncedBatch,
@@ -402,14 +444,156 @@ function SamplesPageInner() {
             );
           })}
         </div>
+
+        {/* 2 Sub-Section Options under each Laboratory: Semi Base and Formulation */}
+        <div className="bg-slate-50/90 p-3.5 rounded-2xl border border-slate-200/90 space-y-2.5">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5 text-blue-600" />
+                <span>{activeLab.name} Operational Sections</span>
+              </span>
+              <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+                • Select an operational section to view records and accession new samples
+              </span>
+            </div>
+            <span className="text-[11px] font-bold text-blue-700 bg-blue-100/70 px-2.5 py-0.5 rounded-full border border-blue-200">
+              Active: {activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Option 1: Semi Base */}
+            <button
+              type="button"
+              onClick={() => selectSection('semi-base')}
+              className={cn(
+                'relative group flex items-start justify-between p-4 rounded-xl text-left transition-all duration-200 border cursor-pointer',
+                activeSection === 'semi-base'
+                  ? 'bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-sm'
+                  : 'bg-white/70 hover:bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
+              )}
+            >
+              {activeSection === 'semi-base' && (
+                <span className="absolute top-0 left-6 right-6 h-1 bg-blue-600 rounded-b-full" />
+              )}
+              <div className="flex items-start gap-3">
+                <div
+                  className={cn(
+                    'h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-colors shadow-2xs',
+                    activeSection === 'semi-base'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600'
+                  )}
+                >
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4
+                      className={cn(
+                        'text-sm font-bold tracking-tight',
+                        activeSection === 'semi-base' ? 'text-blue-950 font-bold' : 'text-slate-900'
+                      )}
+                    >
+                      1. Semi Base
+                    </h4>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                      {semiBaseCount} Samples
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Bulk blends, core tablets, granulation, in-process testing, raw & purified water
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0 mt-1">
+                {activeSection === 'semi-base' ? (
+                  <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                ) : (
+                  <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                )}
+              </div>
+            </button>
+
+            {/* Option 2: Formulation */}
+            <button
+              type="button"
+              onClick={() => selectSection('formulation')}
+              className={cn(
+                'relative group flex items-start justify-between p-4 rounded-xl text-left transition-all duration-200 border cursor-pointer',
+                activeSection === 'formulation'
+                  ? 'bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-sm'
+                  : 'bg-white/70 hover:bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
+              )}
+            >
+              {activeSection === 'formulation' && (
+                <span className="absolute top-0 left-6 right-6 h-1 bg-blue-600 rounded-b-full" />
+              )}
+              <div className="flex items-start gap-3">
+                <div
+                  className={cn(
+                    'h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-colors shadow-2xs',
+                    activeSection === 'formulation'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600'
+                  )}
+                >
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4
+                      className={cn(
+                        'text-sm font-bold tracking-tight',
+                        activeSection === 'formulation' ? 'text-blue-950 font-bold' : 'text-slate-900'
+                      )}
+                    >
+                      2. Formulation
+                    </h4>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      {formulationCount} Samples
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Finished pharmaceutical products, coated & filled batches, packaging & release
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0 mt-1">
+                {activeSection === 'formulation' ? (
+                  <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                ) : (
+                  <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                )}
+              </div>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 2. Page Title Header: Selected Laboratory in Heading & Actions */}
       <div className="bg-white rounded-2xl border border-slate-200/90 px-6 py-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+            <span>{isAllLabs ? 'All Facilities' : activeLab.name}</span>
+            <span>•</span>
+            <span className="text-blue-600 font-bold">
+              {activeSection === 'semi-base' ? 'Semi Base Section' : 'Formulation Section'}
+            </span>
+          </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>{isAllLabs ? 'Sampling / All Laboratories' : activeLab.heading}</span>
+            <span>{isAllLabs ? 'Sampling Records' : activeLab.heading}</span>
+            <span className="text-slate-300 font-normal">/</span>
+            <span className="text-blue-700">
+              {activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'}
+            </span>
           </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            {activeSection === 'semi-base'
+              ? 'Displaying accessioned bulk blends, core tablets, in-process samples, and water testing data'
+              : 'Displaying finished pharmaceutical formulations, coated & filled batches, and release testing data'}
+          </p>
         </div>
 
         {/* Action Buttons */}
@@ -420,7 +604,7 @@ function SamplesPageInner() {
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
           >
             <PlusCircle className="h-4 w-4 text-white" />
-            <span>Add New Sample</span>
+            <span>Add New Sample ({activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'})</span>
           </Button>
         </div>
       </div>
@@ -579,7 +763,7 @@ function SamplesPageInner() {
           {/* Filter by Stage / Type */}
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Stage / Type
+              {activeSection === 'semi-base' ? 'Semi Base Category' : 'Formulation Category'}
             </label>
             <select
               value={stageFilter}
@@ -589,8 +773,10 @@ function SamplesPageInner() {
               }}
               className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium"
             >
-              <option value="">All Stages & Types</option>
-              {SAMPLE_STAGES.map((stg) => (
+              <option value="">
+                All Categories ({activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'})
+              </option>
+              {(activeSection === 'semi-base' ? SEMI_BASE_STAGES : FORMULATION_STAGES).map((stg) => (
                 <option key={stg} value={stg}>
                   {stg}
                 </option>
@@ -630,7 +816,9 @@ function SamplesPageInner() {
         <div className="p-4 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/50">
           <div className="flex items-center gap-2">
             <span className="font-bold text-xs text-navy-950 uppercase tracking-wider">
-              {isAllLabs ? 'All Sampling Records' : `${activeLab.name} Records`}
+              {isAllLabs
+                ? `All Sampling Records — ${activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'}`
+                : `${activeLab.name} — ${activeSection === 'semi-base' ? 'Semi Base' : 'Formulation'} Records`}
             </span>
             <span className="text-xs text-slate-400 font-medium">
               ({meta.total} {meta.total === 1 ? 'record' : 'records'} total)
@@ -953,7 +1141,7 @@ function SamplesPageInner() {
                       {/* 5. Stage / Type */}
                       <td className="py-3 px-3.5">
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 inline-block whitespace-nowrap">
-                          {sample.stageType || (sample.sampleType ? sample.sampleType.replace(/_/g, ' ') : '—')}
+                          {(sample.stageType || (sample.sampleType ? sample.sampleType.replace(/_/g, ' ') : '—')).replace(/^\[(Semi Base|Formulation)\]\s*/i, '')}
                         </span>
                       </td>
 
@@ -1015,24 +1203,32 @@ function SamplesPageInner() {
                             <Send className="h-3.5 w-3.5" />
                           </button>
 
-                          {/* Edit Record (Permissions checked) */}
+                          {/* Edit Record (Permissions checked: Administrator Only) */}
                           <button
                             type="button"
                             title={
                               canEdit
-                                ? 'Edit Sample Record'
-                                : 'Permission required: QA Manager, QC Analyst, or Admin'
+                                ? 'Edit Sample Record (Administrator)'
+                                : 'Modification Restricted: Only Administrator can edit existing records under 21 CFR Part 11'
                             }
                             disabled={!canEdit}
-                            onClick={() => setEditingSample(sample)}
+                            onClick={() => {
+                              if (canEdit) {
+                                setEditingSample(sample);
+                              }
+                            }}
                             className={cn(
                               'p-1.5 rounded-lg transition-colors',
                               canEdit
                                 ? 'text-teal-700 hover:text-teal-900 hover:bg-teal-50 cursor-pointer'
-                                : 'text-slate-300 cursor-not-allowed'
+                                : 'text-slate-300 opacity-60 cursor-not-allowed'
                             )}
                           >
-                            <Edit3 className="h-3.5 w-3.5" />
+                            {canEdit ? (
+                              <Edit3 className="h-3.5 w-3.5" />
+                            ) : (
+                              <Lock className="h-3.5 w-3.5 text-slate-400" />
+                            )}
                           </button>
 
                           {/* Print Record */}
@@ -1212,18 +1408,23 @@ function SamplesPageInner() {
                     <span>Submit to Workflow</span>
                   </Button>
 
-                  {canEdit && (
+                  {canEdit ? (
                     <Button
                       size="sm"
                       variant="primary"
                       onClick={() => {
                         setEditingSample(sampleDetail);
                       }}
-                      className="bg-navy-900 text-white text-xs font-semibold"
+                      className="bg-navy-900 text-white text-xs font-semibold cursor-pointer"
                     >
                       <Edit3 className="h-3.5 w-3.5 text-teal-400 mr-1" />
                       <span>Edit Record</span>
                     </Button>
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium">
+                      <Lock className="h-3.5 w-3.5 text-amber-600" />
+                      <span>Edit Restricted (Admin Only)</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1458,14 +1659,19 @@ function SamplesPageInner() {
         sample={submittingSample}
       />
 
-      {/* 10. Accession Modal pre-targeted with current active laboratory */}
+      {/* 10. Accession Modal pre-targeted with current active laboratory and section */}
       <NewSampleModal
         isOpen={isAccessionModalOpen}
         onClose={() => setIsAccessionModalOpen(false)}
         defaultLaboratory={isAllLabs ? 'GENERAL' : activeLab.key}
+        defaultSection={activeSection}
         onSampleCreated={(newSample) => {
           handleResetFilters();
           setSelectedSampleId(newSample.id);
+          queryClient.invalidateQueries({ queryKey: ['samples-paginated'] });
+          queryClient.invalidateQueries({ queryKey: ['samples-count-sb'] });
+          queryClient.invalidateQueries({ queryKey: ['samples-count-fm'] });
+          queryClient.invalidateQueries({ queryKey: ['sampling-metrics'] });
         }}
       />
     </div>
