@@ -647,21 +647,9 @@ function SamplesPageInner() {
       {/* 2. Page Title Header: Selected Laboratory in Heading & Actions */}
       <div className="bg-white rounded-2xl border border-slate-200/90 px-6 py-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-            <span>{isAllLabs ? 'All Facilities' : activeLab.name}</span>
-            <span>•</span>
-            <span className="text-blue-600 font-bold">
-              {activeSection === 'semi-base' ? 'Semi Basics Section' : 'Formulation Section'}
-            </span>
-          </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
             {activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            {activeSection === 'semi-base'
-              ? 'Displaying accessioned bulk blends, core tablets, in-process samples, and water testing data'
-              : 'Displaying finished pharmaceutical formulations, coated & filled batches, and release testing data'}
-          </p>
         </div>
 
         {/* Action Buttons */}
@@ -715,7 +703,6 @@ function SamplesPageInner() {
                   setSampleIdSearch(e.target.value);
                   setPage(1);
                 }}
-                placeholder="e.g. SMP-2026-0001"
                 className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 font-mono text-slate-800 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none"
               />
               <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
@@ -745,7 +732,6 @@ function SamplesPageInner() {
                   setNomenclatureSearch(e.target.value);
                   setPage(1);
                 }}
-                placeholder="e.g. Paracetamol, Amoxicillin..."
                 className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-800 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none"
               />
               <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
@@ -775,7 +761,6 @@ function SamplesPageInner() {
                   setBatchSearch(e.target.value);
                   setPage(1);
                 }}
-                placeholder="e.g. CP-2026-B892, HAP-..."
                 className="w-full pl-8 pr-7 py-1.5 text-xs font-mono rounded-lg border border-slate-200 text-slate-800 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none"
               />
               <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
