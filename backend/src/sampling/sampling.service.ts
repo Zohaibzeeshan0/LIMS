@@ -129,15 +129,34 @@ export class SamplingService {
         }
       }
 
+      const isUrgentPriority = sample.priority === 'STAT' || sample.priority === 'URGENT';
+      const slaTurnaround =
+        sample.priority === 'STAT'
+          ? '24 Hours SLA'
+          : sample.priority === 'URGENT'
+          ? '2 Days SLA'
+          : '5 Days SLA';
+
+      const priorityAction =
+        sample.priority === 'STAT'
+          ? 'CRITICAL_IMMEDIATE_SAMPLE'
+          : sample.priority === 'URGENT'
+          ? 'URGENT_PRIORITY_SAMPLE'
+          : 'SAMPLE_ACCESSIONED';
+
+      const priorityReason = isUrgentPriority
+        ? `[PRIORITY NOTICE: ${slaTurnaround}] Sample flagged with ${sample.priority} testing window`
+        : 'Sample accession and initial intake';
+
       await tx.auditTrail.create({
         data: {
           entityName: 'Sample',
           entityId: sample.id,
-          action: 'SAMPLE_ACCESSIONED',
+          action: priorityAction,
           performedById: user.id,
           performedByName: user.fullName,
           role: user.role,
-          reasonForChange: 'Sample accession and initial intake',
+          reasonForChange: priorityReason,
           diffPayload: JSON.stringify({
             accessionNo,
             sampleCode,
@@ -145,6 +164,9 @@ export class SamplingService {
             nomenclature: sample.nomenclature,
             lotNumber: sample.lotNumber,
             sampleType: sample.sampleType,
+            priority: sample.priority,
+            sla: slaTurnaround,
+            laboratory: sample.laboratoryType,
             qty: `${sample.sampleQty} ${sample.unit}`,
           }),
         },

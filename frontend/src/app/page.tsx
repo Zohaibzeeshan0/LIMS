@@ -9,6 +9,7 @@ import { samplingService } from '@/services/sampling.service';
 import { auditService } from '@/services/audit.service';
 import { parseAuditItem, FormattedAuditItem } from '@/lib/auditFormatter';
 import { NewSampleModal } from '@/components/samples/NewSampleModal';
+import { cn } from '@/lib/utils';
 import {
   formatLiveDate,
   formatShortLiveDate,
@@ -20,6 +21,7 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   FileText,
   Calendar,
   ChevronDown,
@@ -296,6 +298,59 @@ export default function DashboardPage() {
     return formattedLogs;
   }, [formattedLogs, activityFilter]);
 
+  // Active Urgent (2 Days SLA) and Immediate (24 Hours SLA) samples for Admin Notice
+  const urgentAdminNotices = useMemo(() => {
+    const list = Array.isArray(recentSamplesData)
+      ? recentSamplesData
+      : (recentSamplesData as any)?.data || [];
+
+    const urgentList = list.filter(
+      (s: any) =>
+        (s.priority === 'STAT' || s.priority === 'URGENT') &&
+        s.status !== 'APPROVED' &&
+        s.status !== 'REJECTED'
+    );
+
+    return urgentList.map((s: any) => {
+      let labId = 'general';
+      let labName = 'General Lab';
+      const labType = (s.laboratoryType || s.laboratory?.code || '').toUpperCase();
+      if (labType === 'SAF' || labType === 'SEF') {
+        labId = 'sef';
+        labName = 'SEF Lab';
+      } else if (labType === 'PENICILLIN' || labType === 'PEN') {
+        labId = 'penicillin';
+        labName = 'Penicillin Lab';
+      }
+
+      return {
+        uuid: s.id,
+        id: s.sampleCode || s.sampleId || s.accessionNo || s.id,
+        product: s.nomenclature || s.materialName || 'Pharmaceutical Sample',
+        batch: s.lotNumber || s.batchLotNumber || s.batch?.batchNumber || 'N/A',
+        priority: s.priority as 'STAT' | 'URGENT',
+        slaLabel: s.priority === 'STAT' ? '24 Hours SLA' : '2 Days SLA',
+        labId,
+        labName,
+      };
+    });
+  }, [recentSamplesData]);
+
+  // Alert logs prioritizing Urgent and Critical Immediate events
+  const priorityAlertLogs = useMemo(() => {
+    return [...formattedLogs].sort((a, b) => {
+      const aUrgent =
+        a.actionRaw.includes('CRITICAL') || a.actionRaw.includes('URGENT') || a.actionRaw.includes('STAT')
+          ? 1
+          : 0;
+      const bUrgent =
+        b.actionRaw.includes('CRITICAL') || b.actionRaw.includes('URGENT') || b.actionRaw.includes('STAT')
+          ? 1
+          : 0;
+      return bUrgent - aUrgent;
+    });
+  }, [formattedLogs]);
+
   return (
     <div className="space-y-6 font-sans pb-10">
       
@@ -395,6 +450,52 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Executive Priority Action Notice Banner for Lab Administration */}
+      {urgentAdminNotices.length > 0 && (
+        <div className="rounded-2xl border border-rose-300 bg-linear-to-r from-rose-50 via-amber-50/70 to-orange-50 p-4 shadow-xs animate-in fade-in">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-600 text-white shadow-2xs">
+                    Admin Priority Notice
+                  </span>
+                  <span className="text-xs font-bold text-slate-900">
+                    {urgentAdminNotices.length} Expedited {urgentAdminNotices.length === 1 ? 'Sample Requires' : 'Samples Require'} Lab Testing
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Immediate (24 Hours SLA) and Urgent (2 Days SLA) samples detected in active laboratory workflow.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {urgentAdminNotices.slice(0, 3).map((s) => (
+                <Link
+                  key={s.id}
+                  href={`/samples?lab=${s.labId}&sampleId=${encodeURIComponent(s.uuid || s.id)}`}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs hover:scale-102',
+                    s.priority === 'STAT'
+                      ? 'bg-rose-600 text-white border-rose-700 hover:bg-rose-700'
+                      : 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600'
+                  )}
+                  title={`Open ${s.id} in ${s.labName}`}
+                >
+                  <span>{s.id}</span>
+                  <span className="text-[10px] opacity-90 font-medium">({s.priority === 'STAT' ? '24h SLA' : '2d SLA'})</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Row 1: 4 Executive KPI Cards with Accent Borders */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -709,31 +810,62 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-3.5">
-              {formattedLogs.filter((l) => l.isNonAdmin).length > 0 ? (
-                formattedLogs
-                  .filter((l) => l.isNonAdmin)
+              {priorityAlertLogs.length > 0 ? (
+                priorityAlertLogs
                   .slice(0, 4)
-                  .map((alert) => (
-                    <div key={alert.id} className="flex items-start gap-3">
-                      <div className="h-7 w-7 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs shadow-2xs">
-                        !
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <div className="flex items-center gap-1.5 truncate">
-                            <p className="text-xs font-bold text-slate-900 truncate">{alert.userName}</p>
-                            <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${alert.roleBadge.badgeClass}`}>
-                              {alert.roleBadge.label}
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 shrink-0 font-mono">{alert.relativeTime}</span>
+                  .map((alert) => {
+                    const isCritical = alert.actionRaw.includes('CRITICAL') || alert.actionRaw.includes('STAT');
+                    const isUrgent = alert.actionRaw.includes('URGENT');
+
+                    return (
+                      <div key={alert.id} className="flex items-start gap-3">
+                        <div
+                          className={cn(
+                            'h-7 w-7 rounded-full text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs shadow-2xs',
+                            isCritical
+                              ? 'bg-rose-600 animate-pulse'
+                              : isUrgent
+                              ? 'bg-amber-500'
+                              : 'bg-blue-600'
+                          )}
+                        >
+                          !
                         </div>
-                        <p className="text-[11px] text-slate-600 truncate mt-0.5" title={alert.details}>
-                          <span className="font-semibold text-blue-600">{alert.actionLabel.label}:</span> {alert.details}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <p className="text-xs font-bold text-slate-900 truncate">{alert.userName}</p>
+                              <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${alert.roleBadge.badgeClass}`}>
+                                {alert.roleBadge.label}
+                              </span>
+                              {isCritical && (
+                                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-rose-600 text-white uppercase">
+                                  24h SLA
+                                </span>
+                              )}
+                              {isUrgent && !isCritical && (
+                                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-500 text-white uppercase">
+                                  2d SLA
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 shrink-0 font-mono">{alert.relativeTime}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 truncate mt-0.5" title={alert.details}>
+                            <span
+                              className={cn(
+                                'font-semibold',
+                                isCritical ? 'text-rose-600' : isUrgent ? 'text-amber-600' : 'text-blue-600'
+                              )}
+                            >
+                              {alert.actionLabel.label}:
+                            </span>{' '}
+                            {alert.details}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
               ) : (
                 <>
                   <div className="flex items-start gap-3">

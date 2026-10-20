@@ -19,6 +19,10 @@ export interface FormattedAuditItem {
 
 export function formatAuditAction(action: string): { label: string; colorClass: string } {
   switch (action) {
+    case 'CRITICAL_IMMEDIATE_SAMPLE':
+      return { label: 'CRITICAL (24h SLA)', colorClass: 'bg-rose-100 text-rose-800 border-rose-300 font-bold' };
+    case 'URGENT_PRIORITY_SAMPLE':
+      return { label: 'URGENT (2d SLA)', colorClass: 'bg-amber-100 text-amber-800 border-amber-300 font-bold' };
     case 'SAMPLE_ACCESSIONED':
       return { label: 'Sample Intake', colorClass: 'bg-blue-50 text-blue-700 border-blue-200' };
     case 'SAMPLE_UPDATED':
@@ -90,8 +94,9 @@ export function formatAuditDetails(log: {
         const code = parsed.sampleCode || parsed.accessionNo;
         const mat = parsed.materialName || parsed.nomenclature || '';
         const lot = parsed.lotNumber ? `[Batch: ${parsed.lotNumber}]` : '';
+        const sla = parsed.sla ? `[${parsed.sla}]` : '';
         const qty = parsed.qty ? `(${parsed.qty})` : '';
-        const base = [code, mat, lot, qty].filter(Boolean).join(' ');
+        const base = [code, mat, lot, sla, qty].filter(Boolean).join(' ');
         return log.reasonForChange ? `${base} - ${log.reasonForChange}` : base;
       }
       if (parsed.previousStatus || parsed.newStatus) {

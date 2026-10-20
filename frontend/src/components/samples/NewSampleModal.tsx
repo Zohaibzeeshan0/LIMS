@@ -223,6 +223,7 @@ export function NewSampleModal({
   const watchedPolicy = watch('idGenerationPolicy');
   const watchedCustomId = watch('customSampleId');
   const watchedSampleType = watch('sampleType');
+  const watchedPriority = watch('priority') || 'ROUTINE';
   const watchedSelectedSpecs = watch('testSpecificationIds') || [];
   const watchedBatchId = watch('batchId');
   const debouncedManualId = useDebounce(watchedCustomId, 400);
@@ -814,16 +815,34 @@ export function NewSampleModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Priority
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-800">
+                  Priority <span className="text-rose-500">*</span>
+                </label>
+                <span
+                  className={cn(
+                    'px-2 py-0.5 rounded text-[10px] font-bold font-mono border',
+                    watchedPriority === 'STAT'
+                      ? 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
+                      : watchedPriority === 'URGENT'
+                      ? 'bg-amber-100 text-amber-800 border-amber-300'
+                      : 'bg-blue-100 text-blue-800 border-blue-300'
+                  )}
+                >
+                  {watchedPriority === 'STAT'
+                    ? '24 Hours'
+                    : watchedPriority === 'URGENT'
+                    ? '2 Days'
+                    : '5 Days'}
+                </span>
+              </div>
               <select
                 {...register('priority')}
                 className="w-full px-2.5 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium text-slate-800"
               >
-                <option value="ROUTINE">Routine</option>
-                <option value="URGENT">Urgent (48 hr)</option>
-                <option value="STAT">STAT / Immediate</option>
+                <option value="ROUTINE">Routine (5 Days)</option>
+                <option value="URGENT">Urgent (2 Days)</option>
+                <option value="STAT">Immediate (24 Hours)</option>
               </select>
             </div>
           </div>
@@ -883,6 +902,80 @@ export function NewSampleModal({
                 <span>{errors.testSpecificationIds.message}</span>
               </p>
             )}
+          </div>
+
+          {/* Priority SLA Turnaround Notice (Directly Above Submit Button) */}
+          <div
+            className={cn(
+              'p-3 rounded-xl border flex items-center justify-between gap-3 text-xs transition-all',
+              watchedPriority === 'STAT'
+                ? 'bg-rose-50/90 border-rose-300 text-rose-950 shadow-2xs'
+                : watchedPriority === 'URGENT'
+                ? 'bg-amber-50/90 border-amber-300 text-amber-950 shadow-2xs'
+                : 'bg-blue-50/80 border-blue-200 text-blue-950'
+            )}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={cn(
+                  'h-8 w-8 rounded-lg flex items-center justify-center shrink-0 font-bold',
+                  watchedPriority === 'STAT'
+                    ? 'bg-rose-600 text-white animate-pulse'
+                    : watchedPriority === 'URGENT'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-blue-600 text-white'
+                )}
+              >
+                {watchedPriority === 'STAT' ? (
+                  <AlertCircle className="h-4 w-4" />
+                ) : watchedPriority === 'URGENT' ? (
+                  <AlertTriangle className="h-4 w-4" />
+                ) : (
+                  <Clock className="h-4 w-4" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-bold text-slate-900">
+                    {watchedPriority === 'STAT'
+                      ? 'Critical Immediate Testing Target'
+                      : watchedPriority === 'URGENT'
+                      ? 'Urgent Fast-Track Testing Target'
+                      : 'Standard Routine Testing Target'}
+                  </span>
+                  {(watchedPriority === 'STAT' || watchedPriority === 'URGENT') && (
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider bg-rose-600 text-white">
+                      Admin Notice Active
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-600 mt-0.5 truncate sm:whitespace-normal">
+                  {watchedPriority === 'STAT'
+                    ? 'Immediate 24-hour testing turnaround. High-priority critical notice will be dispatched to Admin Dashboard.'
+                    : watchedPriority === 'URGENT'
+                    ? 'Fast-track 2-day testing turnaround. Expedited notice will be dispatched to Admin Dashboard.'
+                    : 'Standard analytical turnaround scheduled within the standard 5-day laboratory window.'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span
+                className={cn(
+                  'inline-flex items-center px-3 py-1.5 rounded-lg font-mono font-bold text-xs shadow-2xs',
+                  watchedPriority === 'STAT'
+                    ? 'bg-rose-600 text-white animate-pulse'
+                    : watchedPriority === 'URGENT'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-blue-600 text-white'
+                )}
+              >
+                {watchedPriority === 'STAT'
+                  ? '24 Hours'
+                  : watchedPriority === 'URGENT'
+                  ? '2 Days'
+                  : '5 Days'}
+              </span>
+            </div>
           </div>
 
           {/* Footer Actions */}

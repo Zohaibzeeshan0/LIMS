@@ -739,6 +739,32 @@ export function SubmitSampleModal({
           )}
         </div>
 
+        {/* Sample Priority & SLA Turnaround Notice */}
+        <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-800">Sample Testing Priority:</span>
+            <span className="text-slate-600">
+              {sample.priority === 'STAT'
+                ? 'Immediate Priority (24 Hours)'
+                : sample.priority === 'URGENT'
+                ? 'Urgent Fast-Track (2 Days)'
+                : 'Routine Standard (5 Days)'}
+            </span>
+          </div>
+          <span
+            className={cn(
+              'font-mono font-bold px-2.5 py-1 rounded-lg text-xs shadow-2xs',
+              sample.priority === 'STAT'
+                ? 'bg-rose-600 text-white animate-pulse'
+                : sample.priority === 'URGENT'
+                ? 'bg-amber-500 text-white'
+                : 'bg-blue-600 text-white'
+            )}
+          >
+            {sample.priority === 'STAT' ? '24 Hours' : sample.priority === 'URGENT' ? '2 Days' : '5 Days'}
+          </span>
+        </div>
+
         {/* 8. Footer Controls */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-200/80">
           <Button

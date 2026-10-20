@@ -84,26 +84,35 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
     refetchInterval: 5000,
   });
 
-  // Parse and filter non-admin actions (staff below admin)
+  // Parse and filter non-admin actions (staff below admin) PLUS Critical & Urgent sample notices
   const nonAdminAlerts: FormattedAuditItem[] = React.useMemo(() => {
     if (!rawAuditLogs) return [];
     const list = Array.isArray(rawAuditLogs) ? rawAuditLogs : (rawAuditLogs as any).data || [];
     return list
       .map(parseAuditItem)
-      .filter((item: FormattedAuditItem) => item.isNonAdmin);
+      .filter((item: FormattedAuditItem) =>
+        item.isNonAdmin ||
+        item.actionRaw.includes('CRITICAL') ||
+        item.actionRaw.includes('URGENT') ||
+        item.actionRaw.includes('STAT')
+      );
   }, [rawAuditLogs]);
 
-  // For Admin: notifications are real-time non-admin staff activities
+  // For Admin: notifications are real-time non-admin staff activities and urgent priority alerts
   // For other users: standard workflow alerts
   const notifications: NotificationItem[] = React.useMemo(() => {
     if (isAdmin) {
       if (nonAdminAlerts.length > 0) {
         return nonAdminAlerts.map((item) => ({
           id: item.id,
-          title: `${item.userName} (${item.roleBadge.label})`,
+          title: item.actionRaw.includes('CRITICAL')
+            ? `🚨 CRITICAL (24h SLA): ${item.userName}`
+            : item.actionRaw.includes('URGENT')
+            ? `⚡ URGENT (2d SLA): ${item.userName}`
+            : `${item.userName} (${item.roleBadge.label})`,
           description: `${item.actionLabel.label}: ${item.details}`,
           timestamp: `${item.relativeTime} • ${item.timeDisplay}`,
-          type: (item.actionRaw.includes('STATUS') || item.actionRaw.includes('UPDATE') ? 'urgent' : 'warning') as 'urgent' | 'warning',
+          type: (item.actionRaw.includes('CRITICAL') || item.actionRaw.includes('URGENT') || item.actionRaw.includes('STATUS') || item.actionRaw.includes('UPDATE') ? 'urgent' : 'warning') as 'urgent' | 'warning',
           read: readAlertIds.includes(item.id),
           link: '/samples',
           staffName: item.userName,
