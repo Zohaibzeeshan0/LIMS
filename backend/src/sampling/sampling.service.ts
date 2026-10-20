@@ -284,6 +284,7 @@ export class SamplingService {
         orderBy,
         include: {
           batch: { select: { id: true, batchNumber: true, drugProduct: true, status: true } },
+          laboratory: { select: { id: true, name: true, code: true } },
           accessionedBy: { select: { id: true, fullName: true, employeeId: true, department: true } },
           assignedTo: { select: { id: true, fullName: true, employeeId: true, department: true } },
           tests: {
@@ -322,11 +323,20 @@ export class SamplingService {
     };
   }
 
-  async findOne(id: string) {
-    const sample = await this.prisma.sample.findUnique({
-      where: { id },
+  async findOne(idOrCode: string) {
+    const sample = await this.prisma.sample.findFirst({
+      where: {
+        OR: [
+          { id: idOrCode },
+          { sampleCode: idOrCode },
+          { sampleId: idOrCode },
+          { accessionNo: idOrCode },
+          { barcode: idOrCode },
+        ],
+      },
       include: {
         batch: true,
+        laboratory: true,
         accessionedBy: { select: { id: true, fullName: true, employeeId: true, department: true } },
         assignedTo: { select: { id: true, fullName: true, employeeId: true, department: true } },
         tests: {
@@ -353,16 +363,25 @@ export class SamplingService {
     });
 
     if (!sample) {
-      throw new NotFoundException(`Sample with ID ${id} not found`);
+      throw new NotFoundException(`Sample with identifier '${idOrCode}' not found`);
     }
 
     return sample;
   }
 
   async update(id: string, updateSampleDto: UpdateSampleDto, user: any) {
-    const existing = await this.prisma.sample.findUnique({ where: { id } });
+    const existing = await this.prisma.sample.findFirst({
+      where: {
+        OR: [
+          { id },
+          { sampleCode: id },
+          { sampleId: id },
+          { accessionNo: id },
+        ],
+      },
+    });
     if (!existing) {
-      throw new NotFoundException(`Sample with ID ${id} not found`);
+      throw new NotFoundException(`Sample with ID or code ${id} not found`);
     }
 
     const { reasonForChange, ...updateData } = updateSampleDto;
@@ -389,7 +408,7 @@ export class SamplingService {
       }
 
       const updated = await tx.sample.update({
-        where: { id },
+        where: { id: existing.id },
         data: {
           ...parsedUpdateData,
           chainOfCustody: updateData.chainOfCustody || chainOfCustodyUpdate,

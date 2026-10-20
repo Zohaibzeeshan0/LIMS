@@ -132,6 +132,27 @@ function SamplesPageInner() {
   const [printingSample, setPrintingSample] = useState<Sample | null>(null);
   const [submittingSample, setSubmittingSample] = useState<Sample | null>(null);
 
+  // Auto-open sample dossier if sampleId is present in URL (e.g. redirected from Dashboard Pending Samples)
+  const querySampleParam = searchParams.get('sampleId') || searchParams.get('id') || searchParams.get('sample');
+
+  React.useEffect(() => {
+    if (querySampleParam) {
+      setSelectedSampleId(querySampleParam);
+    }
+  }, [querySampleParam]);
+
+  const handleCloseDetailModal = () => {
+    setSelectedSampleId(null);
+    if (searchParams.has('sampleId') || searchParams.has('id') || searchParams.has('sample')) {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete('sampleId');
+      nextParams.delete('id');
+      nextParams.delete('sample');
+      const newQuery = nextParams.toString();
+      router.replace(newQuery ? `/samples?${newQuery}` : '/samples');
+    }
+  };
+
   // Switch laboratory function
   const selectLaboratory = (labId: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -1114,7 +1135,7 @@ function SamplesPageInner() {
       {selectedSampleId && (
         <Modal
           isOpen={!!selectedSampleId}
-          onClose={() => setSelectedSampleId(null)}
+          onClose={handleCloseDetailModal}
           title={`Sample Record Dossier: ${sampleDetail?.accessionNo || sampleDetail?.sampleCode || 'Loading...'}`}
           subtitle={`Material: ${sampleDetail?.nomenclature || sampleDetail?.materialName || ''}`}
           maxWidth="3xl"
@@ -1134,7 +1155,13 @@ function SamplesPageInner() {
                       {sampleDetail.sampleCode}
                     </span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
-                      {sampleDetail.laboratory ? `${sampleDetail.laboratory} LAB` : 'GENERAL LAB'}
+                      {typeof sampleDetail.laboratory === 'string'
+                        ? `${sampleDetail.laboratory} LAB`
+                        : (sampleDetail.laboratory as any)?.name
+                        ? (sampleDetail.laboratory as any).name
+                        : sampleDetail.laboratoryType
+                        ? `${sampleDetail.laboratoryType} LAB`
+                        : 'GENERAL LAB'}
                     </span>
                     <StatusBadge status={sampleDetail.status} />
                     <StatusBadge status={sampleDetail.priority} />

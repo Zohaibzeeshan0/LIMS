@@ -136,33 +136,69 @@ export default function DashboardPage() {
     { label: 'Microbiology', count: 10, pct: '4%', color: '#EC4899' },
   ];
 
-  // Real or fallback Pending Samples Table data
+  // Real or fallback Pending Samples Table data with Laboratory mapping
   const pendingSamples = useMemo(() => {
     const realList = Array.isArray(recentSamplesData)
       ? recentSamplesData
       : (recentSamplesData as any)?.data || [];
 
     if (realList.length > 0) {
-      return realList.slice(0, 5).map((s: any) => ({
-        id: s.sampleCode || s.sampleId || s.accessionNo || 'SMP-0001',
-        type: s.stageType || s.sampleType || 'Finished Product',
-        product: s.nomenclature || s.materialName || 'Pharmaceutical Sample',
-        batch: s.batchNumber || s.batchNo || 'CP-B9021',
-        date: s.samplingDate ? formatShortLiveDate(new Date(s.samplingDate)) : formatShortLiveDate(),
-        status: s.status === 'TESTING_IN_PROGRESS' ? 'In Process' : s.status ? s.status.replace(/_/g, ' ') : 'Pending',
-        statusColor:
-          s.status === 'APPROVED'
-            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-            : s.status === 'REJECTED'
-            ? 'bg-rose-100 text-rose-800 border-rose-200'
-            : s.status === 'TESTING_IN_PROGRESS'
-            ? 'bg-blue-100 text-blue-800 border-blue-200'
-            : 'bg-amber-100 text-amber-800 border-amber-200',
-      }));
+      // Prioritize pending/in-process samples, then latest
+      const sorted = [...realList].sort((a: any, b: any) => {
+        const aPending = a.status !== 'APPROVED' && a.status !== 'REJECTED' ? 1 : 0;
+        const bPending = b.status !== 'APPROVED' && b.status !== 'REJECTED' ? 1 : 0;
+        return bPending - aPending;
+      });
+
+      return sorted.slice(0, 5).map((s: any) => {
+        // Detect analytical laboratory: 'sef' | 'penicillin' | 'general'
+        let labId = 'general';
+        let labName = 'General Lab';
+        let labBadgeColor = 'bg-slate-100 text-slate-700 border-slate-200';
+
+        const labType = (s.laboratoryType || s.laboratory?.code || '').toUpperCase();
+        const labText = (s.laboratory?.name || s.samplingLocation || '').toUpperCase();
+
+        if (labType === 'SAF' || labType === 'SEF' || labText.includes('SAF') || labText.includes('SEF') || labText.includes('CEPHALOSPORIN')) {
+          labId = 'sef';
+          labName = 'SEF Lab';
+          labBadgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+        } else if (labType === 'PENICILLIN' || labType === 'PEN' || labText.includes('PENICILLIN')) {
+          labId = 'penicillin';
+          labName = 'Penicillin Lab';
+          labBadgeColor = 'bg-rose-50 text-rose-700 border-rose-200';
+        } else {
+          labId = 'general';
+          labName = 'General Lab';
+          labBadgeColor = 'bg-blue-50 text-blue-700 border-blue-200';
+        }
+
+        return {
+          uuid: s.id,
+          id: s.sampleCode || s.sampleId || s.accessionNo || s.id || 'SMP-0001',
+          type: s.stageType || s.sampleType || 'Finished Product',
+          product: s.nomenclature || s.materialName || 'Pharmaceutical Sample',
+          batch: s.lotNumber || s.batchLotNumber || s.batch?.batchNumber || s.batchNumber || 'CP-B9021',
+          date: s.samplingDate ? formatShortLiveDate(new Date(s.samplingDate)) : formatShortLiveDate(),
+          status: s.status === 'TESTING_IN_PROGRESS' ? 'In Process' : s.status ? s.status.replace(/_/g, ' ') : 'Pending',
+          statusColor:
+            s.status === 'APPROVED'
+              ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+              : s.status === 'REJECTED'
+              ? 'bg-rose-100 text-rose-800 border-rose-200'
+              : s.status === 'TESTING_IN_PROGRESS'
+              ? 'bg-blue-100 text-blue-800 border-blue-200'
+              : 'bg-amber-100 text-amber-800 border-amber-200',
+          labId,
+          labName,
+          labBadgeColor,
+        };
+      });
     }
 
     return [
       {
+        uuid: 'SMP-0034',
         id: 'SMP-0034',
         type: 'Finished Product',
         product: 'Amoxicillin 500mg',
@@ -170,8 +206,12 @@ export default function DashboardPage() {
         date: formatShortLiveDate(),
         status: 'Pending',
         statusColor: 'bg-amber-100 text-amber-800 border-amber-200',
+        labId: 'penicillin',
+        labName: 'Penicillin Lab',
+        labBadgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
       },
       {
+        uuid: 'SMP-0033',
         id: 'SMP-0033',
         type: 'Raw Material',
         product: 'Paracetamol API',
@@ -179,17 +219,25 @@ export default function DashboardPage() {
         date: formatShortLiveDate(),
         status: 'Pending',
         statusColor: 'bg-amber-100 text-amber-800 border-amber-200',
+        labId: 'general',
+        labName: 'General Lab',
+        labBadgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
       },
       {
+        uuid: 'SMP-0032',
         id: 'SMP-0032',
         type: 'In-Process',
-        product: 'Tablet Batch #12',
-        batch: 'CP-TAB-012',
+        product: 'Cefixime Granules',
+        batch: 'CP-CEF-012',
         date: formatShortLiveDate(),
         status: 'In Process',
         statusColor: 'bg-blue-100 text-blue-800 border-blue-200',
+        labId: 'sef',
+        labName: 'SEF Lab',
+        labBadgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
       },
       {
+        uuid: 'SMP-0031',
         id: 'SMP-0031',
         type: 'Packaging Material',
         product: 'Blister Pack',
@@ -197,8 +245,12 @@ export default function DashboardPage() {
         date: formatShortLiveDate(),
         status: 'In Process',
         statusColor: 'bg-blue-100 text-blue-800 border-blue-200',
+        labId: 'general',
+        labName: 'General Lab',
+        labBadgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
       },
       {
+        uuid: 'SMP-0030',
         id: 'SMP-0030',
         type: 'Microbiology',
         product: 'Purified Water',
@@ -206,6 +258,9 @@ export default function DashboardPage() {
         date: formatShortLiveDate(),
         status: 'Completed',
         statusColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+        labId: 'general',
+        labName: 'General Lab',
+        labBadgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
       },
     ];
   }, [recentSamplesData]);
@@ -754,42 +809,64 @@ export default function DashboardPage() {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="bg-slate-50/80 text-slate-500 font-semibold border-b border-slate-100">
-                    <th className="py-2.5 px-2 font-medium">Sample ID</th>
-                    <th className="py-2.5 px-2 font-medium">Sample Type</th>
-                    <th className="py-2.5 px-2 font-medium">Product</th>
-                    <th className="py-2.5 px-2 font-medium">Batch No</th>
-                    <th className="py-2.5 px-2 font-medium">Received Date</th>
-                    <th className="py-2.5 px-2 font-medium">Status</th>
-                    <th className="py-2.5 px-2 font-medium text-right">Action</th>
+                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Sample ID</th>
+                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Laboratory</th>
+                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Sample Type</th>
+                    <th className="py-2.5 px-2.5 font-medium">Product</th>
+                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Batch No</th>
+                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Received Date</th>
+                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Status</th>
+                    <th className="py-2.5 px-2.5 font-medium text-right whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {pendingSamples.map((sample) => (
-                    <tr key={sample.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-2 font-semibold text-slate-800 font-mono text-[11px]">
-                        {sample.id}
-                      </td>
-                      <td className="py-3 px-2 text-slate-600">{sample.type}</td>
-                      <td className="py-3 px-2 font-medium text-slate-800">{sample.product}</td>
-                      <td className="py-3 px-2 text-slate-600 font-mono text-[11px]">{sample.batch}</td>
-                      <td className="py-3 px-2 text-slate-500 font-mono text-[11px]">{sample.date}</td>
-                      <td className="py-3 px-2">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${sample.statusColor}`}
-                        >
-                          {sample.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-2 text-right">
-                        <Link
-                          href={`/samples`}
-                          className="inline-flex items-center px-3 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 transition-colors shadow-2xs"
-                        >
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {pendingSamples.map((sample) => {
+                    const sampleUrl = `/samples?lab=${sample.labId}&sampleId=${encodeURIComponent(sample.uuid || sample.id)}`;
+
+                    return (
+                      <tr key={sample.id} className="hover:bg-blue-50/40 transition-colors group">
+                        <td className="py-3 px-2.5 font-semibold text-slate-800 font-mono text-[11px] whitespace-nowrap">
+                          <Link
+                            href={sampleUrl}
+                            className="text-blue-600 hover:text-blue-800 hover:underline font-bold"
+                            title={`Open ${sample.id} in ${sample.labName}`}
+                          >
+                            {sample.id}
+                          </Link>
+                        </td>
+                        <td className="py-3 px-2.5 whitespace-nowrap">
+                          <Link
+                            href={`/samples?lab=${sample.labId}`}
+                            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${sample.labBadgeColor} hover:opacity-80 transition-opacity`}
+                            title={`Filter ${sample.labName}`}
+                          >
+                            {sample.labName}
+                          </Link>
+                        </td>
+                        <td className="py-3 px-2.5 text-slate-600 whitespace-nowrap">{sample.type}</td>
+                        <td className="py-3 px-2.5 font-medium text-slate-800">{sample.product}</td>
+                        <td className="py-3 px-2.5 text-slate-600 font-mono text-[11px] whitespace-nowrap">{sample.batch}</td>
+                        <td className="py-3 px-2.5 text-slate-500 font-mono text-[11px] whitespace-nowrap">{sample.date}</td>
+                        <td className="py-3 px-2.5 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${sample.statusColor}`}
+                          >
+                            {sample.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2.5 text-right whitespace-nowrap">
+                          <Link
+                            href={sampleUrl}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 transition-colors shadow-2xs group-hover:shadow-xs"
+                            title={`View sample dossier in ${sample.labName}`}
+                          >
+                            <span>View</span>
+                            <ArrowRight className="h-3 w-3" />
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
