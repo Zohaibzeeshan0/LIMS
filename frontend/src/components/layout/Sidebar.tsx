@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import { getUserLabAccess } from '@/types/lims';
 import {
   Home,
   FlaskConical,
@@ -59,6 +60,24 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
   const isOnSamples = pathname.startsWith('/samples');
   const [isSamplingExpanded, setIsSamplingExpanded] = useState(true);
 
+  // Strict Laboratory RBAC Isolation
+  const userLabAccess = getUserLabAccess(user);
+  const isRestrictedToLab = userLabAccess !== 'ALL';
+  const authorizedLabId =
+    userLabAccess === 'SAF' ? 'cephalosporin' : userLabAccess === 'PENICILLIN' ? 'penicillin' : 'general';
+
+  const visibleLaboratories = isRestrictedToLab
+    ? LABORATORIES.filter((l) => l.id === authorizedLabId)
+    : LABORATORIES;
+
+  const labBadgeLabel = isRestrictedToLab
+    ? userLabAccess === 'SAF'
+      ? 'Cephalosporin'
+      : userLabAccess === 'PENICILLIN'
+      ? 'Penicillin'
+      : 'General'
+    : '3 Labs';
+
   // Sidebar navigation items
   const menuItems: Array<{
     name: string;
@@ -77,10 +96,10 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
     },
     {
       name: 'Samples',
-      href: '/samples',
+      href: isRestrictedToLab ? `/samples?lab=${authorizedLabId}` : '/samples',
       icon: FileText,
       hasSubmenu: true,
-      badge: '3 Labs',
+      badge: labBadgeLabel,
     },
   ];
 
@@ -194,10 +213,10 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
                     </div>
                   </div>
 
-                  {/* 3 Laboratory Sub-items */}
+                  {/* Laboratory Sub-items (Restricted users only see their assigned laboratory) */}
                   {isSamplingExpanded && (
                     <div className="pl-3.5 space-y-1 py-1 border-l border-white/15 ml-4 animate-in fade-in duration-150">
-                      {LABORATORIES.map((lab) => {
+                      {visibleLaboratories.map((lab) => {
                         const LabIcon = lab.icon;
                         const isLabActive =
                           isOnSamples &&
@@ -207,7 +226,7 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
                                 activeLabQuery === 'saf' ||
                                 activeLabQuery === 'sef' ||
                                 activeLabQuery === 'cp')) ||
-                            (!activeLabQuery && lab.id === 'general'));
+                            (!activeLabQuery && lab.id === authorizedLabId));
 
                         return (
                           <Link
@@ -234,19 +253,21 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
                         );
                       })}
 
-                      <Link
-                        href="/samples?lab=all"
-                        onClick={() => onClose && onClose()}
-                        className={cn(
-                          'flex items-center gap-2 px-2.5 py-1 rounded-lg text-[11px] transition-colors',
-                          isOnSamples && activeLabQuery === 'all'
-                            ? 'text-white font-bold bg-white/20'
-                            : 'text-slate-400 hover:text-white'
-                        )}
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                        <span>All Samples Registry</span>
-                      </Link>
+                      {!isRestrictedToLab && (
+                        <Link
+                          href="/samples?lab=all"
+                          onClick={() => onClose && onClose()}
+                          className={cn(
+                            'flex items-center gap-2 px-2.5 py-1 rounded-lg text-[11px] transition-colors',
+                            isOnSamples && activeLabQuery === 'all'
+                              ? 'text-white font-bold bg-white/20'
+                              : 'text-slate-400 hover:text-white'
+                          )}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                          <span>All Samples Registry</span>
+                        </Link>
+                      )}
                     </div>
                   )}
                 </div>

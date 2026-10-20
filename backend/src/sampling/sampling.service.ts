@@ -113,22 +113,40 @@ export class SamplingService {
 
     const dept = (user.department || '').toLowerCase();
     const email = (user.email || '').toLowerCase();
+    const uname = (user.username || '').toLowerCase();
 
     if (
       dept.includes('cephalosporin') ||
       dept.includes('cephe') ||
+      dept.includes('ceph') ||
       dept.includes('sef') ||
       dept.includes('saf') ||
+      email.includes('ceph') ||
       email.includes('saf') ||
       email.includes('sef') ||
-      email.includes('cephalosporin')
+      email.includes('cephalosporin') ||
+      uname.includes('ceph') ||
+      uname.includes('saf') ||
+      uname.includes('sef')
     ) {
       return 'SAF';
     }
-    if (dept.includes('penicillin') || email.includes('penicillin')) {
+    if (
+      dept.includes('penicillin') ||
+      dept.includes('pen') ||
+      email.includes('penicillin') ||
+      email.includes('pen.') ||
+      uname.includes('pen')
+    ) {
       return 'PENICILLIN';
     }
-    if (dept.includes('general') || email.includes('general')) {
+    if (
+      dept.includes('general') ||
+      dept.includes('gen') ||
+      email.includes('general') ||
+      email.includes('gen.') ||
+      uname.includes('gen')
+    ) {
       return 'GENERAL';
     }
 

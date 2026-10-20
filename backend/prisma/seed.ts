@@ -114,7 +114,46 @@ async function main() {
     },
   });
 
-  console.log('Created Users: Admin, QA Manager, QC Analyst, Lab Technician, Auditor.');
+  const cephAnalyst = await prisma.user.create({
+    data: {
+      email: 'ceph.analyst@citypharma.com',
+      username: 'ceph.analyst',
+      passwordHash: staffPasswordHash,
+      fullName: 'Cephalosporin Lab Analyst',
+      employeeId: 'EMP-CP-01',
+      department: 'Cephalosporin Laboratory',
+      role: Role.QC_ANALYST,
+      isActive: true,
+    },
+  });
+
+  const penAnalyst = await prisma.user.create({
+    data: {
+      email: 'pen.analyst@citypharma.com',
+      username: 'pen.analyst',
+      passwordHash: staffPasswordHash,
+      fullName: 'Penicillin Lab Analyst',
+      employeeId: 'EMP-PEN-02',
+      department: 'Penicillin Laboratory',
+      role: Role.QC_ANALYST,
+      isActive: true,
+    },
+  });
+
+  const genAnalyst = await prisma.user.create({
+    data: {
+      email: 'gen.analyst@citypharma.com',
+      username: 'gen.analyst',
+      passwordHash: staffPasswordHash,
+      fullName: 'General Lab Analyst',
+      employeeId: 'EMP-GEN-02',
+      department: 'General Laboratory',
+      role: Role.QC_ANALYST,
+      isActive: true,
+    },
+  });
+
+  console.log('Created Users: Admin, QA Manager, QC Analyst, Lab Technician, Auditor, and 3 Lab Analysts (ceph, pen, gen).');
 
   // 1.5 Create Laboratories per specification
   const safLab = await prisma.laboratory.create({

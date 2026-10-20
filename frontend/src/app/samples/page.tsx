@@ -399,11 +399,11 @@ function SamplesPageInner() {
         <div className="flex items-center justify-between">
           <div>
             {isRestrictedToLab ? (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold">
-                <Lock className="h-3.5 w-3.5 text-amber-600" />
-                <span>Authorized Facility: {activeLab.name} Only</span>
-                <span className="text-[10px] text-amber-700 font-normal">
-                  (Cross-facility access restricted by role)
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold shadow-2xs">
+                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                <span>Authorized Laboratory Facility: {activeLab.name}</span>
+                <span className="text-[11px] text-emerald-700 font-normal">
+                  (Strict Role Isolation — Other laboratories are hidden and restricted)
                 </span>
               </div>
             ) : (
@@ -430,9 +430,9 @@ function SamplesPageInner() {
           )}
         </div>
 
-        {/* 3 Clickable Laboratory Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-          {LAB_TABS.map((lab) => {
+        {/* Laboratory Card(s) — Restricted users only see their authorized laboratory */}
+        <div className={cn('grid gap-3.5', isRestrictedToLab ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3')}>
+          {(isRestrictedToLab ? LAB_TABS.filter((l) => l.id === authorizedLabId) : LAB_TABS).map((lab) => {
             const Icon = lab.icon;
             const isSelected = !isAllLabs && activeLab.id === lab.id;
             const isLocked = isRestrictedToLab && lab.id !== authorizedLabId;

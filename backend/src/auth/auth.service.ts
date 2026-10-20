@@ -23,11 +23,12 @@ export class AuthService {
     const cleanId = (identifier || '').trim();
     if (!cleanId) return null;
 
-    // Support both corporate email and Employee ID (e.g. EMP-001)
+    // Support static username, corporate email, and Employee ID (e.g. ceph.analyst, EMP-001)
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
           { email: cleanId.toLowerCase() },
+          { username: cleanId.toLowerCase() },
           { employeeId: cleanId.toUpperCase() },
         ],
       },
@@ -97,6 +98,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
         fullName: user.fullName,
         employeeId: user.employeeId,
         department: user.department,
@@ -189,6 +191,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
         fullName: user.fullName,
         employeeId: user.employeeId,
         department: user.department,

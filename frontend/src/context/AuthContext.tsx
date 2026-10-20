@@ -14,6 +14,7 @@ import {
 export interface User {
   id: string;
   email: string;
+  username?: string;
   fullName: string;
   employeeId: string;
   department: string;
@@ -43,39 +44,51 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const DEMO_USERS = [
   {
     role: 'ADMIN' as const,
+    username: 'admin',
     email: 'admin@citypharma.com',
+    password: 'Admin@1234',
     employeeId: 'EMP-001',
     name: 'Dr. Tariq Mahmood',
-    title: 'QC Director / Admin',
-    desc: 'Full administrative rights across all 3 laboratories',
-    labBadge: 'All Facilities',
+    title: 'QC Director / Administrator',
+    desc: 'Unrestricted master access across all 3 laboratories',
+    labBadge: 'All 3 Laboratories',
+    labId: 'all',
   },
   {
     role: 'QC_ANALYST' as const,
-    email: 'saf.analyst@citypharma.com',
+    username: 'ceph.analyst',
+    email: 'ceph.analyst@citypharma.com',
+    password: 'Password@123',
     employeeId: 'EMP-CP-01',
-    name: 'Saba Farooq (Cephalosporin)',
-    title: 'Cephalosporin Lab Analyst',
-    desc: 'Access strictly limited to Cephalosporin Laboratory',
-    labBadge: 'Cephalosporin Lab',
+    name: 'Cephalosporin Lab Analyst',
+    title: 'Cephalosporin Analyst',
+    desc: 'Access strictly restricted to Cephalosporin Laboratory only',
+    labBadge: 'Cephalosporin Lab Only',
+    labId: 'cephalosporin',
   },
   {
     role: 'QC_ANALYST' as const,
-    email: 'penicillin.analyst@citypharma.com',
-    employeeId: 'EMP-PEN-01',
-    name: 'Hassan Raza (Penicillin)',
-    title: 'Penicillin Lab Analyst',
-    desc: 'Access strictly limited to Penicillin Laboratory',
-    labBadge: 'Penicillin Lab',
+    username: 'pen.analyst',
+    email: 'pen.analyst@citypharma.com',
+    password: 'Password@123',
+    employeeId: 'EMP-PEN-02',
+    name: 'Penicillin Lab Analyst',
+    title: 'Penicillin Analyst',
+    desc: 'Access strictly restricted to Penicillin Laboratory only',
+    labBadge: 'Penicillin Lab Only',
+    labId: 'penicillin',
   },
   {
     role: 'QC_ANALYST' as const,
-    email: 'general.analyst@citypharma.com',
-    employeeId: 'EMP-GEN-01',
-    name: 'Ayesha Khan (General)',
-    title: 'General Lab Analyst',
-    desc: 'Access strictly limited to General Laboratory',
-    labBadge: 'General Lab',
+    username: 'gen.analyst',
+    email: 'gen.analyst@citypharma.com',
+    password: 'Password@123',
+    employeeId: 'EMP-GEN-02',
+    name: 'General Lab Analyst',
+    title: 'General Analyst',
+    desc: 'Access strictly restricted to General Laboratory only',
+    labBadge: 'General Lab Only',
+    labId: 'general',
   },
 ];
 
@@ -160,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRememberedIdentifier(identifier.trim());
       }
 
-      router.replace('/');
+      router.replace(res.user?.role === 'ADMIN' ? '/' : '/samples');
     } finally {
       setIsLoading(false);
     }

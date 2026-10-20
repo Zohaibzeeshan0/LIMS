@@ -653,7 +653,12 @@ export function NewSampleModal({
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div
+              className={cn(
+                'grid gap-2.5',
+                isRestrictedToLab ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-3'
+              )}
+            >
               {[
                 {
                   key: 'SAF',
@@ -670,7 +675,9 @@ export function NewSampleModal({
                   label: 'General Lab',
                   icon: FlaskConical,
                 },
-              ].map((lab) => {
+              ]
+                .filter((lab) => !isRestrictedToLab || lab.key === userLabAccess)
+                .map((lab) => {
                 const Icon = lab.icon;
                 const isSelected = watchedLab === lab.key;
                 const isLocked = isRestrictedToLab && lab.key !== userLabAccess;
