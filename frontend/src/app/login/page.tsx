@@ -382,70 +382,15 @@ function LoginFormContent() {
                 )}
               </button>
 
-              {/* Divider OR */}
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200" />
-                </div>
-                <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-wider">
-                  <span className="bg-white px-3 text-slate-400">OR</span>
-                </div>
-              </div>
-
-              {/* Social Login Buttons (Microsoft & Google) matching design */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => fillCredentials('admin@citypharma.com', 'Admin@1234')}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors shadow-2xs"
-                >
-                  {/* Microsoft 4-square icon */}
-                  <svg className="h-4 w-4 shrink-0" viewBox="0 0 21 21">
-                    <rect x="1" y="1" width="9" height="9" fill="#f25022" />
-                    <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
-                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
-                    <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
-                  </svg>
-                  <span className="truncate">Microsoft</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => fillCredentials('admin@citypharma.com', 'Admin@1234')}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors shadow-2xs"
-                >
-                  {/* Google G icon */}
-                  <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.37 7.34 24 12 24z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.17 0 9.97 0 12s.46 3.83 1.26 5.42l4.02-3.15z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.25 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.93 6.72-4.93z"
-                    />
-                  </svg>
-                  <span className="truncate">Google</span>
-                </button>
-              </div>
-
               {/* Quick Persona Switcher for easy testing */}
-              <div className="pt-2">
+              <div className="pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowDemoProfiles(!showDemoProfiles)}
                   className="w-full flex items-center justify-between text-[11px] font-semibold text-slate-500 hover:text-slate-800 py-1 transition-colors"
                 >
                   <span className="flex items-center gap-1.5">
-                    <Sparkles className="h-3 w-3 text-[#0066FF]" />
+                    <Sparkles className="h-3.5 w-3.5 text-[#0066FF]" />
                     <span>Quick-Select Personnel (Testing Roles)</span>
                   </span>
                   {showDemoProfiles ? (
@@ -456,13 +401,13 @@ function LoginFormContent() {
                 </button>
 
                 {showDemoProfiles && (
-                  <div className="mt-2 grid grid-cols-2 gap-1.5 animate-in fade-in duration-200">
+                  <div className="mt-2.5 grid grid-cols-2 gap-1.5 animate-in fade-in duration-200">
                     {DEMO_USERS.map((demo) => (
                       <button
                         key={demo.role}
                         type="button"
                         onClick={() => fillCredentials(demo.email, 'Admin@1234')}
-                        className="p-2 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-blue-50/50 hover:border-blue-300 text-left transition-colors"
+                        className="p-2.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-blue-50/50 hover:border-blue-300 text-left transition-colors"
                       >
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-[9px] font-bold text-[#0066FF] uppercase">
@@ -478,17 +423,6 @@ function LoginFormContent() {
                 )}
               </div>
             </form>
-
-            {/* Bottom Security Compliance Stamp */}
-            <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col items-center">
-              <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 bg-slate-50 px-3.5 py-1 rounded-full border border-slate-200/70">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                <span>Secure | Confidential | Compliant</span>
-              </div>
-              <p className="text-[10px] text-slate-400 mt-2">
-                © 2025 Citi Pharma. All rights reserved.
-              </p>
-            </div>
           </div>
         </div>
 
