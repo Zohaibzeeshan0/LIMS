@@ -58,11 +58,9 @@ const sampleFormSchema = z
     submittedBy: z.string().min(2, 'Submitted By name is required'),
     receivedBy: z.string().min(2, 'Received By name is required'),
     samplingLocation: z.string().min(2, 'Sampling location / suite is required'),
-    storageCondition: z.string().min(2, 'Storage condition is required'),
+    storageCondition: z.string().optional(),
     priority: z.enum(['ROUTINE', 'URGENT', 'STAT']),
-    testSpecificationIds: z
-      .array(z.string())
-      .min(1, 'At least one compendial test specification must be assigned'),
+    testSpecificationIds: z.array(z.string()).optional(),
     remarks: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -145,12 +143,6 @@ export function NewSampleModal({
     enabled: isOpen,
   });
 
-  // Fetch test specifications for multi-select
-  const { data: specifications } = useQuery({
-    queryKey: ['specifications'],
-    queryFn: () => api.get<any[]>('/tests/specifications'),
-    enabled: isOpen,
-  });
 
   // Fetch active users for Received By selection
   const { data: usersList } = useQuery({
@@ -224,7 +216,6 @@ export function NewSampleModal({
   const watchedCustomId = watch('customSampleId');
   const watchedSampleType = watch('sampleType');
   const watchedPriority = watch('priority') || 'ROUTINE';
-  const watchedSelectedSpecs = watch('testSpecificationIds') || [];
   const watchedBatchId = watch('batchId');
   const debouncedManualId = useDebounce(watchedCustomId, 400);
 
@@ -346,9 +337,9 @@ export function NewSampleModal({
       expDate: formData.expDate || undefined,
       submittedBy: formData.submittedBy.trim(),
       samplingLocation: formData.samplingLocation.trim(),
-      storageCondition: formData.storageCondition.trim(),
+      storageCondition: formData.storageCondition?.trim() || 'Controlled Room Temp 20-25°C',
       priority: formData.priority,
-      testSpecificationIds: formData.testSpecificationIds,
+      testSpecificationIds: formData.testSpecificationIds || [],
       remarks: formData.remarks?.trim() || undefined,
     };
 
@@ -371,20 +362,6 @@ export function NewSampleModal({
     onClose();
   };
 
-  const toggleTestSpec = (specId: string) => {
-    if (watchedSelectedSpecs.includes(specId)) {
-      setValue(
-        'testSpecificationIds',
-        watchedSelectedSpecs.filter((id) => id !== specId),
-        { shouldValidate: true, shouldDirty: true }
-      );
-    } else {
-      setValue('testSpecificationIds', [...watchedSelectedSpecs, specId], {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
-    }
-  };
 
   return (
     <>
@@ -800,108 +777,37 @@ export function NewSampleModal({
             </div>
           </div>
 
-          {/* Section 7: Storage & Sampling Room */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Storage Condition
+          {/* Section 7: Testing Priority */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-800">
+                Priority <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="text"
-                {...register('storageCondition')}
-                placeholder="e.g. Controlled Room Temp 20-25°C, Cold Storage 2-8°C"
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none text-slate-800"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-800">
-                  Priority <span className="text-rose-500">*</span>
-                </label>
-                <span
-                  className={cn(
-                    'px-2 py-0.5 rounded text-[10px] font-bold font-mono border',
-                    watchedPriority === 'STAT'
-                      ? 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
-                      : watchedPriority === 'URGENT'
-                      ? 'bg-amber-100 text-amber-800 border-amber-300'
-                      : 'bg-blue-100 text-blue-800 border-blue-300'
-                  )}
-                >
-                  {watchedPriority === 'STAT'
-                    ? '24 Hours'
+              <span
+                className={cn(
+                  'px-2 py-0.5 rounded text-[10px] font-bold font-mono border',
+                  watchedPriority === 'STAT'
+                    ? 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
                     : watchedPriority === 'URGENT'
-                    ? '2 Days'
-                    : '5 Days'}
-                </span>
-              </div>
-              <select
-                {...register('priority')}
-                className="w-full px-2.5 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium text-slate-800"
+                    ? 'bg-amber-100 text-amber-800 border-amber-300'
+                    : 'bg-blue-100 text-blue-800 border-blue-300'
+                )}
               >
-                <option value="ROUTINE">Routine (5 Days)</option>
-                <option value="URGENT">Urgent (2 Days)</option>
-                <option value="STAT">Immediate (24 Hours)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Section 8: Compendial Test Specifications Assignment */}
-          <div className="pt-2 border-t border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-bold text-navy-950 uppercase tracking-wider">
-                Assign Compendial Tests <span className="text-rose-500">*</span>
-              </label>
-              <span className="text-[11px] text-slate-500 font-medium">
-                ({watchedSelectedSpecs.length} selected)
+                {watchedPriority === 'STAT'
+                  ? '24 Hours'
+                  : watchedPriority === 'URGENT'
+                  ? '2 Days'
+                  : '5 Days'}
               </span>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1.5 border border-slate-200 rounded-xl bg-slate-50/50">
-              {specifications?.map((spec) => {
-                const isChecked = watchedSelectedSpecs.includes(spec.id);
-                return (
-                  <div
-                    key={spec.id}
-                    onClick={() => toggleTestSpec(spec.id)}
-                    className={cn(
-                      'p-2 rounded-lg border text-xs cursor-pointer transition-all flex items-start gap-2',
-                      isChecked
-                        ? 'bg-navy-900 text-white border-navy-900'
-                        : 'bg-white hover:bg-slate-100/70 border-slate-200 text-slate-800'
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => {}}
-                      className="mt-0.5 rounded text-navy-900 focus:ring-navy-900"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold truncate">{spec.name}</div>
-                      <div
-                        className={cn(
-                          'text-[10px] mt-0.5 truncate',
-                          isChecked ? 'text-teal-300' : 'text-slate-500'
-                        )}
-                      >
-                        {spec.pharmacopeiaMethod} •{' '}
-                        {spec.defaultMinLimit !== null
-                          ? `${spec.defaultMinLimit} - ${spec.defaultMaxLimit} ${spec.unit || ''}`
-                          : 'Qualitative Conformance'}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {errors.testSpecificationIds && (
-              <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1 font-medium">
-                <AlertCircle className="h-3 w-3" />
-                <span>{errors.testSpecificationIds.message}</span>
-              </p>
-            )}
+            <select
+              {...register('priority')}
+              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium text-slate-800"
+            >
+              <option value="ROUTINE">Routine (5 Days)</option>
+              <option value="URGENT">Urgent (2 Days)</option>
+              <option value="STAT">Immediate (24 Hours)</option>
+            </select>
           </div>
 
           {/* Priority SLA Turnaround Notice (Directly Above Submit Button) */}
