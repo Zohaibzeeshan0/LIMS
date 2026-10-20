@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { samplingService } from '@/services/sampling.service';
+import { auditService } from '@/services/audit.service';
+import { parseAuditItem, FormattedAuditItem } from '@/lib/auditFormatter';
 import { NewSampleModal } from '@/components/samples/NewSampleModal';
 import {
   formatLiveDate,
@@ -222,13 +224,27 @@ export default function DashboardPage() {
     { name: 'Finished Goods Section', count: 76, rate: 96 },
   ];
 
-  // Lab Activity Log data
-  const activityLogs = [
-    { time: formatLiveClock(currentTime), user: 'Dr. Tariq Mahmood', activity: 'System Sync', details: 'Automated 21 CFR Audit Verify' },
-    { time: '10:24 AM', user: 'Ayesha Khan', activity: 'Batch Verified', details: 'SMP-0031 - Penicillin Lab' },
-    { time: '09:50 AM', user: 'Ali Raza', activity: 'Sample Registered', details: 'SMP-0034 - Raw Material' },
-    { time: '08:33 AM', user: 'Fatima Noor', activity: 'Sample Dispatched', details: 'SMP-0032 - SEF Lab' },
-  ];
+  // Real-time live audit logs from database (refreshes every 5 seconds)
+  const { data: rawAuditLogs, isLoading: isAuditLoading } = useQuery({
+    queryKey: ['dashboard-audit-logs'],
+    queryFn: () => auditService.getAll({ limit: 40 }),
+    refetchInterval: 5000,
+  });
+
+  const [activityFilter, setActivityFilter] = useState<'all' | 'staff'>('all');
+
+  const formattedLogs: FormattedAuditItem[] = useMemo(() => {
+    if (!rawAuditLogs) return [];
+    const list = Array.isArray(rawAuditLogs) ? rawAuditLogs : (rawAuditLogs as any).data || [];
+    return list.map(parseAuditItem);
+  }, [rawAuditLogs]);
+
+  const displayedLogs = useMemo(() => {
+    if (activityFilter === 'staff') {
+      return formattedLogs.filter((log) => log.isNonAdmin);
+    }
+    return formattedLogs;
+  }, [formattedLogs, activityFilter]);
 
   return (
     <div className="space-y-6 font-sans pb-10">
@@ -643,71 +659,79 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-3.5">
-              
-              {/* Alert 1: Priority Batch Notice */}
-              <div className="flex items-start gap-3">
-                <div className="h-7 w-7 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                  !
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <p className="text-xs font-semibold text-slate-900 truncate">Priority Batch Notice</p>
-                    <span className="text-[10px] text-slate-400 shrink-0 font-mono">2h ago</span>
+              {formattedLogs.filter((l) => l.isNonAdmin).length > 0 ? (
+                formattedLogs
+                  .filter((l) => l.isNonAdmin)
+                  .slice(0, 4)
+                  .map((alert) => (
+                    <div key={alert.id} className="flex items-start gap-3">
+                      <div className="h-7 w-7 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs shadow-2xs">
+                        !
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <p className="text-xs font-bold text-slate-900 truncate">{alert.userName}</p>
+                            <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${alert.roleBadge.badgeClass}`}>
+                              {alert.roleBadge.label}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 shrink-0 font-mono">{alert.relativeTime}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 truncate mt-0.5" title={alert.details}>
+                          <span className="font-semibold text-blue-600">{alert.actionLabel.label}:</span> {alert.details}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+              ) : (
+                <>
+                  <div className="flex items-start gap-3">
+                    <div className="h-7 w-7 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
+                      !
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-xs font-semibold text-slate-900 truncate">Priority Batch Notice</p>
+                        <span className="text-[10px] text-slate-400 shrink-0 font-mono">Live</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        Sample: SMP-0034 | Batch: CP-AMX-204
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    Sample: SMP-0034 | Batch: CP-AMX-204
-                  </p>
-                </div>
-              </div>
 
-              {/* Alert 2: Intake Verification Pending */}
-              <div className="flex items-start gap-3">
-                <div className="h-7 w-7 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                  !
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <p className="text-xs font-semibold text-slate-900 truncate">Intake Verification Pending</p>
-                    <span className="text-[10px] text-slate-400 shrink-0 font-mono">5h ago</span>
+                  <div className="flex items-start gap-3">
+                    <div className="h-7 w-7 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
+                      !
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-xs font-semibold text-slate-900 truncate">Intake Verification Pending</p>
+                        <span className="text-[10px] text-slate-400 shrink-0 font-mono">Live</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        Sample: SMP-0033 | Raw Material Paracetamol
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    Sample: SMP-0033 | Raw Material Paracetamol
-                  </p>
-                </div>
-              </div>
 
-              {/* Alert 3: Quarantine Batch Cleared */}
-              <div className="flex items-start gap-3">
-                <div className="h-7 w-7 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                  !
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <p className="text-xs font-semibold text-slate-900 truncate">Quarantine Batch Cleared</p>
-                    <span className="text-[10px] text-slate-400 shrink-0 font-mono">7h ago</span>
+                  <div className="flex items-start gap-3">
+                    <div className="h-7 w-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
+                      <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-xs font-semibold text-slate-900 truncate">Batch Release Approved</p>
+                        <span className="text-[10px] text-slate-400 shrink-0 font-mono">Live</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        Sample: SMP-0021 | Purified Water System
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    Sample: SMP-0031 | Penicillin Lab Batch #12
-                  </p>
-                </div>
-              </div>
-
-              {/* Alert 4: Batch Release Approved */}
-              <div className="flex items-start gap-3">
-                <div className="h-7 w-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                  <Check className="h-3.5 w-3.5 stroke-[3]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <p className="text-xs font-semibold text-slate-900 truncate">Batch Release Approved</p>
-                    <span className="text-[10px] text-slate-400 shrink-0 font-mono">8h ago</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    Sample: SMP-0021 | Purified Water System
-                  </p>
-                </div>
-              </div>
-
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -896,38 +920,109 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Card 2: Lab Activity Log */}
+        {/* Card 2: Lab Activity Log (Live Real-Time Operational Audit Feed) */}
         <div className="lg:col-span-5 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 mb-3 gap-2">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-blue-600" />
+                <Clock className="h-4 w-4 text-blue-600 shrink-0" />
                 <h2 className="font-bold text-sm text-slate-900">Lab Activity Log</h2>
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                  </span>
+                  Live
+                </span>
               </div>
-              <Link href="/samples" className="text-xs font-semibold text-blue-600 hover:text-blue-800">
-                View All
-              </Link>
+
+              {/* Activity Filter: All vs Non-Admin Staff Only */}
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[10px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => setActivityFilter('all')}
+                  className={`px-2 py-1 rounded-md transition-all ${
+                    activityFilter === 'all'
+                      ? 'bg-white text-slate-800 shadow-2xs font-bold'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  All ({formattedLogs.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivityFilter('staff')}
+                  className={`px-2 py-1 rounded-md transition-all ${
+                    activityFilter === 'staff'
+                      ? 'bg-amber-500 text-white shadow-2xs font-bold'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Staff Only ({formattedLogs.filter((l) => l.isNonAdmin).length})
+                </button>
+              </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-80 overflow-y-auto">
               <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50/80 text-slate-500 font-semibold border-b border-slate-100">
-                    <th className="py-2 px-2 font-medium">Time</th>
-                    <th className="py-2 px-2 font-medium">User</th>
-                    <th className="py-2 px-2 font-medium">Activity</th>
-                    <th className="py-2 px-2 font-medium">Details</th>
+                <thead className="sticky top-0 bg-white z-10">
+                  <tr className="bg-slate-50/90 text-slate-500 font-semibold border-b border-slate-100">
+                    <th className="py-2.5 px-2 font-medium">Time & Date</th>
+                    <th className="py-2.5 px-2 font-medium">Personnel</th>
+                    <th className="py-2.5 px-2 font-medium">Activity</th>
+                    <th className="py-2.5 px-2 font-medium">Change Details</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {activityLogs.map((log, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-2.5 px-2 text-slate-400 font-mono text-[11px]">{log.time}</td>
-                      <td className="py-2.5 px-2 font-medium text-slate-800">{log.user}</td>
-                      <td className="py-2.5 px-2 text-slate-600">{log.activity}</td>
-                      <td className="py-2.5 px-2 text-blue-600 font-mono text-[11px] font-medium">{log.details}</td>
+                  {isAuditLoading ? (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-slate-400">
+                        Loading real-time operational activity...
+                      </td>
                     </tr>
-                  ))}
+                  ) : displayedLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-slate-400">
+                        No activity found for this filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    displayedLogs.slice(0, 15).map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-2.5 px-2 whitespace-nowrap">
+                          <span className="font-bold text-slate-900 block font-mono text-[11px]">
+                            {log.timeDisplay}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block font-mono">
+                            {log.dateDisplay}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <div className="font-bold text-slate-900 text-xs truncate max-w-[120px]" title={log.userName}>
+                            {log.userName}
+                          </div>
+                          <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider ${log.roleBadge.badgeClass}`}>
+                            {log.roleBadge.label}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap ${log.actionLabel.colorClass}`}>
+                            {log.actionLabel.label}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2 max-w-[200px]">
+                          <p className="text-slate-800 font-medium text-[11px] leading-tight line-clamp-2" title={log.details}>
+                            {log.details}
+                          </p>
+                          {log.reason && log.reason !== log.details && (
+                            <span className="text-[10px] text-slate-400 italic block mt-0.5 truncate" title={log.reason}>
+                              Reason: {log.reason}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

@@ -71,6 +71,8 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
       queryClient.invalidateQueries({ queryKey: ['sample', sample?.id] });
       queryClient.invalidateQueries({ queryKey: ['sampling-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-audit-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['navbar-audit-alerts'] });
       onClose();
     },
     onError: (err: any) => {

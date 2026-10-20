@@ -278,10 +278,11 @@ export function NewSampleModal({
   const createMutation = useMutation({
     mutationFn: (payload: any) => samplingService.create(payload),
     onSuccess: (newSample: any) => {
-      // Invalidate queries so table updates immediately
       queryClient.invalidateQueries({ queryKey: ['samples-paginated'] });
       queryClient.invalidateQueries({ queryKey: ['sampling-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-audit-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['navbar-audit-alerts'] });
 
       setSuccessInfo({
         sampleCode: newSample.sampleCode,

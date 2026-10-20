@@ -20,6 +20,10 @@ interface NavbarProps {
   onOpenAccessionModal?: () => void;
 }
 
+import { useQuery } from '@tanstack/react-query';
+import { auditService } from '@/services/audit.service';
+import { parseAuditItem, FormattedAuditItem } from '@/lib/auditFormatter';
+
 interface NotificationItem {
   id: string;
   title: string;
@@ -28,11 +32,15 @@ interface NotificationItem {
   type: 'urgent' | 'warning' | 'info';
   read: boolean;
   link?: string;
+  staffName?: string;
+  staffRole?: string;
+  actionBadge?: string;
+  details?: string;
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
+const DEFAULT_STAFF_NOTIFICATIONS: NotificationItem[] = [
   {
-    id: 'notif-1',
+    id: 'default-notif-1',
     title: 'Batch Priority Notice',
     description: 'Sample SMP-0034 | Batch CP-AMX-204 scheduled for release review.',
     timestamp: '2h ago',
@@ -41,7 +49,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     link: '/samples',
   },
   {
-    id: 'notif-2',
+    id: 'default-notif-2',
     title: 'Intake Verification Pending',
     description: 'Sample SMP-0033 | Raw Material Paracetamol awaiting QC intake signoff.',
     timestamp: '5h ago',
@@ -49,27 +57,92 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     read: false,
     link: '/samples',
   },
-  {
-    id: 'notif-3',
-    title: 'Batch Quarantine Cleared',
-    description: 'Sample SMP-0031 | Penicillin Lab Batch #12 cleared for next phase.',
-    timestamp: '7h ago',
-    type: 'info',
-    read: false,
-    link: '/samples',
-  },
 ];
 
 function NavbarInner({ onToggleSidebar }: NavbarProps) {
   const { user, loginAs, logout } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  // Stored read alerts in sessionStorage
+  const [readAlertIds, setReadAlertIds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = sessionStorage.getItem('cp_admin_read_alerts');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Query live real-time audit logs from database (refreshes every 5 seconds)
+  const { data: rawAuditLogs } = useQuery({
+    queryKey: ['navbar-audit-alerts'],
+    queryFn: () => auditService.getAll({ limit: 25 }),
+    refetchInterval: 5000,
+  });
+
+  // Parse and filter non-admin actions (staff below admin)
+  const nonAdminAlerts: FormattedAuditItem[] = React.useMemo(() => {
+    if (!rawAuditLogs) return [];
+    const list = Array.isArray(rawAuditLogs) ? rawAuditLogs : (rawAuditLogs as any).data || [];
+    return list
+      .map(parseAuditItem)
+      .filter((item: FormattedAuditItem) => item.isNonAdmin);
+  }, [rawAuditLogs]);
+
+  // For Admin: notifications are real-time non-admin staff activities
+  // For other users: standard workflow alerts
+  const notifications: NotificationItem[] = React.useMemo(() => {
+    if (isAdmin) {
+      if (nonAdminAlerts.length > 0) {
+        return nonAdminAlerts.map((item) => ({
+          id: item.id,
+          title: `${item.userName} (${item.roleBadge.label})`,
+          description: `${item.actionLabel.label}: ${item.details}`,
+          timestamp: `${item.relativeTime} • ${item.timeDisplay}`,
+          type: (item.actionRaw.includes('STATUS') || item.actionRaw.includes('UPDATE') ? 'urgent' : 'warning') as 'urgent' | 'warning',
+          read: readAlertIds.includes(item.id),
+          link: '/samples',
+          staffName: item.userName,
+          staffRole: item.roleBadge.label,
+          actionBadge: item.actionLabel.label,
+          details: item.details,
+        }));
+      }
+      return [
+        {
+          id: 'admin-empty',
+          title: 'All Systems Normal',
+          description: 'No new actions from laboratory staff. Live monitoring active.',
+          timestamp: 'Live',
+          type: 'info',
+          read: true,
+          link: '/samples',
+        },
+      ];
+    }
+
+    return DEFAULT_STAFF_NOTIFICATIONS;
+  }, [isAdmin, nonAdminAlerts, readAlertIds]);
+
+  const unreadCount = React.useMemo(() => {
+    if (isAdmin) {
+      return nonAdminAlerts.filter((a) => !readAlertIds.includes(a.id)).length;
+    }
+    return notifications.filter((n) => !n.read).length;
+  }, [isAdmin, nonAdminAlerts, readAlertIds, notifications]);
 
   const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    if (isAdmin) {
+      const allIds = nonAdminAlerts.map((a) => a.id);
+      setReadAlertIds(allIds);
+      try {
+        sessionStorage.setItem('cp_admin_read_alerts', JSON.stringify(allIds));
+      } catch {}
+    }
   };
 
   // Get display name & role title
@@ -130,7 +203,7 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
                   <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5">
                       <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">
-                        Recent Alerts
+                        {isAdmin ? 'Staff Activity Alerts' : 'Recent Alerts'}
                       </span>
                       {unreadCount > 0 && (
                         <span className="text-[10px] bg-rose-50 text-rose-600 font-bold px-1.5 py-0.5 rounded border border-rose-200">
@@ -149,33 +222,47 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
                     )}
                   </div>
 
-                  <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                  <div className="space-y-1.5 max-h-80 overflow-y-auto">
                     {notifications.map((item) => (
                       <Link
                         key={item.id}
                         href={item.link || '#'}
-                        onClick={() => setIsNotifOpen(false)}
+                        onClick={() => {
+                          if (isAdmin && !readAlertIds.includes(item.id)) {
+                            const updated = [...readAlertIds, item.id];
+                            setReadAlertIds(updated);
+                            try {
+                              sessionStorage.setItem('cp_admin_read_alerts', JSON.stringify(updated));
+                            } catch {}
+                          }
+                          setIsNotifOpen(false);
+                        }}
                         className={`block p-2.5 rounded-xl border transition-colors ${
                           item.read
                             ? 'bg-white border-slate-100 hover:bg-slate-50'
-                            : 'bg-rose-50/40 border-rose-200/50 hover:bg-rose-50/70'
+                            : 'bg-amber-50/70 border-amber-200/90 hover:bg-amber-100/70 shadow-2xs'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <span
-                            className={`text-xs font-semibold ${
-                              item.type === 'urgent'
-                                ? 'text-rose-700'
-                                : 'text-amber-700'
-                            }`}
-                          >
-                            {item.title}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`text-xs ${
+                                item.read ? 'font-semibold text-slate-800' : 'font-bold text-amber-950'
+                              }`}
+                            >
+                              {item.title}
+                            </span>
+                            {!item.read && (
+                              <span className="text-[9px] bg-rose-500 text-white font-bold px-1.5 py-0.2 rounded-full">
+                                NEW
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[10px] text-slate-400 shrink-0 font-mono">
                             {item.timestamp}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                        <p className="text-[11px] text-slate-700 mt-1 leading-snug">
                           {item.description}
                         </p>
                       </Link>

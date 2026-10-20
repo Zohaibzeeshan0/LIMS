@@ -7,9 +7,9 @@ export const auditService = {
     if (query?.entityName) params.append('entityName', query.entityName);
     if (query?.action) params.append('action', query.action);
     if (query?.limit) params.append('limit', String(query.limit));
-    return api.get<AuditTrail[]>(`/audit-logs?${params.toString()}`);
+    return api.get<AuditTrail[]>(`/audit?${params.toString()}`);
   },
 
   getByEntity: (entityName: string, entityId: string) =>
-    api.get<AuditTrail[]>(`/audit-logs/${entityName}/${entityId}`),
+    api.get<AuditTrail[]>(`/audit/${entityName}/${entityId}`),
 };

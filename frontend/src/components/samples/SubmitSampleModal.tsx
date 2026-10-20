@@ -222,6 +222,8 @@ export function SubmitSampleModal({
       queryClient.invalidateQueries({ queryKey: ['sample-submissions', sample?.id] });
       queryClient.invalidateQueries({ queryKey: ['sampling-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-audit-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['navbar-audit-alerts'] });
 
       if (onSuccess) onSuccess();
 
@@ -257,6 +259,8 @@ export function SubmitSampleModal({
       queryClient.invalidateQueries({ queryKey: ['sample-submissions', sample?.id] });
       queryClient.invalidateQueries({ queryKey: ['samples'] });
       queryClient.invalidateQueries({ queryKey: ['sample', sample?.id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-audit-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['navbar-audit-alerts'] });
       setTransitioningId(null);
       setTransitionStatus('');
       setTransitionReason('');
