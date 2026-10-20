@@ -27,18 +27,16 @@
 
 ## 2. Current Task Specification
 
-- **Task Name:** Project Planning and Context System Initialization
+- **Task Name:** Remove "SELECT ANALYTICAL UNIT" Header Text
 - **Status:** `COMPLETED`
-- **Objective:** Establish an efficient, persistent Markdown-based project planning system (`PROJECT_CONTEXT.md` and `TASK_PLAN.md`) to accelerate future tasks, eliminate redundant codebase exploration, and maintain high code quality.
+- **Objective:** Remove redundant "SELECT ANALYTICAL UNIT • Click any laboratory to filter records" label from the laboratory tabs filter in the samples directory.
 - **Files Involved:**
-  - `f:\Star LIMS\PROJECT_CONTEXT.md` (Created)
-  - `f:\Star LIMS\TASK_PLAN.md` (Created)
+  - `frontend/src/app/samples/page.tsx`
 - **Checklist:**
-  - [x] Inspect full project architecture, NestJS backend, and Next.js frontend.
-  - [x] Document tech stack, directory layouts, ports, and key file paths in `PROJECT_CONTEXT.md`.
-  - [x] Document SLA rules, audit conventions, and dev commands.
-  - [x] Create `TASK_PLAN.md` with operational protocol and recent work history.
-  - [x] Verify Git status and commit system setup files to GitHub.
+  - [x] Locate target label in `frontend/src/app/samples/page.tsx`.
+  - [x] Remove the label and hint text, preserving the "All Laboratories" button neatly aligned.
+  - [x] Verify TypeScript compilation (`npx tsc --noEmit`).
+  - [x] Update `TASK_PLAN.md` and push to GitHub.
 
 ---
 
@@ -46,6 +44,8 @@
 
 | Date / Commit | Feature / Change | Key Files Modified | Summary |
 |---|---|---|---|
+| **2026-10-20** | Remove Analytical Unit Header | `frontend/src/app/samples/page.tsx` | Removed "SELECT ANALYTICAL UNIT • Click any laboratory to filter records" text from samples page. |
+| **2026-10-20** (`382c3a6`) | Planning & Context System Init | `PROJECT_CONTEXT.md`, `TASK_PLAN.md` | Created persistent architectural guide and task plan tracking documents. |
 | **2026-10-20** (`5c0e0a4`) | Sample Modal Form Cleanup | `frontend/src/components/samples/NewSampleModal.tsx` | Removed "Storage Condition" input and "Assign Compendial Tests" selection section. Retained Priority selector and dynamic SLA notice banner. |
 | **2026-10-20** (`1bfbe0e`) | Priority SLA Targets & Admin Alerts | `frontend/src/components/samples/NewSampleModal.tsx`, `backend/src/sampling/sampling.service.ts`, `frontend/src/app/page.tsx` | Added 5-day SLA for Routine, 2-day for Urgent, and 24-hour for Immediate. Configured automatic Admin notification banner & Navbar alerts on Urgent/Immediate samples. |
 | **2026-10-20** (`52f8645`) | Dashboard Pending Sample Routing | `frontend/src/app/page.tsx`, `frontend/src/app/samples/page.tsx` | Clicking a pending sample on Dashboard redirects directly to that specific laboratory tab (SAF, SEF, PENICILLIN, GENERAL) with sample detail modal automatically opened. |

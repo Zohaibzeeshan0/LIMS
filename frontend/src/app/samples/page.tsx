@@ -310,14 +310,7 @@ function SamplesPageInner() {
     <div className="space-y-6 font-sans">
       {/* 1. Laboratory Selection Panel — Three Professional Clickable Cards */}
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Select Analytical Unit
-            </span>
-            <span className="text-[10px] text-slate-400">• Click any laboratory to filter records</span>
-          </div>
-
+        <div className="flex items-center justify-end">
           {/* Quick toggle for All Facilities */}
           <button
             type="button"
