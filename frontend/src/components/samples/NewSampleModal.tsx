@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { SAMPLE_STAGES, SEMI_BASE_STAGES, FORMULATION_STAGES, LabSection, getUserLabAccess } from '@/types/lims';
+import { format } from 'date-fns';
 import {
   FlaskConical,
   Microscope,
@@ -175,17 +176,20 @@ export function NewSampleModal({
     enabled: isOpen,
   });
 
-  // Default current timestamp in 'YYYY-MM-DDTHH:mm' format
-  const currentLocalISOString = useMemo(() => {
-    const now = new Date();
-    const offset = now.getTimezoneOffset();
-    const local = new Date(now.getTime() - offset * 60000);
-    return local.toISOString().slice(0, 16);
-  }, [isOpen]);
+  // Live real-time clock state for sampling intake
+  const [liveDate, setLiveDate] = useState<Date>(new Date());
+  const [isLiveClock, setIsLiveClock] = useState<boolean>(true);
+
+  // Helper to format local ISO string (YYYY-MM-DDTHH:mm:ss)
+  const getLocalISOString = (d: Date = new Date()) => {
+    const offset = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - offset * 60000);
+    return local.toISOString().slice(0, 19);
+  };
 
   const defaultValues: SampleFormValues = {
     laboratory: effectiveLab,
-    samplingDateTime: currentLocalISOString,
+    samplingDateTime: getLocalISOString(),
     nomenclature: '',
     idGenerationPolicy: 'AUTO',
     customSampleId: '',
@@ -219,13 +223,29 @@ export function NewSampleModal({
     defaultValues,
   });
 
+  // Live ticking interval (updates every 1000ms while modal is open & live mode is on)
+  useEffect(() => {
+    if (!isOpen || !isLiveClock) return;
+    const updateTime = () => {
+      const now = new Date();
+      setLiveDate(now);
+      setValue('samplingDateTime', getLocalISOString(now), { shouldDirty: false });
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, [isOpen, isLiveClock, setValue]);
+
   // Update defaults when modal opens or laboratory switches
   useEffect(() => {
     if (isOpen) {
+      setIsLiveClock(true);
+      const now = new Date();
+      setLiveDate(now);
       setSelectedSection(defaultSection);
       setValue('laboratory', effectiveLab);
       setValue('sampleType', defaultSection === 'semi-base' ? SEMI_BASE_STAGES[0] : FORMULATION_STAGES[0]);
-      setValue('samplingDateTime', currentLocalISOString);
+      setValue('samplingDateTime', getLocalISOString(now));
       if (user?.fullName) {
         setValue('submittedBy', `${user.fullName} (${user.department || 'Production'})`);
         setValue('receivedBy', `${user.fullName} (QC Intake Officer)`);
@@ -236,7 +256,7 @@ export function NewSampleModal({
       setIdCheckStatus('idle');
       setDuplicateMessage(null);
     }
-  }, [isOpen, defaultLaboratory, defaultSection, currentLocalISOString, user, setValue]);
+  }, [isOpen, defaultLaboratory, defaultSection, user, setValue, effectiveLab]);
 
   const watchedLab = watch('laboratory');
   const watchedPolicy = watch('idGenerationPolicy');
@@ -379,7 +399,9 @@ export function NewSampleModal({
     const payload: any = {
       laboratory: formData.laboratory,
       section: selectedSection,
-      samplingDate: new Date(formData.samplingDateTime).toISOString(),
+      samplingDate: isLiveClock
+        ? new Date().toISOString()
+        : new Date(formData.samplingDateTime).toISOString(),
       nomenclature: formData.nomenclature.trim(),
       materialName: formData.nomenclature.trim(),
       stageType: finalStageWithTag,
@@ -545,20 +567,80 @@ export function NewSampleModal({
 
           {/* Section 2: Core Identifiers & Timing */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {/* Date & Time (Defaults to current time, editable) */}
+            {/* Date & Time (Defaults to live current time with real-time second updates) */}
             <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5 text-navy-900" />
                   <span>Sampling Date & Time <span className="text-rose-500">*</span></span>
+                </label>
+                <div className="flex items-center gap-1.5">
+                  {isLiveClock ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 -ml-2.5" />
+                      LIVE CLOCK
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLiveClock(true);
+                        const now = new Date();
+                        setLiveDate(now);
+                        setValue('samplingDateTime', getLocalISOString(now), { shouldDirty: true });
+                      }}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer"
+                    >
+                      <RotateCcw className="h-2.5 w-2.5" />
+                      <span>Sync Live</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="datetime-local"
+                  step="1"
+                  {...register('samplingDateTime')}
+                  onChange={(e) => {
+                    setIsLiveClock(false);
+                    setValue('samplingDateTime', e.target.value, { shouldValidate: true, shouldDirty: true });
+                  }}
+                  className={cn(
+                    'w-full px-3 py-2 text-xs font-mono rounded-lg border outline-none bg-white transition-all',
+                    isLiveClock
+                      ? 'border-emerald-300 ring-2 ring-emerald-500/10 text-emerald-950 font-semibold bg-emerald-50/20'
+                      : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 text-slate-800'
+                  )}
+                />
+              </div>
+
+              <div className="flex items-center justify-between mt-1 text-[10px]">
+                <span className="text-slate-500 font-mono">
+                  {isLiveClock
+                    ? `Live: ${format(liveDate, 'dd MMM yyyy, hh:mm:ss a')}`
+                    : 'Manual custom timestamp entered'}
                 </span>
-                <span className="text-[10px] font-normal text-slate-400">Current timestamp default</span>
-              </label>
-              <input
-                type="datetime-local"
-                {...register('samplingDateTime')}
-                className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white"
-              />
+                {isLiveClock ? (
+                  <span className="text-emerald-700 font-medium">Auto-captures exact intake second</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLiveClock(true);
+                      const now = new Date();
+                      setLiveDate(now);
+                      setValue('samplingDateTime', getLocalISOString(now), { shouldDirty: true });
+                    }}
+                    className="text-[10px] text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                  >
+                    Switch to Live
+                  </button>
+                )}
+              </div>
+
               {errors.samplingDateTime && (
                 <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
