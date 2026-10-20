@@ -29,12 +29,7 @@ import {
   Check,
   Eye,
   QrCode,
-  PlusSquare,
   FileEdit,
-  ClipboardList,
-  Settings,
-  Database,
-  Server,
   Lock,
   ArrowRight,
   TrendingUp,
@@ -848,7 +843,7 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* Row 4: Quick Actions (4 cols) + Lab Activity Log (5 cols) + System Information (3 cols) */}
+      {/* Row 4: Quick Actions (4 cols) + Lab Activity Log (8 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
         {/* Card 1: Quick Actions */}
@@ -920,8 +915,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Card 2: Lab Activity Log (Live Real-Time Operational Audit Feed) */}
-        <div className="lg:col-span-5 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
+        {/* Card 2: Lab Activity Log (Live Real-Time Operational Audit Feed - Expanded 8 Columns) */}
+        <div className="lg:col-span-8 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 mb-3 gap-2">
               <div className="flex items-center gap-2">
@@ -941,7 +936,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setActivityFilter('all')}
-                  className={`px-2.5 py-1 rounded-md transition-all ${
+                  className={`px-3 py-1 rounded-md transition-all ${
                     activityFilter === 'all'
                       ? 'bg-white text-slate-800 shadow-2xs font-bold'
                       : 'text-slate-500 hover:text-slate-700'
@@ -952,7 +947,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setActivityFilter('staff')}
-                  className={`px-2.5 py-1 rounded-md transition-all ${
+                  className={`px-3 py-1 rounded-md transition-all ${
                     activityFilter === 'staff'
                       ? 'bg-amber-500 text-white shadow-2xs font-bold'
                       : 'text-slate-500 hover:text-slate-700'
@@ -963,14 +958,14 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-80 overflow-y-auto">
+            <div className="overflow-x-auto max-h-84 overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead className="sticky top-0 bg-white z-10">
                   <tr className="bg-slate-50/90 text-slate-500 font-semibold border-b border-slate-100">
-                    <th className="py-2.5 px-2 font-medium">Time & Date</th>
-                    <th className="py-2.5 px-2 font-medium">Personnel</th>
-                    <th className="py-2.5 px-2 font-medium">Activity</th>
-                    <th className="py-2.5 px-2 font-medium">Change Details</th>
+                    <th className="py-2.5 px-3 font-medium whitespace-nowrap">Time & Date</th>
+                    <th className="py-2.5 px-3 font-medium whitespace-nowrap">Personnel & Role</th>
+                    <th className="py-2.5 px-3 font-medium whitespace-nowrap">Activity</th>
+                    <th className="py-2.5 px-3 font-medium">Change Details</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -989,7 +984,7 @@ export default function DashboardPage() {
                   ) : (
                     displayedLogs.slice(0, 15).map((log) => (
                       <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-2.5 px-2 whitespace-nowrap">
+                        <td className="py-2.5 px-3 whitespace-nowrap">
                           <span className="font-bold text-slate-900 block font-mono text-[11px]">
                             {log.timeDisplay}
                           </span>
@@ -997,25 +992,25 @@ export default function DashboardPage() {
                             {log.dateDisplay}
                           </span>
                         </td>
-                        <td className="py-2.5 px-2">
-                          <div className="font-bold text-slate-900 text-xs truncate max-w-[120px]" title={log.userName}>
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <div className="font-bold text-slate-900 text-xs">
                             {log.userName}
                           </div>
                           <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider ${log.roleBadge.badgeClass}`}>
                             {log.roleBadge.label}
                           </span>
                         </td>
-                        <td className="py-2.5 px-2">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap ${log.actionLabel.colorClass}`}>
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${log.actionLabel.colorClass}`}>
                             {log.actionLabel.label}
                           </span>
                         </td>
-                        <td className="py-2.5 px-2 max-w-[200px]">
-                          <p className="text-slate-800 font-medium text-[11px] leading-tight line-clamp-2" title={log.details}>
+                        <td className="py-2.5 px-3">
+                          <p className="text-slate-800 font-medium text-[11px] leading-tight">
                             {log.details}
                           </p>
                           {log.reason && log.reason !== log.details && (
-                            <span className="text-[10px] text-slate-400 italic block mt-0.5 truncate" title={log.reason}>
+                            <span className="text-[10px] text-slate-400 italic block mt-0.5">
                               Reason: {log.reason}
                             </span>
                           )}
@@ -1028,60 +1023,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
-        {/* Card 3: System Information */}
-        <div className="lg:col-span-3 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-blue-600" />
-                <h2 className="font-bold text-sm text-slate-900">System Information</h2>
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-1 text-xs">
-              
-              <div className="flex items-center justify-between text-slate-600">
-                <div className="flex items-center gap-2">
-                  <Server className="h-3.5 w-3.5 text-slate-400" />
-                  <span>System Version</span>
-                </div>
-                <span className="font-semibold text-slate-800 font-mono text-[11px]">v2.4 Enterprise</span>
-              </div>
-
-              <div className="flex items-center justify-between text-slate-600">
-                <div className="flex items-center gap-2">
-                  <Database className="h-3.5 w-3.5 text-slate-400" />
-                  <span>Database Status</span>
-                </div>
-                <div className="flex items-center gap-1.5 font-semibold text-emerald-600 text-[11px]">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Connected</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-slate-600">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5 text-slate-400" />
-                  <span>Server Uptime</span>
-                </div>
-                <span className="font-semibold text-slate-800 text-[11px]">12 days, 4 hours</span>
-              </div>
-
-              <div className="flex items-center justify-between text-slate-600">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                  <span>Last Cloud Backup</span>
-                </div>
-                <span className="font-medium text-emerald-700 text-[11px] font-mono">
-                  {formatShortLiveDate(currentTime)} • 02:00 AM
-                </span>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
       </div>
 
       {/* Accession Modal for Quick Registration */}
