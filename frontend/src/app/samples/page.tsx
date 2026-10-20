@@ -654,12 +654,8 @@ function SamplesPageInner() {
               {activeSection === 'semi-base' ? 'Semi Basics Section' : 'Formulation Section'}
             </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>{isAllLabs ? 'Sampling Records' : activeLab.heading}</span>
-            <span className="text-slate-300 font-normal">/</span>
-            <span className="text-blue-700">
-              {activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
-            </span>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            {activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             {activeSection === 'semi-base'
