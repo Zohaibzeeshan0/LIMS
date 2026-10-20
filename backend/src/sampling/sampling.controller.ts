@@ -37,14 +37,14 @@ export class SamplingController {
 
   @Get()
   @ApiOperation({ summary: 'Query samples with filters (status, type, priority, search, pagination)' })
-  findAll(@Query() query: SamplingQueryDto) {
-    return this.samplingService.findAll(query);
+  findAll(@Query() query: SamplingQueryDto, @Request() req: any) {
+    return this.samplingService.findAll(query, req.user);
   }
 
   @Get('metrics')
   @ApiOperation({ summary: 'Get live sample KPI counts and status distribution' })
-  getMetrics(@Query('laboratory') laboratory?: string, @Query('lab') lab?: string) {
-    return this.samplingService.getSampleMetrics(laboratory || lab);
+  getMetrics(@Query('laboratory') laboratory?: string, @Query('lab') lab?: string, @Request() req?: any) {
+    return this.samplingService.getSampleMetrics(laboratory || lab, req?.user);
   }
 
   @Get('check-sample-id/:sampleCode')
@@ -89,8 +89,8 @@ export class SamplingController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get detailed sample record including tests, custody, and OOS' })
-  findOne(@Param('id') id: string) {
-    return this.samplingService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    return this.samplingService.findOne(id, req.user);
   }
 
   @Patch(':id')

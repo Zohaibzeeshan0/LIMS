@@ -27,31 +27,33 @@
 
 ## 2. Current Task Specification
 
-- **Task Name:** Role-Based Access Control (Admin-Only Edit) & Lab Subsections (Semi Base / Formulation)
+- **Task Name:** Laboratory-Level Role-Based Access Control (SAF, Penicillin, General Isolation)
 - **Status:** `COMPLETED`
 - **Objective:**
-  1. Enforce strict RBAC: Admin has full access to all features. Non-admin staff (QA Manager, QC Analyst, Lab Technician, Auditor) can only enter/add new data (samples, worksheets, results) and cannot edit existing records (Edit Sample restricted strictly to ADMIN on both frontend and backend).
-  2. Implement 2 sub-sections inside all 3 Labs (SEF, Penicillin, General): **Semi Base** and **Formulation**.
-  3. Ensure that in each Lab, sample records and accession categories appear organized under these two sub-sections upon selection.
+  1. Restrict SAF / SEF Lab staff to SAF / SEF Lab only (cannot open, view, or enter data for Penicillin or General Lab).
+  2. Restrict Penicillin Lab staff to Penicillin Lab only (cannot open, view, or enter data for SAF or General Lab).
+  3. Restrict General Lab staff to General Lab only (cannot open, view, or enter data for SAF or Penicillin Lab).
+  4. Ensure Administrator (`Role.ADMIN`) maintains unrestricted administrative access to switch between and manage all 3 laboratories.
+  5. Enforce on both frontend (UI card locks, URL route interceptors, modal pre-locks) and backend (`findAll`, `create`, `findOne`, `getSampleMetrics`, `submitToWorkflow`).
 - **Files Involved:**
-  - `backend/src/sampling/sampling.controller.ts`
-  - `backend/src/samples/samples.controller.ts`
-  - `backend/src/sampling/dto/sample-query.dto.ts`
   - `backend/src/sampling/sampling.service.ts`
+  - `backend/src/sampling/sampling.controller.ts`
+  - `frontend/src/types/lims.ts`
+  - `frontend/src/context/AuthContext.tsx`
   - `frontend/src/app/samples/page.tsx`
   - `frontend/src/components/samples/NewSampleModal.tsx`
-  - `frontend/src/components/samples/EditSampleModal.tsx`
-  - `frontend/src/services/sampling.service.ts`
-  - `frontend/src/types/lims.ts`
+  - `frontend/src/app/login/page.tsx`
 - **Checklist:**
-  - [x] Restrict `@Patch(':id')` in `backend/src/sampling/sampling.controller.ts` to `Role.ADMIN` only.
-  - [x] Restrict `@Patch(':id')`, `@Patch(':id/archive')`, and `@Patch(':id/cancel')` in `backend/src/samples/samples.controller.ts` to `Role.ADMIN` only.
-  - [x] Update `canEdit` in `frontend/src/app/samples/page.tsx` to `user?.role === 'ADMIN'` only; show clear Admin-only lock icons and tooltips for non-admins.
-  - [x] Add guard in `EditSampleModal.tsx` to prevent non-admins from submitting modifications.
-  - [x] In `frontend/src/app/samples/page.tsx`, create the 2 Lab Sub-Section options: **Semi Base** and **Formulation** with counts and active indicators.
-  - [x] Support section filtering in `frontend/src/app/samples/page.tsx` and backend so samples belonging to Semi Base vs Formulation are filtered and displayed upon clicking either option.
-  - [x] Update `NewSampleModal.tsx` to accept and default the active section (**Semi Base** vs **Formulation**) and tailor the stage categories accordingly.
-  - [x] Verify TypeScript compilation with `npx tsc --noEmit` and backend build with `nest build`.
+  - [x] Implement `getUserAssignedLab` helper and enforce lab filtering in `backend/src/sampling/sampling.service.ts`.
+  - [x] Enforce lab authorization validation in `create` endpoint to block cross-lab accessioning with 403 Forbidden.
+  - [x] Pass `req.user` in `backend/src/sampling/sampling.controller.ts` for `findAll`, `getMetrics`, and `findOne`.
+  - [x] Export `LaboratoryAccess` and `getUserLabAccess` helper in `frontend/src/types/lims.ts`.
+  - [x] Update `DEMO_USERS` in `AuthContext.tsx` to provide 1-click personas for SAF, Penicillin, General, and Admin.
+  - [x] Enforce strict lab locking in `frontend/src/app/samples/page.tsx`: disable other lab cards with lock badges, auto-lock URL, hide "All Labs" toggle for non-admins.
+  - [x] Lock Laboratory select in `frontend/src/components/samples/NewSampleModal.tsx` to the user's assigned lab.
+  - [x] Add 1-click persona buttons for each lab on `frontend/src/app/login/page.tsx`.
+  - [x] Verify TypeScript compile (`tsc --noEmit`) passes with 0 errors on both frontend and backend.
+  - [x] Run integration test `verify_lab_rbac.js` verifying 403 Forbidden cross-facility blocking and isolated query results.
   - [x] Commit and push to GitHub repository.
 
 ---

@@ -14,6 +14,30 @@ export type Priority = 'ROUTINE' | 'URGENT' | 'STAT';
 
 export type LaboratoryType = 'SAF' | 'SEF' | 'PENICILLIN' | 'GENERAL';
 
+export type LaboratoryAccess = 'SAF' | 'PENICILLIN' | 'GENERAL' | 'ALL';
+
+export function getUserLabAccess(
+  user: { role?: string; department?: string; email?: string } | null | undefined
+): LaboratoryAccess {
+  if (!user) return 'ALL';
+  if (user.role === 'ADMIN' || user.role === 'AUDITOR') return 'ALL';
+
+  const dept = (user.department || '').toLowerCase();
+  const email = (user.email || '').toLowerCase();
+
+  if (dept.includes('sef') || dept.includes('saf') || email.includes('saf') || email.includes('sef')) {
+    return 'SAF';
+  }
+  if (dept.includes('penicillin') || email.includes('penicillin')) {
+    return 'PENICILLIN';
+  }
+  if (dept.includes('general') || email.includes('general')) {
+    return 'GENERAL';
+  }
+
+  return 'GENERAL';
+}
+
 export const SEMI_BASE_STAGES = [
   'Bulk / Blended Product',
   'Core Tablet',

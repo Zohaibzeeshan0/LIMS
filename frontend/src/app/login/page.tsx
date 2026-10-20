@@ -404,14 +404,14 @@ function LoginFormContent() {
                   <div className="mt-2.5 grid grid-cols-2 gap-1.5 animate-in fade-in duration-200">
                     {DEMO_USERS.map((demo) => (
                       <button
-                        key={demo.role}
+                        key={demo.email}
                         type="button"
                         onClick={() => fillCredentials(demo.email, 'Admin@1234')}
                         className="p-2.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-blue-50/50 hover:border-blue-300 text-left transition-colors"
                       >
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-[9px] font-bold text-[#0066FF] uppercase">
-                            {demo.role.replace(/_/g, ' ')}
+                            {(demo as any).labBadge || demo.role.replace(/_/g, ' ')}
                           </span>
                         </div>
                         <div className="text-[11px] font-semibold text-slate-800 leading-tight truncate">

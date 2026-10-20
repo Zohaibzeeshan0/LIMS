@@ -12,7 +12,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import { SAMPLE_STAGES, SEMI_BASE_STAGES, FORMULATION_STAGES, LabSection } from '@/types/lims';
+import { SAMPLE_STAGES, SEMI_BASE_STAGES, FORMULATION_STAGES, LabSection, getUserLabAccess } from '@/types/lims';
 import {
   FlaskConical,
   Microscope,
@@ -32,6 +32,7 @@ import {
   RotateCcw,
   FileText,
   Building,
+  Lock,
 } from 'lucide-react';
 
 // Zod Validation Schema enforcing cGMP / 21 CFR Part 11 requirements
@@ -132,6 +133,13 @@ export function NewSampleModal({
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  // Strict RBAC: Check user's assigned laboratory
+  const userLabAccess = useMemo(() => getUserLabAccess(user), [user]);
+  const isRestrictedToLab = userLabAccess !== 'ALL';
+  const effectiveLab: 'SAF' | 'PENICILLIN' | 'GENERAL' = isRestrictedToLab
+    ? (userLabAccess === 'SAF' ? 'SAF' : userLabAccess)
+    : (defaultLaboratory === 'SEF' ? 'SAF' : defaultLaboratory);
+
   // Active lab section: Semi Base vs Formulation
   const [selectedSection, setSelectedSection] = useState<LabSection>(defaultSection);
 
@@ -176,7 +184,7 @@ export function NewSampleModal({
   }, [isOpen]);
 
   const defaultValues: SampleFormValues = {
-    laboratory: defaultLaboratory,
+    laboratory: effectiveLab,
     samplingDateTime: currentLocalISOString,
     nomenclature: '',
     idGenerationPolicy: 'AUTO',
@@ -215,7 +223,7 @@ export function NewSampleModal({
   useEffect(() => {
     if (isOpen) {
       setSelectedSection(defaultSection);
-      setValue('laboratory', defaultLaboratory);
+      setValue('laboratory', effectiveLab);
       setValue('sampleType', defaultSection === 'semi-base' ? SEMI_BASE_STAGES[0] : FORMULATION_STAGES[0]);
       setValue('samplingDateTime', currentLocalISOString);
       if (user?.fullName) {
@@ -429,15 +437,23 @@ export function NewSampleModal({
             </div>
           )}
 
-          {/* Section 1: Laboratory Suite Selection (Auto-selected from current lab page) */}
+          {/* Section 1: Laboratory Suite Selection */}
           <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200 space-y-2">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-navy-950 uppercase tracking-wider">
-                1. Target Laboratory Suite <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-navy-950 uppercase tracking-wider flex items-center gap-1.5">
+                <span>1. Target Laboratory Suite</span>
+                <span className="text-rose-500">*</span>
               </label>
-              <span className="text-[11px] text-slate-500 font-medium">
-                Auto-assigned from active laboratory view
-              </span>
+              {isRestrictedToLab ? (
+                <span className="text-[11px] text-amber-700 font-semibold flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                  <Lock className="h-3 w-3" />
+                  <span>Assigned Laboratory Only</span>
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Administrator: Select destination laboratory
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -460,30 +476,44 @@ export function NewSampleModal({
               ].map((lab) => {
                 const Icon = lab.icon;
                 const isSelected = watchedLab === lab.key;
+                const isLocked = isRestrictedToLab && lab.key !== userLabAccess;
+
                 return (
                   <button
                     key={lab.key}
                     type="button"
-                    onClick={() => setValue('laboratory', lab.key as any, { shouldDirty: true })}
+                    disabled={isLocked}
+                    onClick={() => {
+                      if (!isLocked) {
+                        setValue('laboratory', lab.key as any, { shouldDirty: true });
+                      }
+                    }}
                     className={cn(
-                      'p-2.5 rounded-xl border text-left transition-all duration-150 cursor-pointer flex items-center justify-between',
-                      isSelected
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                      'p-2.5 rounded-xl border text-left transition-all duration-150 flex items-center justify-between',
+                      isLocked
+                        ? 'opacity-40 cursor-not-allowed bg-slate-100 border-dashed border-slate-300 text-slate-400'
+                        : isSelected
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs cursor-pointer'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 cursor-pointer'
                     )}
                   >
                     <div className="flex items-center gap-2">
                       <Icon
                         className={cn(
                           'h-4 w-4',
-                          isSelected ? 'text-white' : 'text-slate-500'
+                          isLocked ? 'text-slate-400' : isSelected ? 'text-white' : 'text-slate-500'
                         )}
                       />
                       <span className="font-bold text-xs">{lab.label}</span>
                     </div>
-                    {isSelected && (
+                    {isLocked ? (
+                      <span className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
+                        <Lock className="h-3 w-3" />
+                        <span>Restricted</span>
+                      </span>
+                    ) : isSelected ? (
                       <CheckCircle2 className="h-4 w-4 text-white" />
-                    )}
+                    ) : null}
                   </button>
                 );
               })}

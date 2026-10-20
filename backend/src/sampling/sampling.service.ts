@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSampleDto } from './dto/create-sample.dto';
 import { UpdateSampleDto } from './dto/update-sample.dto';
@@ -22,6 +22,26 @@ export class SamplingService {
     return `A-${sequence}`;
   }
 
+  getUserAssignedLab(user?: any): 'SAF' | 'PENICILLIN' | 'GENERAL' | 'ALL' {
+    if (!user) return 'ALL';
+    if (user.role === 'ADMIN' || user.role === 'AUDITOR') return 'ALL';
+
+    const dept = (user.department || '').toLowerCase();
+    const email = (user.email || '').toLowerCase();
+
+    if (dept.includes('sef') || dept.includes('saf') || email.includes('saf') || email.includes('sef')) {
+      return 'SAF';
+    }
+    if (dept.includes('penicillin') || email.includes('penicillin')) {
+      return 'PENICILLIN';
+    }
+    if (dept.includes('general') || email.includes('general')) {
+      return 'GENERAL';
+    }
+
+    return 'GENERAL';
+  }
+
   async checkSampleIdAvailability(sampleCode: string) {
     const existing = await this.prisma.sample.findUnique({
       where: { sampleCode: sampleCode.trim() },
@@ -35,6 +55,19 @@ export class SamplingService {
   }
 
   async create(createSampleDto: CreateSampleDto, user: any) {
+    const userAssignedLab = this.getUserAssignedLab(user);
+    const rawReqLab = createSampleDto.laboratory ? (createSampleDto.laboratory as string).toUpperCase() : undefined;
+    const requestedLab = rawReqLab === 'SEF' ? 'SAF' : (rawReqLab || 'GENERAL');
+
+    if (userAssignedLab !== 'ALL') {
+      if (requestedLab !== userAssignedLab) {
+        throw new ForbiddenException(
+          `Access Denied: You are assigned to the ${userAssignedLab === 'SAF' ? 'SAF / SEF' : userAssignedLab} Laboratory. You cannot intake or modify samples for ${requestedLab} Laboratory.`
+        );
+      }
+      createSampleDto.laboratory = userAssignedLab as any;
+    }
+
     let sampleCode = createSampleDto.sampleCode?.trim();
     if (sampleCode) {
       const existing = await this.prisma.sample.findUnique({
@@ -190,8 +223,10 @@ export class SamplingService {
     });
   }
 
-  async findAll(query: any) {
+  async findAll(query: any, user?: any) {
     const where: any = {};
+    const userAssignedLab = this.getUserAssignedLab(user);
+
     if (query.status) {
       if (typeof query.status === 'string' && query.status.includes(',')) {
         const statuses = query.status.split(',').map((s: string) => s.trim()).filter(Boolean);
@@ -216,10 +251,14 @@ export class SamplingService {
     }
     if (query.batchId) where.batchId = query.batchId;
 
-    const rawLab = query.laboratory || query.lab;
-    const lab = rawLab ? (rawLab.toString().toUpperCase() === 'SEF' ? 'SAF' : rawLab.toString().toUpperCase()) : undefined;
-    if (lab && ['SAF', 'PENICILLIN', 'GENERAL'].includes(lab)) {
-      where.laboratoryType = lab as any;
+    if (userAssignedLab !== 'ALL') {
+      where.laboratoryType = userAssignedLab as any;
+    } else {
+      const rawLab = query.laboratory || query.lab;
+      const lab = rawLab ? (rawLab.toString().toUpperCase() === 'SEF' ? 'SAF' : rawLab.toString().toUpperCase()) : undefined;
+      if (lab && ['SAF', 'PENICILLIN', 'GENERAL'].includes(lab)) {
+        where.laboratoryType = lab as any;
+      }
     }
 
     // Specific searches
@@ -262,9 +301,7 @@ export class SamplingService {
           { stageType: { contains: 'In-Process', mode: 'insensitive' } },
           { stageType: { contains: 'Water', mode: 'insensitive' } },
           { stageType: { contains: 'Cleaning', mode: 'insensitive' } },
-          { sampleType: { contains: 'IN_PROCESS', mode: 'insensitive' } },
-          { sampleType: { contains: 'RAW_MATERIAL', mode: 'insensitive' } },
-          { sampleType: { contains: 'WATER', mode: 'insensitive' } },
+          { sampleType: { in: ['IN_PROCESS', 'RAW_MATERIAL', 'WATER_PURIFIED'] } },
           { remarks: { contains: '[Semi Base]', mode: 'insensitive' } },
         ];
       } else if (sec === 'formulation') {
@@ -276,8 +313,7 @@ export class SamplingService {
           { stageType: { contains: 'Packag', mode: 'insensitive' } },
           { stageType: { contains: 'Stabilit', mode: 'insensitive' } },
           { stageType: { contains: 'Process Validation', mode: 'insensitive' } },
-          { sampleType: { contains: 'FINISHED', mode: 'insensitive' } },
-          { sampleType: { contains: 'STABILITY', mode: 'insensitive' } },
+          { sampleType: { in: ['FINISHED_PRODUCT', 'STABILITY'] } },
           { remarks: { contains: '[Formulation]', mode: 'insensitive' } },
         ];
       }
@@ -405,7 +441,7 @@ export class SamplingService {
     };
   }
 
-  async findOne(idOrCode: string) {
+  async findOne(idOrCode: string, user?: any) {
     const sample = await this.prisma.sample.findFirst({
       where: {
         OR: [
@@ -446,6 +482,15 @@ export class SamplingService {
 
     if (!sample) {
       throw new NotFoundException(`Sample with identifier '${idOrCode}' not found`);
+    }
+
+    if (user) {
+      const userAssignedLab = this.getUserAssignedLab(user);
+      if (userAssignedLab !== 'ALL' && sample.laboratoryType && sample.laboratoryType !== userAssignedLab) {
+        throw new ForbiddenException(
+          `Access Denied: You are assigned to the ${userAssignedLab === 'SAF' ? 'SAF / SEF' : userAssignedLab} Laboratory and cannot view samples from ${sample.laboratoryType} Laboratory.`
+        );
+      }
     }
 
     return sample;
@@ -543,8 +588,10 @@ export class SamplingService {
     });
   }
 
-  async getSampleMetrics(laboratory?: string) {
-    const rawLab = laboratory?.toUpperCase();
+  async getSampleMetrics(laboratory?: string, user?: any) {
+    const userAssignedLab = this.getUserAssignedLab(user);
+    const targetLab = userAssignedLab !== 'ALL' ? userAssignedLab : laboratory;
+    const rawLab = targetLab?.toUpperCase();
     const normalizedLab = rawLab === 'SEF' ? 'SAF' : rawLab;
     const labCondition =
       normalizedLab && ['SAF', 'PENICILLIN', 'GENERAL'].includes(normalizedLab)
@@ -576,6 +623,21 @@ export class SamplingService {
     });
     const totalBatches = await this.prisma.batch.count();
 
+    const byLab =
+      userAssignedLab === 'ALL'
+        ? {
+            saf: safCount,
+            sef: safCount,
+            penicillin: penicillinCount,
+            general: generalCount,
+          }
+        : {
+            saf: userAssignedLab === 'SAF' ? safCount : 0,
+            sef: userAssignedLab === 'SAF' ? safCount : 0,
+            penicillin: userAssignedLab === 'PENICILLIN' ? penicillinCount : 0,
+            general: userAssignedLab === 'GENERAL' ? generalCount : 0,
+          };
+
     return {
       total,
       received,
@@ -586,12 +648,7 @@ export class SamplingService {
       urgentCount,
       activeBatches,
       totalBatches,
-      byLab: {
-        saf: safCount,
-        sef: safCount,
-        penicillin: penicillinCount,
-        general: generalCount,
-      },
+      byLab,
     };
   }
 
@@ -602,6 +659,13 @@ export class SamplingService {
     });
     if (!sample) {
       throw new NotFoundException(`Sample with ID ${sampleId} not found`);
+    }
+
+    const userAssignedLab = this.getUserAssignedLab(user);
+    if (userAssignedLab !== 'ALL' && sample.laboratoryType && sample.laboratoryType !== userAssignedLab) {
+      throw new ForbiddenException(
+        `Access Denied: You cannot submit workflow tasks for samples belonging to ${sample.laboratoryType} Laboratory.`
+      );
     }
 
     // Prevent accidental duplicate submissions to the same destination lab while active
