@@ -108,6 +108,19 @@ export default function DashboardPage() {
     queryFn: () => samplingService.getAll({ limit: 6, sortBy: 'samplingDate', sortOrder: 'desc' }),
   });
 
+  // Dedicated query to fetch ALL active expedited (Immediate / STAT & Urgent) samples
+  const { data: expeditedSamplesData } = useQuery({
+    queryKey: ['dashboard-all-expedited-samples'],
+    queryFn: () =>
+      samplingService.getAll({
+        priority: 'STAT,URGENT',
+        limit: 100,
+        sortBy: 'samplingDate',
+        sortOrder: 'desc',
+      }),
+    refetchInterval: 5000,
+  });
+
   // Dynamically compute the last 7 calendar days leading to today
   const recentDays = useMemo(() => getRecentDays(7), [currentTime]);
 
@@ -298,18 +311,40 @@ export default function DashboardPage() {
     return formattedLogs;
   }, [formattedLogs, activityFilter]);
 
-  // Active Urgent (2 Days SLA) and Immediate (24 Hours SLA) samples for Admin Notice
+  // Active Urgent (2 Days SLA) and Immediate (24 Hours SLA) samples for Admin Notice (ALL records)
   const urgentAdminNotices = useMemo(() => {
-    const list = Array.isArray(recentSamplesData)
+    const expeditedList = Array.isArray(expeditedSamplesData)
+      ? expeditedSamplesData
+      : (expeditedSamplesData as any)?.data || [];
+
+    const fallbackList = Array.isArray(recentSamplesData)
       ? recentSamplesData
       : (recentSamplesData as any)?.data || [];
 
-    const urgentList = list.filter(
+    // Merge and deduplicate by sample id / accession
+    const combinedMap = new Map<string, any>();
+    [...expeditedList, ...fallbackList].forEach((s: any) => {
+      const key = s.id || s.sampleCode || s.accessionNo;
+      if (key && !combinedMap.has(key)) {
+        combinedMap.set(key, s);
+      }
+    });
+
+    const urgentList = Array.from(combinedMap.values()).filter(
       (s: any) =>
         (s.priority === 'STAT' || s.priority === 'URGENT') &&
         s.status !== 'APPROVED' &&
         s.status !== 'REJECTED'
     );
+
+    // Sort: STAT (Immediate 24h) first, then URGENT (2d), then latest date
+    urgentList.sort((a: any, b: any) => {
+      if (a.priority === 'STAT' && b.priority !== 'STAT') return -1;
+      if (b.priority === 'STAT' && a.priority !== 'STAT') return 1;
+      const aTime = new Date(a.samplingDate || a.createdAt || 0).getTime();
+      const bTime = new Date(b.samplingDate || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
 
     return urgentList.map((s: any) => {
       let labId = 'general';
@@ -334,7 +369,7 @@ export default function DashboardPage() {
         labName,
       };
     });
-  }, [recentSamplesData]);
+  }, [expeditedSamplesData, recentSamplesData]);
 
   // Alert logs prioritizing Urgent and Critical Immediate events
   const priorityAlertLogs = useMemo(() => {
@@ -454,28 +489,37 @@ export default function DashboardPage() {
       {/* Executive Priority Action Notice Banner for Lab Administration */}
       {urgentAdminNotices.length > 0 && (
         <div className="rounded-2xl border border-rose-300 bg-linear-to-r from-rose-50 via-amber-50/70 to-orange-50 p-4 shadow-xs animate-in fade-in">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse">
-                <AlertCircle className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-600 text-white shadow-2xs">
-                    Admin Priority Notice
-                  </span>
-                  <span className="text-xs font-bold text-slate-900">
-                    {urgentAdminNotices.length} Expedited {urgentAdminNotices.length === 1 ? 'Sample Requires' : 'Samples Require'} Lab Testing
-                  </span>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse">
+                  <AlertCircle className="h-5 w-5" />
                 </div>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Immediate (24 Hours SLA) and Urgent (2 Days SLA) samples detected in active laboratory workflow.
-                </p>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-600 text-white shadow-2xs">
+                      Admin Priority Notice
+                    </span>
+                    <span className="text-xs font-bold text-slate-900">
+                      {urgentAdminNotices.length} Expedited {urgentAdminNotices.length === 1 ? 'Sample Requires' : 'Samples Require'} Lab Testing
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    All active Immediate (24 Hours SLA) and Urgent (2 Days SLA) samples across laboratories.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] font-semibold text-slate-600 bg-white/80 px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                  Total Expedited: <strong className="text-rose-700 font-bold">{urgentAdminNotices.length}</strong>
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              {urgentAdminNotices.slice(0, 3).map((s) => (
+            {/* List ALL Expedited Samples (without slicing) */}
+            <div className="flex items-center gap-2 flex-wrap max-h-60 overflow-y-auto p-1.5 rounded-xl bg-white/70 border border-rose-200/80">
+              {urgentAdminNotices.map((s) => (
                 <Link
                   key={s.id}
                   href={`/samples?lab=${s.labId}&sampleId=${encodeURIComponent(s.uuid || s.id)}`}
@@ -488,7 +532,8 @@ export default function DashboardPage() {
                   title={`Open ${s.id} in ${s.labName}`}
                 >
                   <span>{s.id}</span>
-                  <span className="text-[10px] opacity-90 font-medium">({s.priority === 'STAT' ? '24h SLA' : '2d SLA'})</span>
+                  <span className="text-[10px] opacity-95 font-medium">({s.priority === 'STAT' ? '24h SLA' : '2d SLA'})</span>
+                  <span className="text-[10px] opacity-80 max-w-[140px] truncate hidden sm:inline">• {s.product}</span>
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               ))}

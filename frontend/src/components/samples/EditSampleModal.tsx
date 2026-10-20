@@ -21,7 +21,8 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
     nomenclature: '',
     lotNumber: '',
     sampleQty: 100,
-    unit: 'g',
+    unit: 'tablets',
+    customUnit: '',
     sampleType: 'Finished Product',
     customStage: '',
     mfgDate: '',
@@ -45,7 +46,12 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
         nomenclature: sample.nomenclature || sample.materialName || '',
         lotNumber: sample.lotNumber || sample.batch?.batchNumber || '',
         sampleQty: sample.sampleQty || 100,
-        unit: sample.unit || 'g',
+        unit: ['tablets', 'capsules', 'raw data'].includes((sample.unit || '').toLowerCase())
+          ? (sample.unit || '').toLowerCase()
+          : 'Other',
+        customUnit: ['tablets', 'capsules', 'raw data'].includes((sample.unit || '').toLowerCase())
+          ? ''
+          : sample.unit || '',
         sampleType: isKnown ? currentStage : 'Other',
         customStage: isKnown ? '' : currentStage,
         mfgDate: sample.mfgDate ? sample.mfgDate.substring(0, 10) : (sample.batch?.manufacturingDate ? sample.batch.manufacturingDate.substring(0, 10) : ''),
@@ -99,12 +105,22 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
         ? (formData.customStage?.trim() || 'Other')
         : formData.sampleType;
 
+    const finalUnit =
+      formData.unit === 'Other'
+        ? (formData.customUnit.trim() || 'units')
+        : formData.unit;
+
+    if (formData.unit === 'Other' && !formData.customUnit.trim()) {
+      setValidationError('Please specify custom quantity unit when "Other" is selected.');
+      return;
+    }
+
     const payload: any = {
       nomenclature: formData.nomenclature.trim(),
       materialName: formData.nomenclature.trim(),
       lotNumber: formData.lotNumber.trim() || undefined,
       sampleQty: Number(formData.sampleQty),
-      unit: formData.unit,
+      unit: finalUnit.trim(),
       stageType: finalStage,
       sampleType: finalStage,
       mfgDate: formData.mfgDate || undefined,
@@ -238,18 +254,28 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
             <select
               value={formData.unit}
               onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white"
+              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium text-slate-800"
             >
-              <option value="g">Grams (g)</option>
-              <option value="kg">Kilograms (kg)</option>
-              <option value="mL">Milliliters (mL)</option>
-              <option value="L">Liters (L)</option>
               <option value="tablets">Tablets</option>
               <option value="capsules">Capsules</option>
-              <option value="vials">Vials</option>
-              <option value="ampoules">Ampoules</option>
-              <option value="bottles">Bottles</option>
+              <option value="raw data">Raw Data</option>
+              <option value="Other">Other</option>
             </select>
+
+            {formData.unit === 'Other' && (
+              <div className="mt-2 animate-in fade-in duration-150">
+                <label className="block text-[10px] font-bold text-blue-700 mb-0.5">
+                  Specify Custom Unit <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.customUnit}
+                  onChange={(e) => setFormData({ ...formData, customUnit: e.target.value })}
+                  placeholder="Enter manual unit (e.g. strips, vials, mL...)"
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-blue-400 bg-blue-50/40 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium text-slate-900"
+                />
+              </div>
+            )}
           </div>
         </div>
 

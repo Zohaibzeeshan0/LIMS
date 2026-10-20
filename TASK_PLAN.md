@@ -27,16 +27,24 @@
 
 ## 2. Current Task Specification
 
-- **Task Name:** Remove "SELECT ANALYTICAL UNIT" Header Text
+- **Task Name:** Quantity Unit Customization & Dashboard Expedited Samples Display
 - **Status:** `COMPLETED`
-- **Objective:** Remove redundant "SELECT ANALYTICAL UNIT • Click any laboratory to filter records" label from the laboratory tabs filter in the samples directory.
+- **Objective:**
+  1. In sample accession and edit modals, restrict Quantity Unit options to: Tablets, Capsules, Raw Data, and Other (with manual custom input for Other). Remove all other unit choices.
+  2. On Executive Dashboard, show ALL active emergency (STAT / Immediate) and Urgent samples without slicing, fetching all active records and displaying them in a scrollable priority banner.
 - **Files Involved:**
-  - `frontend/src/app/samples/page.tsx`
+  - `frontend/src/components/samples/NewSampleModal.tsx`
+  - `frontend/src/components/samples/EditSampleModal.tsx`
+  - `backend/src/sampling/sampling.service.ts`
+  - `frontend/src/app/page.tsx`
 - **Checklist:**
-  - [x] Locate target label in `frontend/src/app/samples/page.tsx`.
-  - [x] Remove the label and hint text, preserving the "All Laboratories" button neatly aligned.
-  - [x] Verify TypeScript compilation (`npx tsc --noEmit`).
-  - [x] Update `TASK_PLAN.md` and push to GitHub.
+  - [x] Add `customUnit` validation to `sampleFormSchema` in `NewSampleModal.tsx`.
+  - [x] Update unit select in `NewSampleModal.tsx` to Tablets, Capsules, Raw Data, Other. Render custom input if Other selected.
+  - [x] Update unit select in `EditSampleModal.tsx` to Tablets, Capsules, Raw Data, Other with custom input.
+  - [x] Update backend `sampling.service.ts` to support multi-priority queries (e.g. `priority='STAT,URGENT'`).
+  - [x] Update dashboard `page.tsx` to fetch all expedited samples and display ALL records in the admin banner without `.slice(0, 3)`.
+  - [x] Verify frontend with `npx tsc --noEmit` and backend with `nest build`.
+  - [x] Push to GitHub.
 
 ---
 
@@ -44,7 +52,8 @@
 
 | Date / Commit | Feature / Change | Key Files Modified | Summary |
 |---|---|---|---|
-| **2026-10-20** | Remove Analytical Unit Header | `frontend/src/app/samples/page.tsx` | Removed "SELECT ANALYTICAL UNIT • Click any laboratory to filter records" text from samples page. |
+| **2026-10-20** | Quantity Units & All Emergency Records | `NewSampleModal.tsx`, `EditSampleModal.tsx`, `page.tsx`, `sampling.service.ts` | Quantity unit restricted to Tablets, Capsules, Raw Data, Other (with manual text input). Dashboard admin priority banner displays all expedited samples without limit. |
+| **2026-10-20** (`b602fe6`) | Remove Analytical Unit Header | `frontend/src/app/samples/page.tsx` | Removed "SELECT ANALYTICAL UNIT • Click any laboratory to filter records" text from samples page. |
 | **2026-10-20** (`382c3a6`) | Planning & Context System Init | `PROJECT_CONTEXT.md`, `TASK_PLAN.md` | Created persistent architectural guide and task plan tracking documents. |
 | **2026-10-20** (`5c0e0a4`) | Sample Modal Form Cleanup | `frontend/src/components/samples/NewSampleModal.tsx` | Removed "Storage Condition" input and "Assign Compendial Tests" selection section. Retained Priority selector and dynamic SLA notice banner. |
 | **2026-10-20** (`1bfbe0e`) | Priority SLA Targets & Admin Alerts | `frontend/src/components/samples/NewSampleModal.tsx`, `backend/src/sampling/sampling.service.ts`, `frontend/src/app/page.tsx` | Added 5-day SLA for Routine, 2-day for Urgent, and 24-hour for Immediate. Configured automatic Admin notification banner & Navbar alerts on Urgent/Immediate samples. |

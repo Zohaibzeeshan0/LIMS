@@ -192,14 +192,28 @@ export class SamplingService {
 
   async findAll(query: any) {
     const where: any = {};
-    if (query.status) where.status = query.status;
+    if (query.status) {
+      if (typeof query.status === 'string' && query.status.includes(',')) {
+        const statuses = query.status.split(',').map((s: string) => s.trim()).filter(Boolean);
+        where.status = { in: statuses };
+      } else {
+        where.status = query.status;
+      }
+    }
     if (query.sampleType || query.stage || query.stageType) {
       const s = (query.stageType || query.stage || query.sampleType)?.trim();
       if (s) {
         where.stageType = { contains: s, mode: 'insensitive' };
       }
     }
-    if (query.priority) where.priority = query.priority;
+    if (query.priority) {
+      if (typeof query.priority === 'string' && query.priority.includes(',')) {
+        const priorities = query.priority.split(',').map((p: string) => p.trim()).filter(Boolean);
+        where.priority = { in: priorities };
+      } else {
+        where.priority = query.priority;
+      }
+    }
     if (query.batchId) where.batchId = query.batchId;
 
     const rawLab = query.laboratory || query.lab;

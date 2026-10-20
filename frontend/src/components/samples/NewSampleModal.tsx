@@ -51,6 +51,7 @@ const sampleFormSchema = z
       .number({ invalid_type_error: 'Quantity must be a valid number' })
       .positive('Quantity must be a positive number greater than 0'),
     unit: z.string().min(1, 'Quantity unit is required'),
+    customUnit: z.string().optional(),
     batchId: z.string().optional(),
     lotNumber: z.string().optional(),
     mfgDate: z.string().optional(),
@@ -84,6 +85,17 @@ const sampleFormSchema = z
           code: z.ZodIssueCode.custom,
           message: 'Please specify the custom stage name when "Other" is selected',
           path: ['customStage'],
+        });
+      }
+    }
+
+    // 3. Validate custom unit if "Other" is selected
+    if (data.unit === 'Other') {
+      if (!data.customUnit || data.customUnit.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Please specify custom unit when "Other" is selected',
+          path: ['customUnit'],
         });
       }
     }
@@ -169,6 +181,7 @@ export function NewSampleModal({
     customStage: '',
     sampleQty: 100,
     unit: 'tablets',
+    customUnit: '',
     batchId: '',
     lotNumber: '',
     mfgDate: '',
@@ -215,6 +228,7 @@ export function NewSampleModal({
   const watchedPolicy = watch('idGenerationPolicy');
   const watchedCustomId = watch('customSampleId');
   const watchedSampleType = watch('sampleType');
+  const watchedUnit = watch('unit');
   const watchedPriority = watch('priority') || 'ROUTINE';
   const watchedBatchId = watch('batchId');
   const debouncedManualId = useDebounce(watchedCustomId, 400);
@@ -318,6 +332,11 @@ export function NewSampleModal({
         ? (formData.customStage?.trim() || 'Other')
         : formData.sampleType;
 
+    const finalUnit =
+      formData.unit === 'Other'
+        ? (formData.customUnit?.trim() || 'units')
+        : formData.unit;
+
     const payload: any = {
       laboratory: formData.laboratory,
       samplingDate: new Date(formData.samplingDateTime).toISOString(),
@@ -330,7 +349,7 @@ export function NewSampleModal({
           ? formData.customSampleId.trim()
           : undefined, // Backend will auto-generate if undefined
       sampleQty: Number(formData.sampleQty),
-      unit: formData.unit.trim(),
+      unit: finalUnit.trim(),
       batchId: formData.batchId || undefined,
       lotNumber: formData.lotNumber?.trim() || undefined,
       mfgDate: formData.mfgDate || undefined,
@@ -689,15 +708,29 @@ export function NewSampleModal({
               >
                 <option value="tablets">Tablets</option>
                 <option value="capsules">Capsules</option>
-                <option value="g">Grams (g)</option>
-                <option value="kg">Kilograms (kg)</option>
-                <option value="mL">Milliliters (mL)</option>
-                <option value="L">Liters (L)</option>
-                <option value="vials">Vials</option>
-                <option value="ampoules">Ampoules</option>
-                <option value="bottles">Bottles</option>
-                <option value="units">Units</option>
+                <option value="raw data">Raw Data</option>
+                <option value="Other">Other</option>
               </select>
+
+              {/* When "Other" is selected, render manual text input */}
+              {watchedUnit === 'Other' && (
+                <div className="mt-2 animate-in fade-in duration-150">
+                  <label className="block text-[10px] font-bold text-blue-700 mb-0.5">
+                    Specify Custom Unit <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    {...register('customUnit')}
+                    placeholder="Enter manual unit (e.g. strips, vials, mL...)"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-blue-400 bg-blue-50/40 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium text-slate-900"
+                  />
+                  {errors.customUnit && (
+                    <p className="text-[10px] text-rose-600 mt-0.5">
+                      {errors.customUnit.message}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
