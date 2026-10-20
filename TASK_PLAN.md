@@ -27,22 +27,22 @@
 
 ## 2. Current Task Specification
 
-- **Task Name:** Quantity Unit Customization & Dashboard Expedited Samples Display
+- **Task Name:** Dashboard Executive KPI Cards Enhancement
 - **Status:** `COMPLETED`
 - **Objective:**
-  1. In sample accession and edit modals, restrict Quantity Unit options to: Tablets, Capsules, Raw Data, and Other (with manual custom input for Other). Remove all other unit choices.
-  2. On Executive Dashboard, show ALL active emergency (STAT / Immediate) and Urgent samples without slicing, fetching all active records and displaying them in a scrollable priority banner.
+  1. Display actual live database counts for all 4 KPI cards (Total Samples, Received Samples, Active Batches, Approved Samples) without fake fallback numbers.
+  2. Remove percentage badges and "vs last week / in workflow" sublines completely.
+  3. Make all 4 KPI cards clickable with routing: Total Samples -> /samples, Received Samples -> /samples?status=RECEIVED, Active Batches -> /batches, Approved Samples -> /samples?status=APPROVED.
 - **Files Involved:**
-  - `frontend/src/components/samples/NewSampleModal.tsx`
-  - `frontend/src/components/samples/EditSampleModal.tsx`
-  - `backend/src/sampling/sampling.service.ts`
   - `frontend/src/app/page.tsx`
+  - `frontend/src/app/samples/page.tsx`
+  - `backend/src/sampling/sampling.service.ts`
 - **Checklist:**
-  - [x] Add `customUnit` validation to `sampleFormSchema` in `NewSampleModal.tsx`.
-  - [x] Update unit select in `NewSampleModal.tsx` to Tablets, Capsules, Raw Data, Other. Render custom input if Other selected.
-  - [x] Update unit select in `EditSampleModal.tsx` to Tablets, Capsules, Raw Data, Other with custom input.
-  - [x] Update backend `sampling.service.ts` to support multi-priority queries (e.g. `priority='STAT,URGENT'`).
-  - [x] Update dashboard `page.tsx` to fetch all expedited samples and display ALL records in the admin banner without `.slice(0, 3)`.
+  - [x] Integrate real `activeBatches` and `totalBatches` count in backend `getSampleMetrics`.
+  - [x] Query live batches in `page.tsx` and compute actual active batches.
+  - [x] Remove percentage and trend badges from all 4 KPI cards on Dashboard.
+  - [x] Convert 4 KPI cards into interactive `<Link>` elements with hover transitions.
+  - [x] Support `status` URL query parameter in `samples/page.tsx` to automatically filter on click.
   - [x] Verify frontend with `npx tsc --noEmit` and backend with `nest build`.
   - [x] Push to GitHub.
 
@@ -52,7 +52,9 @@
 
 | Date / Commit | Feature / Change | Key Files Modified | Summary |
 |---|---|---|---|
-| **2026-10-20** | Quantity Units & All Emergency Records | `NewSampleModal.tsx`, `EditSampleModal.tsx`, `page.tsx`, `sampling.service.ts` | Quantity unit restricted to Tablets, Capsules, Raw Data, Other (with manual text input). Dashboard admin priority banner displays all expedited samples without limit. |
+| **2026-10-20** | Dashboard KPI Cards Overhaul | `page.tsx`, `samples/page.tsx`, `sampling.service.ts` | Actual DB counts, removed percentage/trend sublines, and added click-through navigation for Total, Received, Active Batches, and Approved. |
+| **2026-10-20** (`86a5ee2`) | API Network Error Handling | `frontend/src/lib/api.ts` | Wrapped fetch in try/catch to catch connection drops gracefully. |
+| **2026-10-20** (`b77c25a`) | Quantity Units & All Emergency Records | `NewSampleModal.tsx`, `EditSampleModal.tsx`, `page.tsx`, `sampling.service.ts` | Quantity unit restricted to Tablets, Capsules, Raw Data, Other (with manual text input). Dashboard admin priority banner displays all expedited samples without limit. |
 | **2026-10-20** (`b602fe6`) | Remove Analytical Unit Header | `frontend/src/app/samples/page.tsx` | Removed "SELECT ANALYTICAL UNIT • Click any laboratory to filter records" text from samples page. |
 | **2026-10-20** (`382c3a6`) | Planning & Context System Init | `PROJECT_CONTEXT.md`, `TASK_PLAN.md` | Created persistent architectural guide and task plan tracking documents. |
 | **2026-10-20** (`5c0e0a4`) | Sample Modal Form Cleanup | `frontend/src/components/samples/NewSampleModal.tsx` | Removed "Storage Condition" input and "Assign Compendial Tests" selection section. Retained Priority selector and dynamic SLA notice banner. |

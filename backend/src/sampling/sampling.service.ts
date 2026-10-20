@@ -523,6 +523,13 @@ export class SamplingService {
     const penicillinCount = await this.prisma.sample.count({ where: { laboratoryType: 'PENICILLIN' } });
     const generalCount = await this.prisma.sample.count({ where: { laboratoryType: 'GENERAL' } });
 
+    const activeBatches = await this.prisma.batch.count({
+      where: {
+        status: { notIn: ['RELEASED', 'REJECTED'] },
+      },
+    });
+    const totalBatches = await this.prisma.batch.count();
+
     return {
       total,
       received,
@@ -531,6 +538,8 @@ export class SamplingService {
       approved,
       rejected,
       urgentCount,
+      activeBatches,
+      totalBatches,
       byLab: {
         saf: safCount,
         sef: safCount,

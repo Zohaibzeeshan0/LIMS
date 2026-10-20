@@ -134,12 +134,19 @@ function SamplesPageInner() {
 
   // Auto-open sample dossier if sampleId is present in URL (e.g. redirected from Dashboard Pending Samples)
   const querySampleParam = searchParams.get('sampleId') || searchParams.get('id') || searchParams.get('sample');
+  const queryStatusParam = searchParams.get('status');
 
   React.useEffect(() => {
     if (querySampleParam) {
       setSelectedSampleId(querySampleParam);
     }
   }, [querySampleParam]);
+
+  React.useEffect(() => {
+    if (queryStatusParam) {
+      setStatusFilter(queryStatusParam.toUpperCase());
+    }
+  }, [queryStatusParam]);
 
   const handleCloseDetailModal = () => {
     setSelectedSampleId(null);

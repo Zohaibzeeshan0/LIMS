@@ -9,6 +9,7 @@ import { samplingService } from '@/services/sampling.service';
 import { auditService } from '@/services/audit.service';
 import { parseAuditItem, FormattedAuditItem } from '@/lib/auditFormatter';
 import { NewSampleModal } from '@/components/samples/NewSampleModal';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import {
   formatLiveDate,
@@ -38,6 +39,7 @@ import {
   Radio,
   Boxes,
   Microscope,
+  ChevronRight,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -120,6 +122,24 @@ export default function DashboardPage() {
       }),
     refetchInterval: 5000,
   });
+
+  // Real active batches query
+  const { data: batchesData } = useQuery({
+    queryKey: ['dashboard-batches-list'],
+    queryFn: () => api.get<any[]>('/batches'),
+  });
+
+  const activeBatchesCount = useMemo(() => {
+    if (metrics?.activeBatches !== undefined) {
+      return metrics.activeBatches;
+    }
+    if (batchesData) {
+      const list = Array.isArray(batchesData) ? batchesData : (batchesData as any)?.data || [];
+      const active = list.filter((b: any) => b.status === 'QUARANTINE' || b.status === 'CONDITIONAL' || b.status !== 'RELEASED');
+      return active.length || list.length;
+    }
+    return 0;
+  }, [batchesData, metrics]);
 
   // Dynamically compute the last 7 calendar days leading to today
   const recentDays = useMemo(() => getRecentDays(7), [currentTime]);
@@ -542,11 +562,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Row 1: 4 Executive KPI Cards with Accent Borders */}
+      {/* Row 1: 4 Executive KPI Cards with Accent Borders (Clickable to view details) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Total Samples */}
-        <div className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group">
+        <Link
+          href="/samples"
+          className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all block border border-slate-200/80 hover:border-blue-400 bg-white"
+          title="Click to view all samples in registry"
+        >
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600" />
           <div className="flex items-center gap-3.5">
             <div className="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100/80 shadow-2xs group-hover:scale-105 transition-transform">
@@ -555,18 +579,19 @@ export default function DashboardPage() {
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Samples</p>
               <p className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                {metrics?.total !== undefined ? metrics.total : 248}
+                {metrics?.total !== undefined ? metrics.total : 0}
               </p>
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 mt-0.5">
-                <span className="bg-emerald-50 px-1 py-0.2 rounded text-[10px] font-bold">↑ 12%</span>
-                <span className="text-slate-400 font-normal">vs last week</span>
-              </div>
             </div>
+            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-blue-600 transition-colors shrink-0" />
           </div>
-        </div>
+        </Link>
 
         {/* Card 2: Received Samples */}
-        <div className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group">
+        <Link
+          href="/samples?status=RECEIVED"
+          className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all block border border-slate-200/80 hover:border-amber-400 bg-white"
+          title="Click to view all received samples"
+        >
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-amber-500" />
           <div className="flex items-center gap-3.5">
             <div className="h-12 w-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100/80 shadow-2xs group-hover:scale-105 transition-transform">
@@ -575,18 +600,19 @@ export default function DashboardPage() {
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Received Samples</p>
               <p className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                {metrics?.received !== undefined ? metrics.received : 64}
+                {metrics?.received !== undefined ? metrics.received : 0}
               </p>
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 mt-0.5">
-                <span className="bg-emerald-50 px-1 py-0.2 rounded text-[10px] font-bold">↑ 8%</span>
-                <span className="text-slate-400 font-normal">vs last week</span>
-              </div>
             </div>
+            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-amber-600 transition-colors shrink-0" />
           </div>
-        </div>
+        </Link>
 
         {/* Card 3: Active Batches */}
-        <div className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group">
+        <Link
+          href="/batches"
+          className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all block border border-slate-200/80 hover:border-indigo-400 bg-white"
+          title="Click to view active batches"
+        >
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600" />
           <div className="flex items-center gap-3.5">
             <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/80 shadow-2xs group-hover:scale-105 transition-transform">
@@ -595,18 +621,19 @@ export default function DashboardPage() {
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Active Batches</p>
               <p className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                {metrics?.inTesting !== undefined ? (metrics.inTesting + (metrics.received ?? 0)) : 56}
+                {activeBatchesCount}
               </p>
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600 mt-0.5">
-                <span className="bg-indigo-50 px-1 py-0.2 rounded text-[10px] font-bold">↑ 14%</span>
-                <span className="text-slate-400 font-normal">in workflow</span>
-              </div>
             </div>
+            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-600 transition-colors shrink-0" />
           </div>
-        </div>
+        </Link>
 
         {/* Card 4: Approved Samples */}
-        <div className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group">
+        <Link
+          href="/samples?status=APPROVED"
+          className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all block border border-slate-200/80 hover:border-emerald-400 bg-white"
+          title="Click to view approved samples"
+        >
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
           <div className="flex items-center gap-3.5">
             <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/80 shadow-2xs group-hover:scale-105 transition-transform">
@@ -615,15 +642,12 @@ export default function DashboardPage() {
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Approved Samples</p>
               <p className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                {metrics?.approved !== undefined ? metrics.approved : 182}
+                {metrics?.approved !== undefined ? metrics.approved : 0}
               </p>
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 mt-0.5">
-                <span className="bg-emerald-50 px-1 py-0.2 rounded text-[10px] font-bold">↑ 15%</span>
-                <span className="text-slate-400 font-normal">vs last week</span>
-              </div>
             </div>
+            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-emerald-600 transition-colors shrink-0" />
           </div>
-        </div>
+        </Link>
 
       </div>
 
