@@ -97,10 +97,16 @@ class ApiClient {
       : `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
     const headers = { ...this.getHeaders(), ...(options.headers || {}) };
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch (networkError: any) {
+      console.warn(`[LIMS API] Network error on ${url}:`, networkError?.message || networkError);
+      throw new Error(`Failed to fetch from backend server (${url}). Please check if the backend service is running.`);
+    }
 
     // Check for 401 Unauthorized (Access token expired or invalid)
     if (response.status === 401) {
