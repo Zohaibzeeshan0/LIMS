@@ -941,24 +941,24 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setActivityFilter('all')}
-                  className={`px-2 py-1 rounded-md transition-all ${
+                  className={`px-2.5 py-1 rounded-md transition-all ${
                     activityFilter === 'all'
                       ? 'bg-white text-slate-800 shadow-2xs font-bold'
                       : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  All ({formattedLogs.length})
+                  All
                 </button>
                 <button
                   type="button"
                   onClick={() => setActivityFilter('staff')}
-                  className={`px-2 py-1 rounded-md transition-all ${
+                  className={`px-2.5 py-1 rounded-md transition-all ${
                     activityFilter === 'staff'
                       ? 'bg-amber-500 text-white shadow-2xs font-bold'
                       : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Staff Only ({formattedLogs.filter((l) => l.isNonAdmin).length})
+                  Staff
                 </button>
               </div>
             </div>
