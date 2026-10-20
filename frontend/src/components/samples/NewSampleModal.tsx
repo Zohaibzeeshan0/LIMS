@@ -247,6 +247,28 @@ export function NewSampleModal({
   const watchedBatchId = watch('batchId');
   const debouncedManualId = useDebounce(watchedCustomId, 400);
 
+  // Fetch next sequential Sample ID preview based on active lab & section
+  const { data: nextIdData } = useQuery({
+    queryKey: ['next-sample-id', watchedLab, selectedSection, watchedSampleType],
+    queryFn: () =>
+      samplingService.getNextSampleId({
+        laboratory: watchedLab,
+        section: selectedSection,
+        stageType: watchedSampleType,
+      }),
+    enabled: isOpen && watchedPolicy === 'AUTO',
+    staleTime: 2000,
+  });
+
+  const nextAutoSampleCode = useMemo(() => {
+    if (nextIdData?.sampleCode) return nextIdData.sampleCode;
+    const isCeph = watchedLab === 'SAF' || watchedLab === 'SEF';
+    const isPen = watchedLab === 'PENICILLIN';
+    const prefix = isCeph ? 'CP' : isPen ? 'PL' : 'GL';
+    const sec = selectedSection === 'formulation' ? 'F' : 'SB';
+    return `${prefix}/${sec}-1`;
+  }, [nextIdData, watchedLab, selectedSection]);
+
   // When a batch is selected from the dropdown, autofill Lot No., MFG Date, EXP Date
   useEffect(() => {
     if (watchedBatchId && batches) {
@@ -356,6 +378,7 @@ export function NewSampleModal({
 
     const payload: any = {
       laboratory: formData.laboratory,
+      section: selectedSection,
       samplingDate: new Date(formData.samplingDateTime).toISOString(),
       nomenclature: formData.nomenclature.trim(),
       materialName: formData.nomenclature.trim(),
@@ -460,7 +483,7 @@ export function NewSampleModal({
               {[
                 {
                   key: 'SAF',
-                  label: 'SEF Lab',
+                  label: 'Cephalosporin Lab',
                   icon: Microscope,
                 },
                 {
@@ -583,9 +606,12 @@ export function NewSampleModal({
               </div>
 
               {watchedPolicy === 'AUTO' ? (
-                <div className="px-3 py-2 text-xs font-mono rounded-lg border border-slate-200 bg-slate-50 text-slate-600 flex items-center justify-between">
-                  <span className="text-teal-800 font-bold">Auto: SMP-{new Date().getFullYear()}-XXXX</span>
-                  <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-sans font-medium">
+                <div className="px-3 py-2 text-xs font-mono rounded-lg border border-blue-200 bg-blue-50/70 text-blue-950 flex items-center justify-between">
+                  <span className="font-bold flex items-center gap-1.5 text-blue-900">
+                    <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                    <span>Auto: {nextAutoSampleCode}</span>
+                  </span>
+                  <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-sans font-medium">
                     Auto-Sequential
                   </span>
                 </div>
@@ -595,7 +621,7 @@ export function NewSampleModal({
                     <input
                       type="text"
                       {...register('customSampleId')}
-                      placeholder="e.g. SMP-2026-9041"
+                      placeholder="e.g. GL/SB-1, CP/F-1, PL/SB-1"
                       className={cn(
                         'w-full px-3 py-2 text-xs font-mono rounded-lg border outline-none pr-8',
                         idCheckStatus === 'duplicate'

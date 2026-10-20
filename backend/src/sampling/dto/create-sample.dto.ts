@@ -61,6 +61,11 @@ export class CreateSampleDto {
   @IsOptional()
   laboratory?: string;
 
+  @ApiProperty({ example: 'semi-base', description: 'semi-base or formulation', required: false })
+  @IsString()
+  @IsOptional()
+  section?: string;
+
   @ApiProperty({ example: 'Bulk / Blended Product', default: 'Finished Product', required: false })
   @IsString()
   @IsOptional()

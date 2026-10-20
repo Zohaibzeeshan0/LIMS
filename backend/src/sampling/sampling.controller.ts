@@ -47,6 +47,17 @@ export class SamplingController {
     return this.samplingService.getSampleMetrics(laboratory || lab, req?.user);
   }
 
+  @Get('next-sample-id')
+  @ApiOperation({ summary: 'Preview next auto-sequential Sample ID for laboratory & section' })
+  getNextSampleId(
+    @Query('laboratory') laboratory?: string,
+    @Query('lab') lab?: string,
+    @Query('section') section?: string,
+    @Query('stageType') stageType?: string,
+  ) {
+    return this.samplingService.getNextSampleIdPreview(laboratory || lab, section, stageType);
+  }
+
   @Get('check-sample-id/:sampleCode')
   @ApiOperation({ summary: 'Check if a Sample ID is available or already registered' })
   checkSampleId(@Param('sampleCode') sampleCode: string) {

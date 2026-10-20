@@ -58,15 +58,17 @@ import {
 
 const LAB_TABS = [
   {
-    id: 'sef',
+    id: 'cephalosporin',
+    legacyIds: ['sef', 'saf', 'cp', 'cephalosporin'],
     key: 'SAF' as const,
-    name: 'SEF Lab',
-    shortLabel: 'SEF Lab',
-    heading: 'Sampling / SEF Lab',
+    name: 'Cephalosporin Lab',
+    shortLabel: 'Cephalosporin Lab',
+    heading: 'Sampling / Cephalosporin Lab',
     icon: Microscope,
   },
   {
     id: 'penicillin',
+    legacyIds: ['pen', 'pl'],
     key: 'PENICILLIN' as const,
     name: 'Penicillin Lab',
     shortLabel: 'Penicillin Lab',
@@ -75,6 +77,7 @@ const LAB_TABS = [
   },
   {
     id: 'general',
+    legacyIds: ['gen', 'gl'],
     key: 'GENERAL' as const,
     name: 'General Lab',
     shortLabel: 'General Lab',
@@ -97,7 +100,7 @@ function SamplesPageInner() {
   const userLabAccess = useMemo(() => getUserLabAccess(user), [user]);
   const isRestrictedToLab = userLabAccess !== 'ALL';
   const authorizedLabId =
-    userLabAccess === 'SAF' ? 'sef' : userLabAccess === 'PENICILLIN' ? 'penicillin' : 'general';
+    userLabAccess === 'SAF' ? 'cephalosporin' : userLabAccess === 'PENICILLIN' ? 'penicillin' : 'general';
 
   // Active laboratory from search query param (enforced for restricted users)
   const rawLabParam = searchParams.get('lab')?.toLowerCase();
@@ -105,7 +108,7 @@ function SamplesPageInner() {
   const isAllLabs = !isRestrictedToLab && labParam === 'all';
   const activeLab =
     LAB_TABS.find(
-      (l) => l.id === labParam || (l.id === 'sef' && (labParam === 'saf' || labParam === 'sef'))
+      (l) => l.id === labParam || l.legacyIds?.includes(labParam)
     ) || LAB_TABS[2]; // Default: General Lab
 
   // Intercept unauthorized lab navigation via URL query parameters
@@ -197,7 +200,7 @@ function SamplesPageInner() {
     if (isRestrictedToLab && labId !== authorizedLabId) {
       alert(
         `Access Denied: You are assigned to the ${
-          userLabAccess === 'SAF' ? 'SAF / SEF' : userLabAccess
+          userLabAccess === 'SAF' ? 'Cephalosporin' : userLabAccess
         } Laboratory. Access to other laboratory suites is strictly barred under regulatory compliance.`
       );
       return;
@@ -350,10 +353,17 @@ function SamplesPageInner() {
 
   // Compute live lab counts from metrics API
   const labCounts = useMemo(() => {
-    const sefTotal = (metrics?.byLab as any)?.sef ?? (metrics?.byLab as any)?.saf ?? 0;
+    const cpTotal =
+      (metrics?.byLab as any)?.cephalosporin ??
+      (metrics?.byLab as any)?.cp ??
+      (metrics?.byLab as any)?.saf ??
+      (metrics?.byLab as any)?.sef ??
+      0;
     return {
-      sef: sefTotal,
-      saf: sefTotal,
+      cephalosporin: cpTotal,
+      cp: cpTotal,
+      sef: cpTotal,
+      saf: cpTotal,
       penicillin: metrics?.byLab?.penicillin ?? 0,
       general: metrics?.byLab?.general ?? 0,
       total: metrics?.total ?? 0,

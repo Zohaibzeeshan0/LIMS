@@ -194,9 +194,9 @@ export default function DashboardPage() {
         const labType = (s.laboratoryType || s.laboratory?.code || '').toUpperCase();
         const labText = (s.laboratory?.name || s.samplingLocation || '').toUpperCase();
 
-        if (labType === 'SAF' || labType === 'SEF' || labText.includes('SAF') || labText.includes('SEF') || labText.includes('CEPHALOSPORIN')) {
-          labId = 'sef';
-          labName = 'SEF Lab';
+        if (labType === 'SAF' || labType === 'SEF' || labType === 'CP' || labText.includes('SAF') || labText.includes('SEF') || labText.includes('CEPHALOSPORIN')) {
+          labId = 'cephalosporin';
+          labName = 'Cephalosporin Lab';
           labBadgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-200';
         } else if (labType === 'PENICILLIN' || labType === 'PEN' || labText.includes('PENICILLIN')) {
           labId = 'penicillin';
@@ -267,8 +267,8 @@ export default function DashboardPage() {
         date: formatShortLiveDate(),
         status: 'In Process',
         statusColor: 'bg-blue-100 text-blue-800 border-blue-200',
-        labId: 'sef',
-        labName: 'SEF Lab',
+        labId: 'cephalosporin',
+        labName: 'Cephalosporin Lab',
         labBadgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
       },
       {
@@ -302,7 +302,7 @@ export default function DashboardPage() {
 
   // Laboratory Distribution data across Citi Pharma facilities
   const labDistribution = [
-    { name: 'Cephalosporin (SEF) Lab', count: 104, rate: 98 },
+    { name: 'Cephalosporin Lab', count: 104, rate: 98 },
     { name: 'Penicillin Laboratory', count: 82, rate: 95 },
     { name: 'General Pharma Lab', count: 62, rate: 100 },
     { name: 'Raw Material Section', count: 42, rate: 92 },
@@ -370,9 +370,10 @@ export default function DashboardPage() {
       let labId = 'general';
       let labName = 'General Lab';
       const labType = (s.laboratoryType || s.laboratory?.code || '').toUpperCase();
-      if (labType === 'SAF' || labType === 'SEF') {
-        labId = 'sef';
-        labName = 'SEF Lab';
+      const labText = (s.laboratory?.name || s.samplingLocation || '').toUpperCase();
+      if (labType === 'SAF' || labType === 'SEF' || labType === 'CP' || labText.includes('CEPH')) {
+        labId = 'cephalosporin';
+        labName = 'Cephalosporin Lab';
       } else if (labType === 'PENICILLIN' || labType === 'PEN') {
         labId = 'penicillin';
         labName = 'Penicillin Lab';
@@ -1151,14 +1152,14 @@ export default function DashboardPage() {
               </button>
 
               <button
-                onClick={() => router.push('/samples?lab=sef')}
+                onClick={() => router.push('/samples?lab=cephalosporin')}
                 className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-indigo-500 hover:bg-indigo-50/60 transition-all text-center group shadow-2xs cursor-pointer"
               >
                 <div className="p-2 rounded-xl bg-indigo-100/60 text-indigo-600 group-hover:scale-105 transition-transform">
                   <Microscope className="h-5 w-5 stroke-[1.8]" />
                 </div>
                 <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
-                  SEF Lab
+                  Cephalosporin Lab
                 </span>
                 <span className="text-[9px] text-slate-400 mt-0.5">Cephalosporin</span>
               </button>

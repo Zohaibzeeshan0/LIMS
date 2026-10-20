@@ -53,11 +53,11 @@ export const DEMO_USERS = [
   {
     role: 'QC_ANALYST' as const,
     email: 'saf.analyst@citypharma.com',
-    employeeId: 'EMP-SAF-01',
-    name: 'Saba Farooq (SAF / SEF)',
-    title: 'SEF Lab Analyst',
-    desc: 'Access strictly limited to SAF / SEF Laboratory',
-    labBadge: 'SAF/SEF Lab',
+    employeeId: 'EMP-CP-01',
+    name: 'Saba Farooq (Cephalosporin)',
+    title: 'Cephalosporin Lab Analyst',
+    desc: 'Access strictly limited to Cephalosporin Laboratory',
+    labBadge: 'Cephalosporin Lab',
   },
   {
     role: 'QC_ANALYST' as const,

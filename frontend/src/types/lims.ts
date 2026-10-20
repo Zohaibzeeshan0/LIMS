@@ -25,7 +25,15 @@ export function getUserLabAccess(
   const dept = (user.department || '').toLowerCase();
   const email = (user.email || '').toLowerCase();
 
-  if (dept.includes('sef') || dept.includes('saf') || email.includes('saf') || email.includes('sef')) {
+  if (
+    dept.includes('cephalosporin') ||
+    dept.includes('cephe') ||
+    dept.includes('sef') ||
+    dept.includes('saf') ||
+    email.includes('saf') ||
+    email.includes('sef') ||
+    email.includes('cephalosporin')
+  ) {
     return 'SAF';
   }
   if (dept.includes('penicillin') || email.includes('penicillin')) {

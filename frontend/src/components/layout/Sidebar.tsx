@@ -23,11 +23,11 @@ interface SidebarProps {
 
 export const LABORATORIES = [
   {
-    id: 'sef',
-    name: 'SEF Lab',
-    shortLabel: 'SEF Lab',
+    id: 'cephalosporin',
+    name: 'Cephalosporin Lab',
+    shortLabel: 'Cephalosporin Lab',
     code: 'SAF',
-    href: '/samples?lab=sef',
+    href: '/samples?lab=cephalosporin',
     icon: Microscope,
   },
   {
@@ -202,7 +202,11 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
                         const isLabActive =
                           isOnSamples &&
                           (activeLabQuery === lab.id ||
-                            (lab.id === 'sef' && (activeLabQuery === 'saf' || activeLabQuery === 'sef')) ||
+                            (lab.id === 'cephalosporin' &&
+                              (activeLabQuery === 'cephalosporin' ||
+                                activeLabQuery === 'saf' ||
+                                activeLabQuery === 'sef' ||
+                                activeLabQuery === 'cp')) ||
                             (!activeLabQuery && lab.id === 'general'));
 
                         return (

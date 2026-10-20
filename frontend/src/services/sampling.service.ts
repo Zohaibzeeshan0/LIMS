@@ -61,6 +61,16 @@ export const samplingService = {
       `/sampling/check-sample-id/${encodeURIComponent(sampleCode)}`
     ),
 
+  getNextSampleId: (query: { laboratory?: string; section?: string; stageType?: string }) => {
+    const params = new URLSearchParams();
+    if (query.laboratory) params.append('laboratory', query.laboratory);
+    if (query.section) params.append('section', query.section);
+    if (query.stageType) params.append('stageType', query.stageType);
+    return api.get<{ sampleCode: string; sampleId: string; laboratory: string; section: string }>(
+      `/sampling/next-sample-id?${params.toString()}`
+    );
+  },
+
   submitToWorkflow: (
     sampleId: string,
     data: {
