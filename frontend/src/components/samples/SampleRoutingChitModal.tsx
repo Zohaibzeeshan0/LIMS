@@ -77,7 +77,7 @@ export function SampleRoutingChitModal({
 
     const qrText = `==============================
 STAR LIMS • QUALITY CONTROL
-SAMPLE CONTAINER SLIP
+SAMPLE SLIP
 ==============================
 Sample ID: ${sampleCode}
 Product: ${nomenclature}
@@ -129,7 +129,7 @@ View Details: ${sampleDetailUrl}`;
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Container Slip - ${sampleCode}</title>
+          <title>Sample Slip - ${sampleCode}</title>
           ${styles}
           <style>
             @page { size: auto; margin: 4mm; }
@@ -193,7 +193,7 @@ View Details: ${sampleDetailUrl}`;
 
               <div className="text-right shrink-0">
                 <span className="text-[9px] font-mono font-bold bg-slate-900 text-white px-2 py-0.5 rounded uppercase">
-                  CONTAINER SLIP
+                  SLIP
                 </span>
               </div>
             </div>
