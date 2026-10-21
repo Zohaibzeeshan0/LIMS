@@ -264,11 +264,8 @@ View Details: ${sampleDetailUrl}`;
               <div className="col-span-4 flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50 border border-slate-200 shrink-0 text-center">
                 {/* Product Name Above QR Code */}
                 <div className="w-full mb-1.5 px-0.5">
-                  <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Product / Material:
-                  </span>
                   <p
-                    className="text-[10px] font-extrabold text-slate-900 leading-tight line-clamp-2"
+                    className="text-[11px] font-extrabold text-slate-900 leading-tight line-clamp-2"
                     title={nomenclature}
                   >
                     {nomenclature}
@@ -288,10 +285,6 @@ View Details: ${sampleDetailUrl}`;
                   </div>
                 )}
 
-                <span className="text-[8.5px] font-mono font-extrabold text-slate-700 mt-1">
-                  SCAN FOR ALL DETAILS
-                </span>
-
                 {/* Clickable Link Below QR Code */}
                 <a
                   href={`/samples?sampleId=${encodeURIComponent(sample?.id || sampleCode)}`}
@@ -303,17 +296,12 @@ View Details: ${sampleDetailUrl}`;
                       onViewSampleDetails(sample);
                     }
                   }}
-                  className="mt-1.5 px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-900 border border-blue-200 text-[9px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer group shadow-2xs"
+                  className="mt-2 px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-900 border border-blue-200 text-[10px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer group shadow-2xs"
                   title="Click to view complete sample details"
                 >
                   <span>View Sample Details</span>
                   <ExternalLink className="h-2.5 w-2.5 group-hover:translate-x-0.5 transition-transform" />
                 </a>
-
-                {/* Direct Link Text */}
-                <span className="text-[7px] font-mono text-slate-500 mt-0.5 break-all max-w-[130px] leading-tight select-all">
-                  {`/samples?sampleId=${sampleCode}`}
-                </span>
               </div>
             </div>
           </div>
