@@ -23,7 +23,7 @@ export function PrintSampleModal({ isOpen, onClose, sample }: PrintSampleModalPr
       const payload = JSON.stringify({
         app: 'STAR-LIMS',
         sampleId: sample.sampleCode,
-        barcode: sample.barcode || `CP-${sample.sampleCode}`,
+        barcode: sample.barcode || sample.sampleCode,
         nomenclature: sample.nomenclature || sample.materialName,
         lot: sample.lotNumber || 'N/A',
         accessionNo: sample.accessionNo,
@@ -128,7 +128,7 @@ export function PrintSampleModal({ isOpen, onClose, sample }: PrintSampleModalPr
               )}
               <div className="text-center font-mono">
                 <div className="text-xs font-bold tracking-widest text-slate-800 bg-white px-3 py-1 rounded border border-slate-300">
-                  * {sample.barcode || `CP-${sample.sampleCode}`} *
+                  * {sample.barcode || sample.sampleCode} *
                 </div>
                 <div className="text-[10px] text-slate-500 mt-0.5 font-mono">
                   {sample.sampleCode}

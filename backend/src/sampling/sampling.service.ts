@@ -14,36 +14,77 @@ export class SamplingService {
     stageOrType?: string,
     explicitSection?: string
   ): Promise<string> {
-    // Strictly sequential Sample ID sequence: 1, 2, 3, 4, 5, 6...
-    const samples = await this.prisma.sample.findMany({
-      select: { sampleCode: true, sampleId: true },
+    // 1. Determine Laboratory Prefix (GL = General Lab, CP = Cephalosporin Lab, PL = Penicillin Lab)
+    const rawLab = (laboratory || 'GENERAL').toString().trim().toUpperCase();
+    let labPrefix = 'GL';
+    if (
+      rawLab === 'SAF' ||
+      rawLab === 'SEF' ||
+      rawLab === 'CP' ||
+      rawLab.includes('CEPH') ||
+      rawLab.includes('SEF')
+    ) {
+      labPrefix = 'CP';
+    } else if (
+      rawLab === 'PENICILLIN' ||
+      rawLab === 'PEN' ||
+      rawLab === 'PL'
+    ) {
+      labPrefix = 'PL';
+    } else {
+      labPrefix = 'GL';
+    }
+
+    // 2. Determine Section Prefix (SB = Semi Basics / Semi Basic, F = Formulation)
+    let secPrefix = 'SB';
+    const s = ((explicitSection || stageOrType) || '').toString().toLowerCase();
+
+    if (
+      s === 'formulation' ||
+      s.includes('[formulation]') ||
+      s.includes('finish') ||
+      s.includes('coat') ||
+      s.includes('fill') ||
+      s.includes('packag') ||
+      s.includes('stabilit')
+    ) {
+      secPrefix = 'F';
+    } else {
+      secPrefix = 'SB';
+    }
+
+    const prefix = `${labPrefix}/${secPrefix}-`;
+
+    // 3. Find all existing samples matching this laboratory and section prefix
+    const existingSamples = await this.prisma.sample.findMany({
+      where: {
+        OR: [
+          { sampleCode: { startsWith: `${labPrefix}/${secPrefix}` } },
+          { sampleId: { startsWith: `${labPrefix}/${secPrefix}` } },
+          { recordNumber: { startsWith: `${labPrefix}/${secPrefix}` } },
+        ],
+      },
+      select: { sampleCode: true, sampleId: true, recordNumber: true },
     });
 
+    const regex = new RegExp(`^${labPrefix}\\/${secPrefix}[-\\/](\\d+)$`, 'i');
     let maxNumber = 0;
 
-    for (const item of samples) {
-      const candidates = [item.sampleCode, item.sampleId].filter(Boolean);
+    for (const item of existingSamples) {
+      const candidates = [item.sampleCode, item.sampleId, item.recordNumber].filter(Boolean);
       for (const cand of candidates) {
-        const trimmed = cand!.trim();
-        if (/^\d+$/.test(trimmed)) {
-          const num = parseInt(trimmed, 10);
+        const match = cand!.trim().match(regex);
+        if (match && match[1]) {
+          const num = parseInt(match[1], 10);
           if (!isNaN(num) && num > maxNumber) {
             maxNumber = num;
-          }
-        } else {
-          const match = trimmed.match(/(\d+)$/);
-          if (match && match[1]) {
-            const num = parseInt(match[1], 10);
-            if (!isNaN(num) && num > maxNumber) {
-              maxNumber = num;
-            }
           }
         }
       }
     }
 
     const nextNumber = maxNumber + 1;
-    return nextNumber.toString();
+    return `${prefix}${nextNumber}`;
   }
 
   async getNextSampleIdPreview(
@@ -167,7 +208,7 @@ export class SamplingService {
       throw new BadRequestException('Validation Failed: Sample Quantity must be a positive number greater than 0.');
     }
 
-    const barcode = createSampleDto.barcode?.trim() || `CP-${sampleCode}`;
+    const barcode = createSampleDto.barcode?.trim() || sampleCode;
     const accessionNo = createSampleDto.accessionNo || (await this.generateAccessionNo());
     const samplingDate = createSampleDto.samplingDate ? new Date(createSampleDto.samplingDate) : new Date();
 

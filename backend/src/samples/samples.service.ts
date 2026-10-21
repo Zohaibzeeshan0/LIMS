@@ -16,32 +16,79 @@ import { SampleStatus, SubmissionStatus } from '@prisma/client';
 export class SamplesService {
   constructor(private prisma: PrismaService) {}
 
-  async generateSampleCode(): Promise<string> {
-    const samples = await this.prisma.sample.findMany({
-      select: { sampleCode: true, sampleId: true },
+  async generateSampleCode(
+    laboratory?: string,
+    stageOrType?: string,
+    explicitSection?: string
+  ): Promise<string> {
+    const rawLab = (laboratory || 'GENERAL').toString().trim().toUpperCase();
+    let labPrefix = 'GL';
+    if (
+      rawLab === 'SAF' ||
+      rawLab === 'SEF' ||
+      rawLab === 'CP' ||
+      rawLab.includes('CEPH') ||
+      rawLab.includes('SEF')
+    ) {
+      labPrefix = 'CP';
+    } else if (
+      rawLab === 'PENICILLIN' ||
+      rawLab === 'PEN' ||
+      rawLab === 'PL'
+    ) {
+      labPrefix = 'PL';
+    } else {
+      labPrefix = 'GL';
+    }
+
+    let secPrefix = 'SB';
+    const s = ((explicitSection || stageOrType) || '').toString().toLowerCase();
+
+    if (
+      s === 'formulation' ||
+      s.includes('[formulation]') ||
+      s.includes('finish') ||
+      s.includes('coat') ||
+      s.includes('fill') ||
+      s.includes('packag') ||
+      s.includes('stabilit')
+    ) {
+      secPrefix = 'F';
+    } else {
+      secPrefix = 'SB';
+    }
+
+    const prefix = `${labPrefix}/${secPrefix}-`;
+
+    const existingSamples = await this.prisma.sample.findMany({
+      where: {
+        OR: [
+          { sampleCode: { startsWith: `${labPrefix}/${secPrefix}` } },
+          { sampleId: { startsWith: `${labPrefix}/${secPrefix}` } },
+          { recordNumber: { startsWith: `${labPrefix}/${secPrefix}` } },
+        ],
+      },
+      select: { sampleCode: true, sampleId: true, recordNumber: true },
     });
+
+    const regex = new RegExp(`^${labPrefix}\\/${secPrefix}[-\\/](\\d+)$`, 'i');
     let maxNumber = 0;
-    for (const item of samples) {
-      const candidates = [item.sampleCode, item.sampleId].filter(Boolean);
+
+    for (const item of existingSamples) {
+      const candidates = [item.sampleCode, item.sampleId, item.recordNumber].filter(Boolean);
       for (const cand of candidates) {
-        const trimmed = cand!.trim();
-        if (/^\d+$/.test(trimmed)) {
-          const num = parseInt(trimmed, 10);
+        const match = cand!.trim().match(regex);
+        if (match && match[1]) {
+          const num = parseInt(match[1], 10);
           if (!isNaN(num) && num > maxNumber) {
             maxNumber = num;
-          }
-        } else {
-          const match = trimmed.match(/(\d+)$/);
-          if (match && match[1]) {
-            const num = parseInt(match[1], 10);
-            if (!isNaN(num) && num > maxNumber) {
-              maxNumber = num;
-            }
           }
         }
       }
     }
-    return (maxNumber + 1).toString();
+
+    const nextNumber = maxNumber + 1;
+    return `${prefix}${nextNumber}`;
   }
 
   async generateRecordNumber(): Promise<string> {
@@ -98,7 +145,13 @@ export class SamplesService {
       }
     }
 
-    const sampleId = targetSampleId || (await this.generateSampleCode());
+    const sampleId =
+      targetSampleId ||
+      (await this.generateSampleCode(
+        (createSampleDto as any).laboratoryType || createSampleDto.laboratory,
+        createSampleDto.sampleType || (createSampleDto as any).stageType,
+        (createSampleDto as any).section
+      ));
     const recordNumber =
       createSampleDto.recordNumber?.trim() ||
       createSampleDto.accessionNo?.trim() ||
@@ -136,7 +189,7 @@ export class SamplesService {
       createSampleDto.laboratory as string,
     );
 
-    const barcode = `CP-${sampleId}`;
+    const barcode = (createSampleDto as any).barcode?.trim() || sampleId;
 
     // 4. Database Transaction for Atomic Sample Creation & Audit Logging
     return this.prisma.$transaction(async (tx) => {

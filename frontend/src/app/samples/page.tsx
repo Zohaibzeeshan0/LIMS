@@ -1175,7 +1175,7 @@ function SamplesPageInner() {
                         <div>{sample.sampleCode}</div>
                         <div className="text-[10px] font-normal text-slate-400 flex items-center gap-1 mt-0.5">
                           <QrCode className="h-2.5 w-2.5 text-slate-400" />
-                          <span className="truncate">{sample.barcode || `CP-${sample.sampleCode}`}</span>
+                          <span className="truncate">{sample.barcode || sample.sampleCode}</span>
                         </div>
                       </td>
 

@@ -290,8 +290,12 @@ export function NewSampleModal({
 
   const nextAutoSampleCode = useMemo(() => {
     if (nextIdData?.sampleCode) return nextIdData.sampleCode;
-    return '1';
-  }, [nextIdData]);
+    const isCeph = watchedLab === 'SAF' || watchedLab === 'SEF';
+    const isPen = watchedLab === 'PENICILLIN';
+    const prefix = isCeph ? 'CP' : isPen ? 'PL' : 'GL';
+    const sec = selectedSection === 'formulation' ? 'F' : 'SB';
+    return `${prefix}/${sec}-1`;
+  }, [nextIdData, watchedLab, selectedSection]);
 
   // QR Code & Barcode Integration States
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
@@ -310,7 +314,7 @@ export function NewSampleModal({
     const payload = JSON.stringify({
       app: 'STAR-LIMS',
       sampleId: activeSampleCode,
-      barcode: scannedBarcode || `CP-${activeSampleCode}`,
+      barcode: scannedBarcode || activeSampleCode,
       nomenclature: watchedNomenclature || 'Pharmaceutical Sample',
       lot: watchedLotNumber || 'N/A',
       lab: watchedLab,
@@ -475,7 +479,7 @@ export function NewSampleModal({
     const payload: any = {
       laboratory: formData.laboratory,
       section: selectedSection,
-      barcode: scannedBarcode || `CP-${activeSampleCode}`,
+      barcode: scannedBarcode || activeSampleCode,
       samplingDate: isLiveClock
         ? new Date().toISOString()
         : new Date(formData.samplingDateTime).toISOString(),
