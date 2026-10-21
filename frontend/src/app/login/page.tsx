@@ -408,7 +408,7 @@ function LoginFormContent() {
                 >
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5 text-[#0066FF]" />
-                    <span>Static Lab Credentials (Strict 3-Lab RBAC)</span>
+                    <span>Quick Login Credentials</span>
                   </span>
                   {showDemoProfiles ? (
                     <ChevronUp className="h-3.5 w-3.5 text-slate-400" />

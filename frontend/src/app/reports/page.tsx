@@ -349,9 +349,6 @@ export default function ReportsPage() {
                   onChange={(e) => setSelectedLab(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
                 >
-                  <option value="ALL">All Laboratory Suites</option>
-                  <option value="SAF">Cephalosporin Lab</option>
-                  <option value="PENICILLIN">Penicillin Lab</option>
                   <option value="GENERAL">General Lab</option>
                 </select>
               </div>

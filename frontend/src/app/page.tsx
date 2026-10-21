@@ -33,6 +33,8 @@ import {
   Eye,
   QrCode,
   FileEdit,
+  Layers,
+  Sparkles,
   Lock,
   ArrowRight,
   TrendingUp,
@@ -1152,42 +1154,42 @@ export default function DashboardPage() {
               </button>
 
               <button
-                onClick={() => router.push('/samples?lab=cephalosporin')}
-                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-indigo-500 hover:bg-indigo-50/60 transition-all text-center group shadow-2xs cursor-pointer"
+                onClick={() => router.push('/samples?section=semi-base')}
+                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-blue-500 hover:bg-blue-50/60 transition-all text-center group shadow-2xs cursor-pointer"
               >
-                <div className="p-2 rounded-xl bg-indigo-100/60 text-indigo-600 group-hover:scale-105 transition-transform">
-                  <Microscope className="h-5 w-5 stroke-[1.8]" />
+                <div className="p-2 rounded-xl bg-blue-100/60 text-blue-600 group-hover:scale-105 transition-transform">
+                  <Layers className="h-5 w-5 stroke-[1.8]" />
                 </div>
                 <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
-                  Cephalosporin Lab
+                  Semi Basics
                 </span>
-                <span className="text-[9px] text-slate-400 mt-0.5">Cephalosporin</span>
+                <span className="text-[9px] text-slate-400 mt-0.5">Section 1</span>
+              </button>
+
+              <button
+                onClick={() => router.push('/samples?section=formulation')}
+                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-emerald-500 hover:bg-emerald-50/60 transition-all text-center group shadow-2xs cursor-pointer"
+              >
+                <div className="p-2 rounded-xl bg-emerald-100/60 text-emerald-600 group-hover:scale-105 transition-transform">
+                  <Sparkles className="h-5 w-5 stroke-[1.8]" />
+                </div>
+                <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
+                  Formulation
+                </span>
+                <span className="text-[9px] text-slate-400 mt-0.5">Section 2</span>
               </button>
 
               <button
                 onClick={() => router.push('/samples')}
-                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-emerald-500 hover:bg-emerald-50/60 transition-all text-center group shadow-2xs cursor-pointer"
-              >
-                <div className="p-2 rounded-xl bg-emerald-100/60 text-emerald-600 group-hover:scale-105 transition-transform">
-                  <GitBranch className="h-5 w-5 stroke-[1.8]" />
-                </div>
-                <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
-                  Batches
-                </span>
-                <span className="text-[9px] text-slate-400 mt-0.5">All Records</span>
-              </button>
-
-              <button
-                onClick={() => router.push('/samples?lab=penicillin')}
                 className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-sky-500 hover:bg-sky-50/60 transition-all text-center group shadow-2xs cursor-pointer"
               >
                 <div className="p-2 rounded-xl bg-sky-100/60 text-sky-600 group-hover:scale-105 transition-transform">
                   <FlaskConical className="h-5 w-5 stroke-[1.8]" />
                 </div>
                 <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
-                  Penicillin
+                  General Lab
                 </span>
-                <span className="text-[9px] text-slate-400 mt-0.5">QC Lab</span>
+                <span className="text-[9px] text-slate-400 mt-0.5">All Samples</span>
               </button>
 
             </div>

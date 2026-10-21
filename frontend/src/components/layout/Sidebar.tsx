@@ -24,27 +24,11 @@ interface SidebarProps {
 
 export const LABORATORIES = [
   {
-    id: 'cephalosporin',
-    name: 'Cephalosporin Lab',
-    shortLabel: 'Cephalosporin Lab',
-    code: 'SAF',
-    href: '/samples?lab=cephalosporin',
-    icon: Microscope,
-  },
-  {
-    id: 'penicillin',
-    name: 'Penicillin Lab',
-    shortLabel: 'Penicillin Lab',
-    code: 'PENICILLIN',
-    href: '/samples?lab=penicillin',
-    icon: ShieldAlert,
-  },
-  {
     id: 'general',
     name: 'General Lab',
     shortLabel: 'General Lab',
     code: 'GENERAL',
-    href: '/samples?lab=general',
+    href: '/samples',
     icon: FlaskConical,
   },
 ];
@@ -56,27 +40,11 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
   const isAdmin = user?.role === 'ADMIN';
   const role = user?.role || 'QC_ANALYST';
 
-  const activeLabQuery = searchParams.get('lab')?.toLowerCase();
   const isOnSamples = pathname.startsWith('/samples');
   const [isSamplingExpanded, setIsSamplingExpanded] = useState(true);
 
-  // Strict Laboratory RBAC Isolation
-  const userLabAccess = getUserLabAccess(user);
-  const isRestrictedToLab = userLabAccess !== 'ALL';
-  const authorizedLabId =
-    userLabAccess === 'SAF' ? 'cephalosporin' : userLabAccess === 'PENICILLIN' ? 'penicillin' : 'general';
-
-  const visibleLaboratories = isRestrictedToLab
-    ? LABORATORIES.filter((l) => l.id === authorizedLabId)
-    : LABORATORIES;
-
-  const labBadgeLabel = isRestrictedToLab
-    ? userLabAccess === 'SAF'
-      ? 'Cephalosporin'
-      : userLabAccess === 'PENICILLIN'
-      ? 'Penicillin'
-      : 'General'
-    : '3 Labs';
+  const visibleLaboratories = LABORATORIES;
+  const labBadgeLabel = 'General Lab';
 
   // Sidebar navigation items
   const menuItems: Array<{
@@ -96,7 +64,7 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
     },
     {
       name: 'Samples',
-      href: isRestrictedToLab ? `/samples?lab=${authorizedLabId}` : '/samples',
+      href: '/samples',
       icon: FileText,
       hasSubmenu: true,
       badge: labBadgeLabel,
@@ -203,7 +171,7 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
                             : 'bg-white/10 text-slate-300'
                         )}
                       >
-                        3 Labs
+                        {labBadgeLabel}
                       </span>
                       {isSamplingExpanded ? (
                         <ChevronDown className="h-3.5 w-3.5 text-white/80" />
@@ -214,60 +182,29 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
                   </div>
 
                   {/* Laboratory Sub-items (Restricted users only see their assigned laboratory) */}
+                  {/* Laboratory Sub-item (General Lab) */}
                   {isSamplingExpanded && (
                     <div className="pl-3.5 space-y-1 py-1 border-l border-white/15 ml-4 animate-in fade-in duration-150">
-                      {visibleLaboratories.map((lab) => {
-                        const LabIcon = lab.icon;
-                        const isLabActive =
-                          isOnSamples &&
-                          (activeLabQuery === lab.id ||
-                            (lab.id === 'cephalosporin' &&
-                              (activeLabQuery === 'cephalosporin' ||
-                                activeLabQuery === 'saf' ||
-                                activeLabQuery === 'sef' ||
-                                activeLabQuery === 'cp')) ||
-                            (!activeLabQuery && lab.id === authorizedLabId));
-
-                        return (
-                          <Link
-                            key={lab.id}
-                            href={lab.href}
-                            onClick={() => onClose && onClose()}
+                      <Link
+                        href="/samples"
+                        onClick={() => onClose && onClose()}
+                        className={cn(
+                          'group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors',
+                          isOnSamples
+                            ? 'bg-white/20 text-white font-bold border border-white/25 shadow-xs'
+                            : 'text-slate-300 hover:text-white hover:bg-white/10'
+                        )}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <FlaskConical
                             className={cn(
-                              'group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors',
-                              isLabActive
-                                ? 'bg-white/20 text-white font-bold border border-white/25 shadow-xs'
-                                : 'text-slate-300 hover:text-white hover:bg-white/10'
+                              'h-3.5 w-3.5 shrink-0',
+                              isOnSamples ? 'text-blue-300' : 'text-slate-400 group-hover:text-blue-300'
                             )}
-                          >
-                            <div className="flex items-center gap-2 truncate">
-                              <LabIcon
-                                className={cn(
-                                  'h-3.5 w-3.5 shrink-0',
-                                  isLabActive ? 'text-blue-300' : 'text-slate-400 group-hover:text-blue-300'
-                                )}
-                              />
-                              <span className="truncate">{lab.name}</span>
-                            </div>
-                          </Link>
-                        );
-                      })}
-
-                      {!isRestrictedToLab && (
-                        <Link
-                          href="/samples?lab=all"
-                          onClick={() => onClose && onClose()}
-                          className={cn(
-                            'flex items-center gap-2 px-2.5 py-1 rounded-lg text-[11px] transition-colors',
-                            isOnSamples && activeLabQuery === 'all'
-                              ? 'text-white font-bold bg-white/20'
-                              : 'text-slate-400 hover:text-white'
-                          )}
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                          <span>All Samples Registry</span>
-                        </Link>
-                      )}
+                          />
+                          <span className="truncate">General Lab</span>
+                        </div>
+                      </Link>
                     </div>
                   )}
                 </div>

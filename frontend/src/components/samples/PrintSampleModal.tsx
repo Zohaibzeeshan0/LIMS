@@ -40,13 +40,7 @@ export function PrintSampleModal({ isOpen, onClose, sample }: PrintSampleModalPr
     window.print();
   };
 
-  const sampleLab = sample.laboratory || 'GENERAL';
-  const labName =
-    sampleLab === 'SAF' || sampleLab === 'SEF'
-      ? 'Cephalosporin Lab'
-      : sampleLab === 'PENICILLIN'
-      ? 'Penicillin Lab'
-      : 'General Lab';
+  const labName = 'General Lab';
 
   return (
     <Modal

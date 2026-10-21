@@ -58,26 +58,8 @@ import {
 
 const LAB_TABS = [
   {
-    id: 'cephalosporin',
-    legacyIds: ['sef', 'saf', 'cp', 'cephalosporin'],
-    key: 'SAF' as const,
-    name: 'Cephalosporin Lab',
-    shortLabel: 'Cephalosporin Lab',
-    heading: 'Sampling / Cephalosporin Lab',
-    icon: Microscope,
-  },
-  {
-    id: 'penicillin',
-    legacyIds: ['pen', 'pl'],
-    key: 'PENICILLIN' as const,
-    name: 'Penicillin Lab',
-    shortLabel: 'Penicillin Lab',
-    heading: 'Sampling / Penicillin Lab',
-    icon: ShieldAlert,
-  },
-  {
     id: 'general',
-    legacyIds: ['gen', 'gl'],
+    legacyIds: ['gen', 'gl', 'sef', 'saf', 'cp', 'cephalosporin', 'pen', 'pl', 'penicillin', 'all'],
     key: 'GENERAL' as const,
     name: 'General Lab',
     shortLabel: 'General Lab',
@@ -96,20 +78,13 @@ function SamplesPageInner() {
   // Non-admin staff (QA Manager, QC Analyst, Lab Technician, Auditor) can enter new data only
   const canEdit = user?.role === 'ADMIN';
 
-  // User's assigned laboratory access (Strict Cross-Lab Isolation)
+  // Single Laboratory System: General Lab
   const userLabAccess = useMemo(() => getUserLabAccess(user), [user]);
-  const isRestrictedToLab = userLabAccess !== 'ALL';
-  const authorizedLabId =
-    userLabAccess === 'SAF' ? 'cephalosporin' : userLabAccess === 'PENICILLIN' ? 'penicillin' : 'general';
-
-  // Active laboratory from search query param (enforced for restricted users)
-  const rawLabParam = searchParams.get('lab')?.toLowerCase();
-  const labParam = isRestrictedToLab ? authorizedLabId : rawLabParam || 'general';
-  const isAllLabs = !isRestrictedToLab && labParam === 'all';
-  const activeLab =
-    LAB_TABS.find(
-      (l) => l.id === labParam || l.legacyIds?.includes(labParam)
-    ) || LAB_TABS[2]; // Default: General Lab
+  const isRestrictedToLab = false;
+  const authorizedLabId = 'general';
+  const labParam = 'general';
+  const isAllLabs = false;
+  const activeLab = LAB_TABS[0];
 
   // Intercept unauthorized lab navigation via URL query parameters
   React.useEffect(() => {
@@ -197,14 +172,6 @@ function SamplesPageInner() {
 
   // Switch laboratory function
   const selectLaboratory = (labId: string) => {
-    if (isRestrictedToLab && labId !== authorizedLabId) {
-      alert(
-        `Access Denied: You are assigned to the ${
-          userLabAccess === 'SAF' ? 'Cephalosporin' : userLabAccess
-        } Laboratory. Access to other laboratory suites is strictly barred under regulatory compliance.`
-      );
-      return;
-    }
     const params = new URLSearchParams(searchParams.toString());
     params.set('lab', labId);
     if (!params.has('section')) {
@@ -353,20 +320,10 @@ function SamplesPageInner() {
 
   // Compute live lab counts from metrics API
   const labCounts = useMemo(() => {
-    const cpTotal =
-      (metrics?.byLab as any)?.cephalosporin ??
-      (metrics?.byLab as any)?.cp ??
-      (metrics?.byLab as any)?.saf ??
-      (metrics?.byLab as any)?.sef ??
-      0;
+    const total = metrics?.total ?? 0;
     return {
-      cephalosporin: cpTotal,
-      cp: cpTotal,
-      sef: cpTotal,
-      saf: cpTotal,
-      penicillin: metrics?.byLab?.penicillin ?? 0,
-      general: metrics?.byLab?.general ?? 0,
-      total: metrics?.total ?? 0,
+      general: total,
+      total,
     };
   }, [metrics]);
 
@@ -394,116 +351,7 @@ function SamplesPageInner() {
 
   return (
     <div className="space-y-6 font-sans">
-      {/* 1. Laboratory Selection Panel — Three Professional Clickable Cards */}
-      <div className="space-y-2.5">
-        {!isRestrictedToLab && (
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-medium">
-              QC Management: Multi-Facility View
-            </span>
 
-            <button
-              type="button"
-              onClick={() => selectLaboratory('all')}
-              className={cn(
-                'text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors border flex items-center gap-1.5 cursor-pointer',
-                isAllLabs
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                  : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
-              )}
-            >
-              <Layers className="h-3.5 w-3.5" />
-              <span>All Laboratories ({labCounts.total})</span>
-            </button>
-          </div>
-        )}
-
-        {/* Laboratory Card(s) — Restricted users only see their authorized laboratory */}
-        <div className={cn('grid gap-3.5', isRestrictedToLab ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3')}>
-          {(isRestrictedToLab ? LAB_TABS.filter((l) => l.id === authorizedLabId) : LAB_TABS).map((lab) => {
-            const Icon = lab.icon;
-            const isSelected = !isAllLabs && activeLab.id === lab.id;
-            const isLocked = isRestrictedToLab && lab.id !== authorizedLabId;
-            const count = labCounts[lab.id as keyof typeof labCounts] || 0;
-
-            return (
-              <button
-                key={lab.id}
-                type="button"
-                disabled={isLocked}
-                onClick={() => selectLaboratory(lab.id)}
-                aria-pressed={isSelected}
-                className={cn(
-                  'relative group flex items-center justify-between p-4 rounded-2xl text-left transition-all duration-200 border',
-                  isLocked
-                    ? 'opacity-45 cursor-not-allowed bg-slate-50 border-dashed border-slate-300'
-                    : isSelected
-                    ? 'bg-blue-50/50 border-blue-500 ring-2 ring-blue-500/20 shadow-xs cursor-pointer'
-                    : 'bg-white hover:bg-slate-50/80 border-slate-200/90 hover:border-slate-300 shadow-2xs cursor-pointer'
-                )}
-              >
-                {/* Active indicator bar */}
-                {isSelected && (
-                  <span className="absolute top-0 left-6 right-6 h-0.5 bg-blue-600 rounded-b-full" />
-                )}
-
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      'h-10 w-10 rounded-xl flex items-center justify-center transition-colors shadow-2xs shrink-0',
-                      isLocked
-                        ? 'bg-slate-100 text-slate-400'
-                        : isSelected
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600'
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h3
-                        className={cn(
-                          'text-sm font-bold tracking-tight',
-                          isLocked
-                            ? 'text-slate-400 font-medium'
-                            : isSelected
-                            ? 'text-blue-950 font-bold'
-                            : 'text-slate-900'
-                        )}
-                      >
-                        {lab.name}
-                      </h3>
-                      {isLocked && <Lock className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
-                    </div>
-                    <span className="text-xs text-slate-500 font-medium">
-                      {isLocked ? 'Access Locked' : `${count} Samples`}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 text-xs shrink-0">
-                  {isLocked ? (
-                    <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 flex items-center gap-1">
-                      <Lock className="h-3 w-3" />
-                      <span>Restricted</span>
-                    </span>
-                  ) : isSelected ? (
-                    <span className="font-semibold text-blue-700 flex items-center gap-1">
-                      <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                      <span>Viewing Lab</span>
-                    </span>
-                  ) : (
-                    <span className="text-slate-400 group-hover:text-blue-700 font-medium flex items-center gap-1">
-                      <span>Select Lab</span>
-                      <ArrowRight className="h-3 w-3" />
-                    </span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
 
         {/* 2 Sub-Section Options under each Laboratory: Semi Base and Formulation */}
         <div className="bg-slate-50/90 p-3 rounded-2xl border border-slate-200/90">
@@ -609,7 +457,6 @@ function SamplesPageInner() {
             </button>
           </div>
         </div>
-      </div>
 
       {/* 2. Page Title Header: Selected Laboratory in Heading & Actions */}
       <div className="bg-white rounded-2xl border border-slate-200/90 px-6 py-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">

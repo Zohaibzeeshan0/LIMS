@@ -47,7 +47,7 @@ import {
 // Zod Validation Schema enforcing cGMP / 21 CFR Part 11 requirements
 const sampleFormSchema = z
   .object({
-    laboratory: z.enum(['SAF', 'SEF', 'PENICILLIN', 'GENERAL']),
+    laboratory: z.string().default('GENERAL'),
     samplingDateTime: z.string().min(1, 'Sampling Date & Time is required'),
     nomenclature: z
       .string()
@@ -127,7 +127,7 @@ type SampleFormValues = z.infer<typeof sampleFormSchema>;
 interface NewSampleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultLaboratory?: 'SAF' | 'SEF' | 'PENICILLIN' | 'GENERAL';
+  defaultLaboratory?: string;
   defaultSection?: LabSection;
   onSampleCreated?: (createdSample: any) => void;
 }
@@ -142,12 +142,8 @@ export function NewSampleModal({
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Strict RBAC: Check user's assigned laboratory
-  const userLabAccess = useMemo(() => getUserLabAccess(user), [user]);
-  const isRestrictedToLab = userLabAccess !== 'ALL';
-  const effectiveLab: 'SAF' | 'PENICILLIN' | 'GENERAL' = isRestrictedToLab
-    ? (userLabAccess === 'SAF' ? 'SAF' : userLabAccess)
-    : (defaultLaboratory === 'SEF' ? 'SAF' : defaultLaboratory);
+  const isRestrictedToLab = false;
+  const effectiveLab = 'GENERAL';
 
   // Active lab section: Semi Base vs Formulation
   const [selectedSection, setSelectedSection] = useState<LabSection>(defaultSection);
@@ -290,12 +286,9 @@ export function NewSampleModal({
 
   const nextAutoSampleCode = useMemo(() => {
     if (nextIdData?.sampleCode) return nextIdData.sampleCode;
-    const isCeph = watchedLab === 'SAF' || watchedLab === 'SEF';
-    const isPen = watchedLab === 'PENICILLIN';
-    const prefix = isCeph ? 'CP' : isPen ? 'PL' : 'GL';
     const sec = selectedSection === 'formulation' ? 'F' : 'SB';
-    return `${prefix}/${sec}-1`;
-  }, [nextIdData, watchedLab, selectedSection]);
+    return `GL/${sec}-1`;
+  }, [nextIdData, selectedSection]);
 
   // QR Code & Barcode Integration States
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
@@ -625,94 +618,16 @@ export function NewSampleModal({
             </div>
           )}
 
-          {/* Section 1: Laboratory Suite Selection */}
-          <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-navy-950 uppercase tracking-wider flex items-center gap-1.5">
-                <span>1. Target Laboratory Suite</span>
-                <span className="text-rose-500">*</span>
-              </label>
-              {isRestrictedToLab ? (
-                <span className="text-[11px] text-amber-700 font-semibold flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                  <Lock className="h-3 w-3" />
-                  <span>Assigned Laboratory Only</span>
-                </span>
-              ) : (
-                <span className="text-[11px] text-slate-500 font-medium">
-                  Administrator: Select destination laboratory
-                </span>
-              )}
+          {/* Section 1: Laboratory Suite (General Lab) */}
+          <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="h-4 w-4 text-blue-600" />
+              <span className="text-xs font-bold text-slate-800">Target Laboratory:</span>
+              <span className="text-xs font-bold text-blue-900 bg-blue-100/70 px-2.5 py-0.5 rounded-md border border-blue-200">
+                General Lab
+              </span>
             </div>
-
-            <div
-              className={cn(
-                'grid gap-2.5',
-                isRestrictedToLab ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-3'
-              )}
-            >
-              {[
-                {
-                  key: 'SAF',
-                  label: 'Cephalosporin Lab',
-                  icon: Microscope,
-                },
-                {
-                  key: 'PENICILLIN',
-                  label: 'Penicillin Lab',
-                  icon: ShieldAlert,
-                },
-                {
-                  key: 'GENERAL',
-                  label: 'General Lab',
-                  icon: FlaskConical,
-                },
-              ]
-                .filter((lab) => !isRestrictedToLab || lab.key === userLabAccess)
-                .map((lab) => {
-                const Icon = lab.icon;
-                const isSelected = watchedLab === lab.key;
-                const isLocked = isRestrictedToLab && lab.key !== userLabAccess;
-
-                return (
-                  <button
-                    key={lab.key}
-                    type="button"
-                    disabled={isLocked}
-                    onClick={() => {
-                      if (!isLocked) {
-                        setValue('laboratory', lab.key as any, { shouldDirty: true });
-                      }
-                    }}
-                    className={cn(
-                      'p-2.5 rounded-xl border text-left transition-all duration-150 flex items-center justify-between',
-                      isLocked
-                        ? 'opacity-40 cursor-not-allowed bg-slate-100 border-dashed border-slate-300 text-slate-400'
-                        : isSelected
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs cursor-pointer'
-                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 cursor-pointer'
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Icon
-                        className={cn(
-                          'h-4 w-4',
-                          isLocked ? 'text-slate-400' : isSelected ? 'text-white' : 'text-slate-500'
-                        )}
-                      />
-                      <span className="font-bold text-xs">{lab.label}</span>
-                    </div>
-                    {isLocked ? (
-                      <span className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
-                        <Lock className="h-3 w-3" />
-                        <span>Restricted</span>
-                      </span>
-                    ) : isSelected ? (
-                      <CheckCircle2 className="h-4 w-4 text-white" />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
+            <span className="text-[11px] text-slate-400 font-medium">Standard Quality Control Suite</span>
           </div>
 
           {/* Section 2: Core Identifiers & Timing */}
@@ -1349,13 +1264,7 @@ export function NewSampleModal({
         sampleCode={activeSampleCode}
         nomenclature={watchedNomenclature || 'Pharmaceutical Sample'}
         lotNumber={watchedLotNumber || 'N/A'}
-        laboratoryName={
-          watchedLab === 'SAF' || watchedLab === 'SEF'
-            ? 'Cephalosporin Lab'
-            : watchedLab === 'PENICILLIN'
-            ? 'Penicillin Lab'
-            : 'General Lab'
-        }
+        laboratoryName="General Lab"
         sectionName={selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
         samplingDate={format(liveDate, 'dd MMM yyyy, hh:mm a')}
         sampleQty={watch('sampleQty')}

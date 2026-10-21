@@ -21,25 +21,8 @@ export class SamplesService {
     stageOrType?: string,
     explicitSection?: string
   ): Promise<string> {
-    const rawLab = (laboratory || 'GENERAL').toString().trim().toUpperCase();
-    let labPrefix = 'GL';
-    if (
-      rawLab === 'SAF' ||
-      rawLab === 'SEF' ||
-      rawLab === 'CP' ||
-      rawLab.includes('CEPH') ||
-      rawLab.includes('SEF')
-    ) {
-      labPrefix = 'CP';
-    } else if (
-      rawLab === 'PENICILLIN' ||
-      rawLab === 'PEN' ||
-      rawLab === 'PL'
-    ) {
-      labPrefix = 'PL';
-    } else {
-      labPrefix = 'GL';
-    }
+    // Single Laboratory in system: General Lab (GL)
+    const labPrefix = 'GL';
 
     let secPrefix = 'SB';
     const s = ((explicitSection || stageOrType) || '').toString().toLowerCase();
