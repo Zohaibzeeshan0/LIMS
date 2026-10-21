@@ -162,13 +162,8 @@ function SamplesPageInner() {
     if (querySampleParam) {
       const trimmed = querySampleParam.trim();
       setSelectedSampleId(trimmed);
-      if (trimmed.includes('/F-') || trimmed.includes('/F')) {
-        if (activeSection !== 'formulation') selectSection('formulation');
-      } else if (trimmed.includes('/SB-') || trimmed.includes('/SB')) {
-        if (activeSection !== 'semi-base') selectSection('semi-base');
-      }
     }
-  }, [querySampleParam, activeSection]);
+  }, [querySampleParam]);
 
   React.useEffect(() => {
     if (queryStatusParam) {
