@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import QRCode from 'qrcode';
 import { QrScannerModal, ScannedSampleData } from '@/components/samples/QrScannerModal';
 import { SampleQrLabelModal } from '@/components/samples/SampleQrLabelModal';
+import { SampleRoutingChitModal, SampleRoutingChitData } from '@/components/samples/SampleRoutingChitModal';
 import {
   FlaskConical,
   Microscope,
@@ -130,6 +131,7 @@ interface NewSampleModalProps {
   defaultLaboratory?: string;
   defaultSection?: LabSection;
   onSampleCreated?: (createdSample: any) => void;
+  onProceedToSubmit?: (createdSample: any) => void;
 }
 
 export function NewSampleModal({
@@ -138,6 +140,7 @@ export function NewSampleModal({
   defaultLaboratory = 'GENERAL',
   defaultSection = 'semi-base',
   onSampleCreated,
+  onProceedToSubmit,
 }: NewSampleModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -147,6 +150,10 @@ export function NewSampleModal({
 
   // Active lab section: Semi Base vs Formulation
   const [selectedSection, setSelectedSection] = useState<LabSection>(defaultSection);
+
+  // Post-Creation Sample Routing Chit Modal state (end of sample addition)
+  const [createdSampleForChit, setCreatedSampleForChit] = useState<any | null>(null);
+  const [isCreatedChitOpen, setIsCreatedChitOpen] = useState(false);
 
   // Confirmation modal state for unsaved changes
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -430,12 +437,9 @@ export function NewSampleModal({
         onSampleCreated(newSample);
       }
 
-      reset(defaultValues);
-
-      // Auto close after brief display, or user can click Close
-      setTimeout(() => {
-        onClose();
-      }, 1400);
+      // Automatically launch the generated QR Code and official container chit modal at end of sample addition
+      setCreatedSampleForChit(newSample);
+      setIsCreatedChitOpen(true);
     },
     onError: (err: any) => {
       const msg =
@@ -1257,6 +1261,32 @@ export function NewSampleModal({
         samplingDate={format(liveDate, 'dd MMM yyyy, hh:mm a')}
         sampleQty={watch('sampleQty')}
         unit={watch('unit')}
+      />
+
+      {/* Official Post-Creation Container Chit Modal (End of Sample Addition) */}
+      <SampleRoutingChitModal
+        isOpen={isCreatedChitOpen && !!createdSampleForChit}
+        onClose={() => {
+          setIsCreatedChitOpen(false);
+          setCreatedSampleForChit(null);
+          reset(defaultValues);
+          onClose();
+        }}
+        chitData={createdSampleForChit ? {
+          sample: createdSampleForChit,
+          destinationLab: 'PENDING_WORKFLOW',
+          submittedByName: createdSampleForChit.submittedBy || user?.fullName || 'Sampling Officer',
+          submittedAt: createdSampleForChit.samplingDate || new Date().toISOString(),
+        } : null}
+        onProceedToSubmit={(sample) => {
+          setIsCreatedChitOpen(false);
+          setCreatedSampleForChit(null);
+          reset(defaultValues);
+          onClose();
+          if (onProceedToSubmit) {
+            onProceedToSubmit(sample);
+          }
+        }}
       />
     </>
   );

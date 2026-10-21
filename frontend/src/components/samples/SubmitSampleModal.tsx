@@ -10,6 +10,7 @@ import { samplingService } from '@/services/sampling.service';
 import { Sample, SubmissionDestination, SubmissionStatus, SampleSubmission } from '@/types/lims';
 import { formatDateTime } from '@/lib/date';
 import { cn } from '@/lib/utils';
+import { SampleRoutingChitModal, SampleRoutingChitData } from '@/components/samples/SampleRoutingChitModal';
 import {
   Microscope,
   FlaskConical,
@@ -30,6 +31,8 @@ import {
   Sparkles,
   ArrowRight,
   XCircle,
+  Printer,
+  QrCode,
 } from 'lucide-react';
 
 interface SubmitSampleModalProps {
@@ -154,6 +157,10 @@ export function SubmitSampleModal({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
+  // Sample Container Routing Chit / Label modal state
+  const [routingChitData, setRoutingChitData] = useState<SampleRoutingChitData | null>(null);
+  const [isChitModalOpen, setIsChitModalOpen] = useState(false);
+
   // Status transition state for existing submissions
   const [transitioningId, setTransitioningId] = useState<string | null>(null);
   const [transitionStatus, setTransitionStatus] = useState<string>('');
@@ -218,12 +225,24 @@ export function SubmitSampleModal({
 
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['samples'] });
+      queryClient.invalidateQueries({ queryKey: ['samples-paginated'] });
       queryClient.invalidateQueries({ queryKey: ['sample', sample?.id] });
       queryClient.invalidateQueries({ queryKey: ['sample-submissions', sample?.id] });
       queryClient.invalidateQueries({ queryKey: ['sampling-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-audit-logs'] });
       queryClient.invalidateQueries({ queryKey: ['navbar-audit-alerts'] });
+
+      // Automatically construct and display the official physical container routing chit modal
+      setRoutingChitData({
+        sample: sample!,
+        destinationLab: selectedDestination,
+        submissionNumber: subId ? `SUB-${subId.substring(0, 6).toUpperCase()}` : undefined,
+        submittedByName: user?.fullName || 'Sampling Officer',
+        submittedAt: new Date().toISOString(),
+        remarks: remarks.trim() || undefined,
+      });
+      setIsChitModalOpen(true);
 
       if (onSuccess) onSuccess();
 
@@ -278,7 +297,8 @@ export function SubmitSampleModal({
   const canSubmit = selectedDestination !== null && !isSelectedActive && !submitMutation.isPending;
 
   return (
-    <Modal
+    <>
+      <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Submit Sample Workflow"
@@ -678,58 +698,81 @@ export function SubmitSampleModal({
                           </div>
                         </div>
 
-                        {/* Status Transition Control (Admin / QA / QC) */}
-                        {nextStatuses.length > 0 && (
-                          <div className="shrink-0 flex items-center gap-1.5 self-end sm:self-center">
-                            {!isTransitioning ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setTransitioningId(sub.id);
-                                  setTransitionStatus(nextStatuses[0]);
-                                }}
-                                className="px-2 py-1 rounded text-[11px] font-semibold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-colors cursor-pointer"
-                              >
-                                Update Status
-                              </button>
-                            ) : (
-                              <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-                                <select
-                                  value={transitionStatus}
-                                  onChange={(e) => setTransitionStatus(e.target.value)}
-                                  className="text-[11px] px-1.5 py-1 rounded border border-slate-300 bg-white"
-                                >
-                                  {nextStatuses.map((st) => (
-                                    <option key={st} value={st}>
-                                      {st.replace(/_/g, ' ')}
-                                    </option>
-                                  ))}
-                                </select>
+                        <div className="shrink-0 flex items-center gap-1.5 self-end sm:self-center">
+                          {/* Print Container Chit button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRoutingChitData({
+                                sample: sample,
+                                destinationLab: sub.destinationLab,
+                                submissionNumber: `SUB-${sub.id.substring(0, 6).toUpperCase()}`,
+                                submittedByName: sub.submittedByName,
+                                submittedAt: sub.submissionDate,
+                                remarks: sub.remarks,
+                              });
+                              setIsChitModalOpen(true);
+                            }}
+                            className="px-2 py-1 rounded text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors flex items-center gap-1 cursor-pointer"
+                            title="Print Container Routing Chit for this dispatch"
+                          >
+                            <Printer className="h-3 w-3 text-slate-600" />
+                            <span>Print Chit</span>
+                          </button>
+
+                          {/* Status Transition Control (Admin / QA / QC) */}
+                          {nextStatuses.length > 0 && (
+                            <>
+                              {!isTransitioning ? (
                                 <button
                                   type="button"
-                                  disabled={transitionMutation.isPending}
-                                  onClick={() =>
-                                    transitionMutation.mutate({
-                                      submissionId: sub.id,
-                                      status: transitionStatus,
-                                      reasonForChange: `Updated by ${user?.fullName || 'Authorized User'}`,
-                                    })
-                                  }
-                                  className="px-2 py-1 rounded text-[10px] font-bold text-white bg-navy-900 hover:bg-navy-950 transition-colors cursor-pointer"
+                                  onClick={() => {
+                                    setTransitioningId(sub.id);
+                                    setTransitionStatus(nextStatuses[0]);
+                                  }}
+                                  className="px-2 py-1 rounded text-[11px] font-semibold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-colors cursor-pointer"
                                 >
-                                  {transitionMutation.isPending ? 'Saving...' : 'Apply'}
+                                  Update Status
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setTransitioningId(null)}
-                                  className="px-1.5 py-1 rounded text-[10px] text-slate-500 hover:text-slate-800"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                              ) : (
+                                <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                                  <select
+                                    value={transitionStatus}
+                                    onChange={(e) => setTransitionStatus(e.target.value)}
+                                    className="text-[11px] px-1.5 py-1 rounded border border-slate-300 bg-white"
+                                  >
+                                    {nextStatuses.map((st) => (
+                                      <option key={st} value={st}>
+                                        {st.replace(/_/g, ' ')}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    disabled={transitionMutation.isPending}
+                                    onClick={() =>
+                                      transitionMutation.mutate({
+                                        submissionId: sub.id,
+                                        status: transitionStatus,
+                                        reasonForChange: `Updated by ${user?.fullName || 'Authorized User'}`,
+                                      })
+                                    }
+                                    className="px-2 py-1 rounded text-[10px] font-bold text-white bg-navy-900 hover:bg-navy-950 transition-colors cursor-pointer"
+                                  >
+                                    {transitionMutation.isPending ? 'Saving...' : 'Apply'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setTransitioningId(null)}
+                                    className="px-1.5 py-1 rounded text-[10px] text-slate-500 hover:text-slate-800"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -806,5 +849,16 @@ export function SubmitSampleModal({
         </div>
       </div>
     </Modal>
+
+      {/* Official Container Routing Slip / Chit Modal */}
+      <SampleRoutingChitModal
+        isOpen={isChitModalOpen}
+        onClose={() => {
+          setIsChitModalOpen(false);
+          setRoutingChitData(null);
+        }}
+        chitData={routingChitData}
+      />
+    </>
   );
 }

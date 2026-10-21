@@ -16,6 +16,8 @@ import { NewSampleModal } from '@/components/samples/NewSampleModal';
 import { EditSampleModal } from '@/components/samples/EditSampleModal';
 import { PrintSampleModal } from '@/components/samples/PrintSampleModal';
 import { SubmitSampleModal } from '@/components/samples/SubmitSampleModal';
+import { QrScannerModal, ScannedSampleData } from '@/components/samples/QrScannerModal';
+import { SampleRoutingChitModal, SampleRoutingChitData } from '@/components/samples/SampleRoutingChitModal';
 import { formatDateTime } from '@/lib/date';
 import { cn } from '@/lib/utils';
 import {
@@ -142,6 +144,16 @@ function SamplesPageInner() {
   const [editingSample, setEditingSample] = useState<Sample | null>(null);
   const [printingSample, setPrintingSample] = useState<Sample | null>(null);
   const [submittingSample, setSubmittingSample] = useState<Sample | null>(null);
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [chitSample, setChitSample] = useState<Sample | null>(null);
+
+  const handleScanSample = (data: ScannedSampleData) => {
+    const code = data.sampleCode || data.barcode;
+    if (code) {
+      setSelectedSampleId(code);
+      setSampleIdSearch(code);
+    }
+  };
 
   // Auto-open sample dossier if sampleId is present in URL (e.g. redirected from Dashboard Pending Samples)
   const querySampleParam = searchParams.get('sampleId') || searchParams.get('id') || searchParams.get('sample');
@@ -528,6 +540,17 @@ function SamplesPageInner() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <Button
+            type="button"
+            onClick={() => setIsQrScannerOpen(true)}
+            variant="outline"
+            className="border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
+            title="Scan Sample QR Code or Container Barcode to instantly view sample details"
+          >
+            <QrCode className="h-4 w-4 text-teal-700" />
+            <span>Scan QR / Barcode</span>
+          </Button>
+
           <Link
             href={`/reports?section=${activeSection}`}
             className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold shadow-2xs transition-all cursor-pointer"
@@ -1167,6 +1190,16 @@ function SamplesPageInner() {
                             )}
                           </button>
 
+                          {/* Print Container Chit / QR Label */}
+                          <button
+                            type="button"
+                            title="Print Physical Container Routing Chit / Label"
+                            onClick={() => setChitSample(sample)}
+                            className="p-1.5 rounded-lg text-blue-700 hover:text-blue-900 hover:bg-blue-50 transition-colors cursor-pointer"
+                          >
+                            <QrCode className="h-3.5 w-3.5" />
+                          </button>
+
                           {/* Print Record */}
                           <button
                             type="button"
@@ -1300,6 +1333,16 @@ function SamplesPageInner() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setChitSample(sampleDetail)}
+                    className="text-xs border-blue-300 bg-blue-50/60 text-blue-800 hover:bg-blue-100 font-semibold"
+                  >
+                    <QrCode className="h-3.5 w-3.5 mr-1 text-blue-700" />
+                    <span>Print Container Chit</span>
+                  </Button>
+
                   <Button
                     size="sm"
                     variant="outline"
@@ -1589,7 +1632,40 @@ function SamplesPageInner() {
           queryClient.invalidateQueries({ queryKey: ['samples-count-fm'] });
           queryClient.invalidateQueries({ queryKey: ['sampling-metrics'] });
         }}
+        onProceedToSubmit={(createdSample) => {
+          setSubmittingSample(createdSample);
+        }}
       />
+
+      {/* 11. Live QR Code & Barcode Scanner Modal */}
+      {isQrScannerOpen && (
+        <QrScannerModal
+          isOpen={isQrScannerOpen}
+          onClose={() => setIsQrScannerOpen(false)}
+          onScan={handleScanSample}
+        />
+      )}
+
+      {/* 12. Sample Container Routing Chit Modal */}
+      {chitSample && (
+        <SampleRoutingChitModal
+          isOpen={!!chitSample}
+          onClose={() => setChitSample(null)}
+          chitData={{
+            sample: chitSample,
+            destinationLab: chitSample.submissions?.[0]?.destinationLab || null,
+            submissionNumber: chitSample.submissions?.[0]?.id
+              ? `SUB-${chitSample.submissions[0].id.substring(0, 6).toUpperCase()}`
+              : undefined,
+            submittedByName: chitSample.submissions?.[0]?.submittedByName || chitSample.submittedBy,
+            submittedAt: chitSample.submissions?.[0]?.submissionDate || chitSample.samplingDate,
+          }}
+          onProceedToSubmit={(sample) => {
+            setChitSample(null);
+            setSubmittingSample(sample);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -30,6 +30,9 @@ export interface ScannedSampleData {
   expDate?: string;
   stageType?: string;
   laboratory?: string;
+  priority?: string;
+  section?: string;
+  status?: string;
   sourceSupplier?: string;
 }
 
@@ -51,10 +54,16 @@ export function QrScannerModal({ isOpen, onClose, onScan }: QrScannerModalProps)
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerId = 'lims-qr-reader-container';
 
-  // Smart parser for scanned text (JSON, Key-Value, Pipe-Delimited, or plain barcode)
+  // Smart parser for scanned text (JSON, Key-Value, Pipe-Delimited, URL, or plain barcode)
   const parseScannedText = (decodedText: string): ScannedSampleData => {
     const raw = decodedText.trim();
     const result: ScannedSampleData = { rawText: raw, barcode: raw };
+
+    // 0. Check for URL with sampleId or id query parameter (e.g. from camera scan)
+    const urlMatch = raw.match(/[?&]sampleId=([^&\s\n]+)/i) || raw.match(/[?&]id=([^&\s\n]+)/i);
+    if (urlMatch) {
+      result.sampleCode = decodeURIComponent(urlMatch[1]);
+    }
 
     // 1. Try JSON parsing
     try {
@@ -86,6 +95,9 @@ export function QrScannerModal({ isOpen, onClose, onScan }: QrScannerModalProps)
         if (parsed.laboratory || parsed.lab) {
           result.laboratory = parsed.laboratory || parsed.lab;
         }
+        if (parsed.priority) {
+          result.priority = parsed.priority;
+        }
         if (parsed.sourceSupplier || parsed.supplier) {
           result.sourceSupplier = parsed.sourceSupplier || parsed.supplier;
         }
@@ -95,12 +107,61 @@ export function QrScannerModal({ isOpen, onClose, onScan }: QrScannerModalProps)
       // Not JSON, continue to other formats
     }
 
-    // 2. Try pipe or semicolon-separated format: e.g. LOT-123|Paracetamol|100|Tablet
+    // 2. Try key-value lines (such as STAR LIMS official Container Chit payload)
+    if (raw.includes(':') && (raw.includes('\n') || raw.includes('•') || raw.includes(','))) {
+      const lines = raw.split(/[\n,]/).map((l) => l.trim()).filter(Boolean);
+      lines.forEach((line) => {
+        const colonIdx = line.indexOf(':');
+        if (colonIdx === -1) return;
+        const key = line.substring(0, colonIdx).trim().toLowerCase();
+        const val = line.substring(colonIdx + 1).trim();
+        if (!key || !val) return;
+
+        if (key === 'sample id' || key === 'sample code' || key === 'sampleid' || (key.includes('sample') && (key.includes('id') || key.includes('code')))) {
+          result.sampleCode = val;
+        } else if (key === 'material' || key === 'material / product name' || key.includes('product') || key.includes('nomenclature') || key === 'name') {
+          result.nomenclature = val;
+        } else if (key.includes('batch') || key.includes('lot')) {
+          result.lotNumber = val;
+        } else if (key === 'section') {
+          result.section = val;
+        } else if (key === 'stage') {
+          result.stageType = val;
+        } else if (key.includes('quantity') || key.includes('qty')) {
+          const numMatch = val.match(/^([\d.]+)\s*(.*)$/);
+          if (numMatch) {
+            const num = parseFloat(numMatch[1]);
+            if (!isNaN(num)) result.sampleQty = num;
+            if (numMatch[2]) result.unit = numMatch[2].trim();
+          } else {
+            const parsedNum = parseFloat(val);
+            if (!isNaN(parsedNum)) result.sampleQty = parsedNum;
+          }
+        } else if (key.includes('unit')) {
+          result.unit = val;
+        } else if (key.includes('priority')) {
+          result.priority = val;
+        } else if (key.includes('routed to') || key.includes('destination') || key === 'lab' || key === 'laboratory') {
+          result.laboratory = val;
+        } else if (key === 'status') {
+          result.status = val;
+        } else if (key.includes('mfg')) {
+          result.mfgDate = val;
+        } else if (key.includes('exp')) {
+          result.expDate = val;
+        }
+      });
+
+      if (result.sampleCode) {
+        return result;
+      }
+    }
+
+    // 3. Try pipe or semicolon-separated format: e.g. GL/SB-1|Hi-Dol Duo|100|tablets
     if (raw.includes('|') || (raw.includes(';') && !raw.includes('data:'))) {
       const delimiter = raw.includes('|') ? '|' : ';';
       const parts = raw.split(delimiter).map((p) => p.trim());
       if (parts.length >= 2) {
-        // Guess assignment by content
         parts.forEach((part) => {
           if (/^(GL|CP|PL)\/(SB|F)[-\/]\d+$/i.test(part) || /^SMP-/i.test(part)) {
             result.sampleCode = part;
@@ -116,26 +177,6 @@ export function QrScannerModal({ isOpen, onClose, onScan }: QrScannerModalProps)
         });
         return result;
       }
-    }
-
-    // 3. Try key-value lines: e.g. "LOT: CP-012\nNAME: Cefixime"
-    if (raw.includes(':') && (raw.includes('\n') || raw.includes(','))) {
-      const lines = raw.split(/[\n,]/).map((l) => l.trim());
-      lines.forEach((line) => {
-        const [k, ...vParts] = line.split(':');
-        const key = k?.trim().toLowerCase();
-        const val = vParts.join(':').trim();
-        if (key && val) {
-          if (key.includes('sample') || key.includes('code') || key.includes('id')) result.sampleCode = val;
-          else if (key.includes('lot') || key.includes('batch')) result.lotNumber = val;
-          else if (key.includes('name') || key.includes('product') || key.includes('material')) result.nomenclature = val;
-          else if (key.includes('qty') || key.includes('quantity')) result.sampleQty = parseFloat(val);
-          else if (key.includes('unit')) result.unit = val;
-          else if (key.includes('mfg')) result.mfgDate = val;
-          else if (key.includes('exp')) result.expDate = val;
-        }
-      });
-      return result;
     }
 
     // 4. Fallback: single identifier string (Sample ID or Lot Number)
