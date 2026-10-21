@@ -540,17 +540,6 @@ function SamplesPageInner() {
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           <Button
-            type="button"
-            onClick={() => setIsQrScannerOpen(true)}
-            variant="outline"
-            className="border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
-            title="Scan Sample QR Code or Container Barcode to instantly view sample details"
-          >
-            <QrCode className="h-4 w-4 text-teal-700" />
-            <span>Scan QR / Barcode</span>
-          </Button>
-
-          <Button
             onClick={() => setIsAccessionModalOpen(true)}
             variant="primary"
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
