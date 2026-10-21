@@ -72,7 +72,7 @@ export function SampleRoutingChitModal({
 
     const qrText = `==============================
 STAR LIMS • QUALITY CONTROL
-SAMPLE ROUTING & CONTAINER CHIT
+SAMPLE ROUTING & CONTAINER SLIP
 ==============================
 Sample ID: ${sampleCode}
 Material: ${nomenclature}
@@ -124,7 +124,7 @@ Verify: ${typeof window !== 'undefined' ? window.location.origin : ''}/samples?s
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Container Chit - ${sampleCode}</title>
+          <title>Container Slip - ${sampleCode}</title>
           ${styles}
           <style>
             @page { size: auto; margin: 4mm; }
@@ -155,7 +155,7 @@ Verify: ${typeof window !== 'undefined' ? window.location.origin : ''}/samples?s
     if (!qrDataUrl) return;
     const a = document.createElement('a');
     a.href = qrDataUrl;
-    a.download = `QR_CHIT_${sampleCode.replace(/[\/\\]/g, '_')}.png`;
+    a.download = `QR_SLIP_${sampleCode.replace(/[\/\\]/g, '_')}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -167,18 +167,18 @@ Verify: ${typeof window !== 'undefined' ? window.location.origin : ''}/samples?s
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Sample Container Routing Chit / Label"
+      title="Sample Container Routing Slip / Label"
       subtitle={`Official physical container label slip for Sample ${sampleCode}`}
       maxWidth="lg"
     >
       <div className="space-y-4">
-        {/* Printable Physical Thermal Container Slip / Chit */}
+        {/* Printable Physical Thermal Container Slip */}
         <div className="p-3 sm:p-5 rounded-2xl bg-slate-100/80 border border-slate-200 flex justify-center overflow-x-auto">
           <div
             id="printable-routing-chit"
             className="w-full max-w-[480px] bg-white p-4 sm:p-5 rounded-xl border-2 border-slate-900 shadow-md text-slate-900 font-sans print:shadow-none print:border-black print:m-0 print:p-2"
           >
-            {/* Chit Header */}
+            {/* Slip Header */}
             <div className="border-b-2 border-slate-900 pb-2.5 mb-3 flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-1.5">
@@ -188,13 +188,13 @@ Verify: ${typeof window !== 'undefined' ? window.location.origin : ''}/samples?s
                   </span>
                 </div>
                 <div className="text-[10px] font-bold text-slate-600 mt-0.5 uppercase tracking-wide">
-                  Laboratory Transfer & Container Slip (Chit)
+                  Laboratory Transfer & Container Slip
                 </div>
               </div>
 
               <div className="text-right shrink-0">
                 <span className="text-[9px] font-mono font-bold bg-slate-900 text-white px-2 py-0.5 rounded uppercase">
-                  CONTAINER CHIT
+                  CONTAINER SLIP
                 </span>
                 <span className="block text-[8px] font-mono text-slate-500 mt-0.5">
                   REF: {chitData?.submissionNumber || (sample?.id ? `SUB-${String(sample.id).slice(0, 6).toUpperCase()}` : 'SUB-PENDING')}
@@ -356,7 +356,7 @@ Verify: ${typeof window !== 'undefined' ? window.location.origin : ''}/samples?s
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs"
             >
               <Printer className="h-4 w-4" />
-              <span>Print Sample Chit</span>
+              <span>Print Sample Slip</span>
             </Button>
 
             {onProceedToSubmit && (

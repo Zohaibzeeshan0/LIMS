@@ -1180,10 +1180,10 @@ function SamplesPageInner() {
                             )}
                           </button>
 
-                          {/* Print Container Chit / QR Label */}
+                          {/* Print Container Slip / QR Label */}
                           <button
                             type="button"
-                            title="Print Physical Container Routing Chit / Label"
+                            title="Print Physical Container Routing Slip / Label"
                             onClick={() => setChitSample(sample)}
                             className="p-1.5 rounded-lg text-blue-700 hover:text-blue-900 hover:bg-blue-50 transition-colors cursor-pointer"
                           >
@@ -1330,7 +1330,7 @@ function SamplesPageInner() {
                     className="text-xs border-blue-300 bg-blue-50/60 text-blue-800 hover:bg-blue-100 font-semibold"
                   >
                     <QrCode className="h-3.5 w-3.5 mr-1 text-blue-700" />
-                    <span>Print Container Chit</span>
+                    <span>Print Container Slip</span>
                   </Button>
 
                   <Button
