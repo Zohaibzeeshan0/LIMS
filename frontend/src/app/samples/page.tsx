@@ -34,7 +34,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   History,
-  FileSpreadsheet,
   X,
   Layers,
   Sparkles,
@@ -550,15 +549,6 @@ function SamplesPageInner() {
             <QrCode className="h-4 w-4 text-teal-700" />
             <span>Scan QR / Barcode</span>
           </Button>
-
-          <Link
-            href={`/reports?section=${activeSection}`}
-            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold shadow-2xs transition-all cursor-pointer"
-            title={`View official pharmaceutical report for ${activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}`}
-          >
-            <FileSpreadsheet className="h-4 w-4 text-blue-600" />
-            <span>View {activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'} Report</span>
-          </Link>
 
           <Button
             onClick={() => setIsAccessionModalOpen(true)}
