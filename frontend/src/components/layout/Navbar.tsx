@@ -238,7 +238,7 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
             >
               <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
               <span>
-                {activeUrgentSamples.length} Urgent ({activeUrgentSamples.length === 1 ? '1 Hr - 2 Days' : `${activeUrgentSamples.length} Samples`})
+                Urgent ({activeUrgentSamples.length} {activeUrgentSamples.length === 1 ? 'sample' : 'samples'})
               </span>
             </Link>
           )}
