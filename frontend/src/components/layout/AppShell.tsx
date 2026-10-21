@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="mt-8 flex items-center gap-1.5 text-[11px] text-slate-400">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            <span>21 CFR Part 11 Compliant Access Gateway</span>
+            <span>Secure Access Gateway</span>
           </div>
         </div>
       </div>

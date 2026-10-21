@@ -93,7 +93,7 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
     setValidationError(null);
 
     if (!formData.reasonForChange || formData.reasonForChange.trim().length < 5) {
-      setValidationError('21 CFR Part 11 Compliance: A clear reason for modification (min 5 characters) is mandatory.');
+      setValidationError('A clear reason for modification (min 5 characters) is mandatory.');
       return;
     }
 
@@ -147,7 +147,6 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
         isOpen={isOpen}
         onClose={onClose}
         title="Access Restricted: Administrator Only"
-        subtitle="21 CFR Part 11 Electronic Records Security"
         maxWidth="md"
       >
         <div className="space-y-4 text-xs text-slate-700 py-1 font-sans">
@@ -156,7 +155,7 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
             <div>
               <p className="font-bold text-amber-950">Record Modification Restricted</p>
               <p className="text-xs text-amber-800 mt-1 leading-relaxed">
-                Under cGMP and 21 CFR Part 11 regulatory compliance rules, existing sample records can only be edited by the <strong>System Administrator</strong>. Operational staff (QA Managers, QC Analysts, and Technicians) are authorized for new data accessioning and test result entry only.
+                Existing sample records can only be edited by the <strong>System Administrator</strong>.
               </p>
             </div>
           </div>
@@ -378,7 +377,7 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
         <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200">
           <label className="block text-xs font-bold text-amber-900 mb-1 flex items-center gap-1.5">
             <ShieldCheck className="h-4 w-4 text-amber-700" />
-            <span>21 CFR Part 11: Reason for Modification <span className="text-rose-600">*</span></span>
+            <span>Reason for Modification <span className="text-rose-600">*</span></span>
           </label>
           <input
             type="text"

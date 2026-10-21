@@ -164,7 +164,7 @@ export function CityPharmaLogo({
             {subtitle || 'Care to Cure'}
           </span>
           <span className="text-[10px] text-slate-500 font-mono">
-            Laboratory Information Management System • 21 CFR Part 11 Compliant
+            Laboratory Information Management System
           </span>
         </div>
       </div>

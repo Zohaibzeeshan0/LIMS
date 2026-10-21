@@ -1173,7 +1173,7 @@ function SamplesPageInner() {
                             title={
                               canEdit
                                 ? 'Edit Sample Record (Administrator)'
-                                : 'Modification Restricted: Only Administrator can edit existing records under 21 CFR Part 11'
+                                : 'Modification Restricted: Only Administrator can edit existing records'
                             }
                             disabled={!canEdit}
                             onClick={() => {
@@ -1475,7 +1475,6 @@ function SamplesPageInner() {
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
                 <div className="text-xs">
                   <span className="font-bold text-navy-950 block">Update Workflow Status</span>
-                  <span className="text-slate-500 text-[11px]">Requires 21 CFR Part 11 Electronic Justification</span>
                 </div>
 
                 <select
@@ -1483,7 +1482,7 @@ function SamplesPageInner() {
                   onChange={(e) => {
                     const newStatus = e.target.value;
                     const reason = prompt(
-                      '21 CFR Part 11: Reason for status change:',
+                      'Reason for status change:',
                       'Progressing analytical testing'
                     );
                     if (reason) {
@@ -1599,7 +1598,7 @@ function SamplesPageInner() {
               <div className="pt-2 border-t border-slate-100">
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <History className="h-4 w-4 text-teal-700" />
-                  <span>Chain of Custody (21 CFR Part 11 Audit Trail)</span>
+                  <span>Chain of Custody Audit Trail</span>
                 </h4>
                 <pre className="p-3 rounded-xl bg-slate-900 text-slate-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto">
                   {activeDossier.chainOfCustody || 'Sample initial intake registered.'}

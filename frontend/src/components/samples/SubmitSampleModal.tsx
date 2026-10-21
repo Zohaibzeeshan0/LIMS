@@ -568,9 +568,6 @@ export function SubmitSampleModal({
                   <Clock className="h-3.5 w-3.5 text-teal-700 shrink-0" />
                   <span>{formatDateTime(new Date().toISOString(), 'dd/MM/yyyy HH:mm:ss')}</span>
                 </div>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Auto-timestamped for 21 CFR Part 11
-                </span>
               </div>
             </div>
 

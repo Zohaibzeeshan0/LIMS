@@ -119,7 +119,7 @@ export function CertificateOfAnalysisDocument({ batch }: CoaDocumentProps) {
         <div className="space-y-1">
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
             <ShieldCheck className="h-4 w-4 text-teal-700" />
-            <span>21 CFR Part 11 Electronic Signature Verification</span>
+            <span>Electronic Signature Verification</span>
           </div>
           <p className="text-[10px] text-slate-500 max-w-sm font-mono break-all">
             SHA-256 Digest: {batch.coa?.signatureHash || 'c8f731e0b924619a84d...'}

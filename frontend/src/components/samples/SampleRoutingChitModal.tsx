@@ -172,8 +172,7 @@ View Details: ${sampleDetailUrl}`;
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Sample Container Routing Slip / Label"
-      subtitle={`Official physical container label slip for Sample ${sampleCode}`}
+      title="Sample Routing Slip"
       maxWidth="lg"
     >
       <div className="space-y-4">
@@ -184,25 +183,17 @@ View Details: ${sampleDetailUrl}`;
             className="w-full max-w-[480px] bg-white p-4 sm:p-5 rounded-xl border-2 border-slate-900 shadow-md text-slate-900 font-sans print:shadow-none print:border-black print:m-0 print:p-2"
           >
             {/* Slip Header */}
-            <div className="border-b-2 border-slate-900 pb-2.5 mb-3 flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-slate-900 shrink-0" />
-                  <span className="font-extrabold text-xs tracking-wider uppercase">
-                    CITI PHARMA • STAR LIMS QC
-                  </span>
-                </div>
-                <div className="text-[10px] font-bold text-slate-600 mt-0.5 uppercase tracking-wide">
-                  Laboratory Transfer & Container Slip
-                </div>
+            <div className="border-b-2 border-slate-900 pb-2 mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-slate-900 shrink-0" />
+                <span className="font-extrabold text-xs tracking-wider uppercase">
+                  CITI PHARMA • STAR LIMS QC
+                </span>
               </div>
 
               <div className="text-right shrink-0">
                 <span className="text-[9px] font-mono font-bold bg-slate-900 text-white px-2 py-0.5 rounded uppercase">
                   CONTAINER SLIP
-                </span>
-                <span className="block text-[8px] font-mono text-slate-500 mt-0.5">
-                  REF: {chitData?.submissionNumber || (sample?.id ? `SUB-${String(sample.id).slice(0, 6).toUpperCase()}` : 'SUB-PENDING')}
                 </span>
               </div>
             </div>
@@ -267,16 +258,6 @@ View Details: ${sampleDetailUrl}`;
                     {priorityLabel}
                   </span>
                 </div>
-
-                {/* Destination Routing */}
-                <div className="bg-indigo-50/70 p-1.5 rounded-lg border border-indigo-200/80">
-                  <span className="text-[8px] font-bold text-indigo-900 uppercase block">
-                    Destination Suite:
-                  </span>
-                  <span className="font-bold text-[11px] text-indigo-950 block">
-                    {destLabFormatted}
-                  </span>
-                </div>
               </div>
 
               {/* Right Column: Product Name + QR Code + Clickable Detail Link */}
@@ -334,37 +315,6 @@ View Details: ${sampleDetailUrl}`;
                   {`/samples?sampleId=${sampleCode}`}
                 </span>
               </div>
-            </div>
-
-            {/* Handover & Chain of Custody Signatures */}
-            <div className="mt-3 pt-2 border-t-2 border-slate-900 grid grid-cols-2 gap-3 text-[9px]">
-              <div className="border border-slate-300 rounded p-1.5 bg-slate-50">
-                <span className="font-bold text-slate-600 block uppercase text-[8px]">
-                  Sample Dispatched By:
-                </span>
-                <span className="font-semibold text-slate-900 block truncate">
-                  {chitData?.submittedByName || sample?.submittedBy || 'Sampling Officer'}
-                </span>
-                <div className="mt-2 border-b border-dashed border-slate-400" />
-                <span className="text-[7px] text-slate-400 block text-center mt-0.5">Signature / Stamp</span>
-              </div>
-
-              <div className="border border-slate-300 rounded p-1.5 bg-slate-50">
-                <span className="font-bold text-slate-600 block uppercase text-[8px]">
-                  QC Analyst Receiving:
-                </span>
-                <span className="font-semibold text-slate-900 block truncate">
-                  [ Pending Intake Sign-off ]
-                </span>
-                <div className="mt-2 border-b border-dashed border-slate-400" />
-                <span className="text-[7px] text-slate-400 block text-center mt-0.5">Signature & Date</span>
-              </div>
-            </div>
-
-            {/* Footer Notice */}
-            <div className="mt-2 pt-1 border-t border-slate-200 flex items-center justify-between text-[8px] font-mono text-slate-500">
-              <span>Date: {submissionDateStr}</span>
-              <span>ATTACH DIRECTLY TO SAMPLE CONTAINER</span>
             </div>
           </div>
         </div>

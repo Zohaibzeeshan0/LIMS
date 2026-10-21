@@ -313,7 +313,7 @@ export default function BatchesPage() {
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500">
-              This action will be digitally signed under user <strong>{user?.fullName} ({user?.employeeId})</strong> pursuant to 21 CFR Part 11 requirements.
+              This action will be digitally recorded under user <strong>{user?.fullName} ({user?.employeeId})</strong>.
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
@@ -463,7 +463,7 @@ export default function BatchesPage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
                     <ShieldCheck className="h-4 w-4 text-primary-700" />
-                    <span>21 CFR Part 11 Electronic Verification</span>
+                    <span>Electronic Verification</span>
                   </div>
                   <p className="text-[10px] text-slate-500 max-w-sm font-mono break-all">
                     SHA-256 Digest: {viewingCoaBatch.coa?.signatureHash || 'c8f731e0b924619a84d...'}

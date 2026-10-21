@@ -91,12 +91,9 @@ export function PrintSampleModal({ isOpen, onClose, sample }: PrintSampleModalPr
             <CityPharmaLogo
               variant="print"
               size="lg"
-              subtitle="Directorate of Quality Control & Analytical Assurance"
             />
 
             <div className="text-right font-mono text-[11px] text-slate-600">
-              <div className="font-bold text-navy-950">FORM: CP-LIMS-SMP-01</div>
-              <div>Revision: 04.2</div>
               <div>Printed: {new Date().toLocaleString()}</div>
             </div>
           </div>
@@ -301,7 +298,7 @@ export function PrintSampleModal({ isOpen, onClose, sample }: PrintSampleModalPr
           {/* Chain of Custody */}
           <div className="mb-6">
             <h4 className="text-xs font-bold uppercase text-navy-950 tracking-wider mb-1.5 border-b border-slate-200 pb-1">
-              21 CFR Part 11 Chain of Custody Summary
+              Chain of Custody Summary
             </h4>
             <div className="bg-slate-50 border border-slate-200 rounded p-2.5 font-mono text-[11px] text-slate-700 whitespace-pre-wrap leading-relaxed">
               {sample.chainOfCustody || 'Sample logged by QC Receiving Personnel.'}
@@ -327,11 +324,6 @@ export function PrintSampleModal({ isOpen, onClose, sample }: PrintSampleModalPr
               <div className="font-bold text-slate-900">QA Manager / Release Authority</div>
               <div className="text-[10px] text-slate-500 font-mono">Date & Signature</div>
             </div>
-          </div>
-
-          {/* Confidentiality Footer */}
-          <div className="mt-6 pt-3 border-t border-slate-200 text-center text-[10px] text-slate-400 font-mono">
-            CONFIDENTIAL PROPERTY OF CITY PHARMA • STRICTLY CONTROLLED DOCUMENT • VALID ONLY WITH AUTHORIZED SIGNATURES
           </div>
         </div>
       </div>

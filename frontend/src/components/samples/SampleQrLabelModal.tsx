@@ -51,7 +51,6 @@ export function SampleQrLabelModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Sample Container QR Code & Label"
-      subtitle="Official cGMP / 21 CFR Part 11 compliant thermal container label"
       maxWidth="md"
     >
       <div className="space-y-4">

@@ -57,7 +57,7 @@ export default function AuditPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-navy-950 tracking-tight flex items-center gap-2">
             <History className="h-6 w-6 text-teal-700" />
-            <span>21 CFR Part 11 Electronic Audit Trail</span>
+            <span>Electronic Audit Trail</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Tamper-evident, cryptographically sequenced record of all sample intakes, analytical modifications, QA sign-offs, and logins

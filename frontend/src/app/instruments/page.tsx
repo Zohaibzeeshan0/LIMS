@@ -345,7 +345,7 @@ export default function InstrumentsPage() {
 
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-500">
               Upon submission, the next calibration due date will automatically advance by{' '}
-              <strong className="text-slate-800">{selectedInstrument.calibrationFrequencyDays} days</strong> and be logged to the immutable 21 CFR Part 11 audit trail.
+              <strong className="text-slate-800">{selectedInstrument.calibrationFrequencyDays} days</strong> and be logged to the immutable audit trail.
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
