@@ -311,16 +311,18 @@ export function NewSampleModal({
   // Real-time dynamic QR code generation
   useEffect(() => {
     let isMounted = true;
-    const payload = JSON.stringify({
-      app: 'STAR-LIMS',
-      sampleId: activeSampleCode,
-      barcode: scannedBarcode || activeSampleCode,
-      nomenclature: watchedNomenclature || 'Pharmaceutical Sample',
-      lot: watchedLotNumber || 'N/A',
-      lab: watchedLab,
-      section: selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation',
-      timestamp: liveDate.toISOString(),
-    });
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const payload = `==============================
+STAR LIMS • QUALITY CONTROL
+SAMPLE INTAKE SLIP
+==============================
+Sample ID: ${activeSampleCode}
+Product: ${watchedNomenclature || 'Pharmaceutical Sample'}
+Section: ${selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
+Batch / Lot: ${watchedLotNumber || 'N/A'}
+Facility: General Laboratory
+==============================
+View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}`;
 
     QRCode.toDataURL(payload, {
       width: 220,

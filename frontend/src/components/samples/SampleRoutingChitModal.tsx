@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { Printer, Download, QrCode, ShieldCheck, CheckCircle2, FlaskConical, Clock, Layers, Send } from 'lucide-react';
+import { Printer, Download, QrCode, ShieldCheck, CheckCircle2, FlaskConical, Clock, Layers, Send, ExternalLink } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Sample } from '@/types/lims';
 import { formatDateTime } from '@/lib/date';
@@ -70,24 +70,27 @@ export function SampleRoutingChitModal({
     if (!sample) return;
     let isMounted = true;
 
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const sampleDetailUrl = `${origin}/samples?sampleId=${encodeURIComponent(sampleCode)}`;
+
     const qrText = `==============================
 STAR LIMS • QUALITY CONTROL
-SAMPLE ROUTING & CONTAINER SLIP
+SAMPLE CONTAINER SLIP
 ==============================
 Sample ID: ${sampleCode}
-Material: ${nomenclature}
+Product: ${nomenclature}
+Category / Stage: ${stage}
 Section: ${sectionName}
-Stage: ${stage}
-Batch / Lot: ${lotNumber}
+Batch / Lot: ${lotNumber || 'N/A'}
 Quantity: ${sampleQty} ${unit}
-Priority: ${priorityLabel}
+Priority / SLA: ${priorityLabel}
 Routed To: ${destLabFormatted}
 Sampling Date: ${samplingDateStr}
 Submission Date: ${submissionDateStr}
 Status: ${sample.status || 'SUBMITTED'}
-Facility: General Lab
+Facility: General Laboratory
 ==============================
-Verify: ${typeof window !== 'undefined' ? window.location.origin : ''}/samples?sampleId=${encodeURIComponent(sampleCode)}`;
+View Details: ${sampleDetailUrl}`;
 
     QRCode.toDataURL(qrText, {
       width: 260,
@@ -274,24 +277,53 @@ Verify: ${typeof window !== 'undefined' ? window.location.origin : ''}/samples?s
                 </div>
               </div>
 
-              {/* Right Column: QR Code & Scan Prompt */}
-              <div className="col-span-4 flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50 border border-slate-200 shrink-0">
+              {/* Right Column: Product Name + QR Code + Clickable Detail Link */}
+              <div className="col-span-4 flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50 border border-slate-200 shrink-0 text-center">
+                {/* Product Name Above QR Code */}
+                <div className="w-full mb-1.5 px-0.5">
+                  <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Product / Material:
+                  </span>
+                  <p
+                    className="text-[10px] font-extrabold text-slate-900 leading-tight line-clamp-2"
+                    title={nomenclature}
+                  >
+                    {nomenclature}
+                  </p>
+                </div>
+
+                {/* QR Code Canvas / Image */}
                 {qrDataUrl ? (
                   <img
                     src={qrDataUrl}
                     alt={`QR Code for ${sampleCode}`}
-                    className="w-28 h-28 rounded-lg bg-white p-1 border border-slate-300 shadow-2xs"
+                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-lg bg-white p-1 border border-slate-300 shadow-2xs"
                   />
                 ) : (
-                  <div className="w-28 h-28 rounded-lg bg-white border border-slate-300 flex items-center justify-center">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-lg bg-white border border-slate-300 flex items-center justify-center">
                     <QrCode className="h-10 w-10 text-slate-400 animate-pulse" />
                   </div>
                 )}
-                <span className="text-[9px] font-mono font-extrabold text-slate-800 mt-1.5 text-center">
-                  SCAN FOR DATA
+
+                <span className="text-[8.5px] font-mono font-extrabold text-slate-700 mt-1">
+                  SCAN FOR ALL DETAILS
                 </span>
-                <span className="text-[8px] font-mono text-slate-400 text-center">
-                  21 CFR Part 11
+
+                {/* Clickable Link Below QR Code */}
+                <a
+                  href={`/samples?sampleId=${encodeURIComponent(sampleCode)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1.5 px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-900 border border-blue-200 text-[9px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer group shadow-2xs"
+                  title="Click to view complete sample details"
+                >
+                  <span>View Sample Details</span>
+                  <ExternalLink className="h-2.5 w-2.5 group-hover:translate-x-0.5 transition-transform" />
+                </a>
+
+                {/* Direct Link Text */}
+                <span className="text-[7px] font-mono text-slate-500 mt-0.5 break-all max-w-[130px] leading-tight select-all">
+                  {`/samples?sampleId=${sampleCode}`}
                 </span>
               </div>
             </div>

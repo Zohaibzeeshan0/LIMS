@@ -3,7 +3,7 @@
 import React from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { Printer, Download, QrCode, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Printer, Download, QrCode, CheckCircle2, ShieldCheck, ExternalLink } from 'lucide-react';
 
 interface SampleQrLabelModalProps {
   isOpen: boolean;
@@ -77,7 +77,12 @@ export function SampleQrLabelModal({
             {/* Label Body with QR Code */}
             <div className="flex items-start gap-3">
               {/* QR Code Canvas / Image */}
-              <div className="shrink-0 flex flex-col items-center">
+              <div className="shrink-0 flex flex-col items-center text-center">
+                {/* Product Name Above QR Code */}
+                <span className="text-[9px] font-bold text-slate-900 text-center truncate max-w-[105px] mb-1 block" title={nomenclature}>
+                  {nomenclature}
+                </span>
+
                 {qrDataUrl ? (
                   <img
                     src={qrDataUrl}
@@ -89,9 +94,21 @@ export function SampleQrLabelModal({
                     <QrCode className="h-8 w-8 text-slate-400" />
                   </div>
                 )}
-                <span className="text-[9px] font-mono font-bold text-slate-500 mt-1">
+                <span className="text-[8px] font-mono font-bold text-slate-500 mt-1">
                   CP-{sampleCode}
                 </span>
+
+                {/* Clickable Link Below QR Code */}
+                <a
+                  href={`/samples?sampleId=${encodeURIComponent(sampleCode)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-900 text-[8px] font-bold inline-flex items-center gap-0.5 border border-blue-200 cursor-pointer"
+                  title="Click to view sample details"
+                >
+                  <span>View Details</span>
+                  <ExternalLink className="h-2 w-2" />
+                </a>
               </div>
 
               {/* Sample Details */}
