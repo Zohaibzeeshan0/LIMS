@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useAuth, DEMO_USERS } from '@/context/AuthContext';
 import { CityPharmaLogo } from '@/components/ui/CityPharmaLogo';
 import {
-  Menu,
   Bell,
   User,
   LogOut,
@@ -209,17 +208,8 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
     <header className="sticky top-0 z-40 w-full lg:pl-64 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
       <div className="px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
         
-        {/* Left: Hamburger Menu + Page Title matching reference */}
+        {/* Left: Page Title */}
         <div className="flex items-center gap-3.5">
-          <button
-            onClick={onToggleSidebar}
-            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            aria-label="Toggle navigation"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-
-          {/* Title */}
           <div className="flex items-center gap-2.5">
             <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
               Laboratory Information Management System
