@@ -215,7 +215,7 @@ View Details: ${sampleDetailUrl}`;
                 {/* Product Name */}
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Material / Product Name:
+                    Product Name:
                   </span>
                   <span className="font-bold text-xs text-slate-900 block leading-tight">
                     {nomenclature}

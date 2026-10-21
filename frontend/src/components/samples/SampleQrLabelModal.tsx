@@ -120,7 +120,7 @@ export function SampleQrLabelModal({
                 </div>
 
                 <div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Material:</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Product Name:</span>
                   <span className="font-bold text-xs text-slate-900 block truncate">
                     {nomenclature || 'Pharmaceutical Sample'}
                   </span>
