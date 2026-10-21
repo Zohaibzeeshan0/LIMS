@@ -380,48 +380,50 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
                     </div>
                   </div>
 
-                  {/* Switch Persona for Live Testing */}
-                  <div className="p-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 px-1">
-                      Profiles
-                    </p>
-                    <div className="space-y-1">
-                      {DEMO_USERS.map((demo) => {
-                        const isCurrent = user?.email === demo.email;
-                        return (
-                          <button
-                            key={demo.role}
-                            onClick={() => {
-                              loginAs(demo.role);
-                              setIsUserMenuOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors ${
-                              isCurrent
-                                ? 'bg-blue-50 text-blue-700 font-semibold border border-blue-200'
-                                : 'hover:bg-slate-50 text-slate-700'
-                            }`}
-                          >
-                            <div>
-                              <div className="font-medium text-slate-900">{demo.name}</div>
-                              <div className="text-[10px] text-slate-500">{demo.title}</div>
-                            </div>
-                            {isCurrent && (
-                              <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                            )}
-                          </button>
-                        );
-                      })}
+                  {/* Switch Persona for Live Testing - Only visible for Admin */}
+                  {user?.role === 'ADMIN' && (
+                    <div className="p-2 border-b border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 px-1">
+                        Profiles
+                      </p>
+                      <div className="space-y-1">
+                        {DEMO_USERS.map((demo) => {
+                          const isCurrent = user?.email === demo.email;
+                          return (
+                            <button
+                              key={demo.role}
+                              onClick={() => {
+                                loginAs(demo.role);
+                                setIsUserMenuOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors ${
+                                isCurrent
+                                  ? 'bg-blue-50 text-blue-700 font-semibold border border-blue-200'
+                                  : 'hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              <div>
+                                <div className="font-medium text-slate-900">{demo.name}</div>
+                                <div className="text-[10px] text-slate-500">{demo.title}</div>
+                              </div>
+                              {isCurrent && (
+                                <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Sign Out Button */}
-                  <div className="pt-1 border-t border-slate-100">
+                  <div className="pt-1.5">
                     <button
                       onClick={() => {
                         setIsUserMenuOpen(false);
                         logout();
                       }}
-                      className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+                      className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                     >
                       <LogOut className="h-3.5 w-3.5" />
                       <span>Sign Out from Workstation</span>
