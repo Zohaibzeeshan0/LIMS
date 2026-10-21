@@ -290,12 +290,8 @@ export function NewSampleModal({
 
   const nextAutoSampleCode = useMemo(() => {
     if (nextIdData?.sampleCode) return nextIdData.sampleCode;
-    const isCeph = watchedLab === 'SAF' || watchedLab === 'SEF';
-    const isPen = watchedLab === 'PENICILLIN';
-    const prefix = isCeph ? 'CP' : isPen ? 'PL' : 'GL';
-    const sec = selectedSection === 'formulation' ? 'F' : 'SB';
-    return `${prefix}/${sec}-1`;
-  }, [nextIdData, watchedLab, selectedSection]);
+    return '1';
+  }, [nextIdData]);
 
   // QR Code & Barcode Integration States
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);

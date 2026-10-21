@@ -1401,26 +1401,6 @@ function SamplesPageInner() {
                         : 'GENERAL LAB'}
                     </span>
                     <StatusBadge status={sampleDetail.status} />
-                    <StatusBadge status={sampleDetail.priority} />
-                    <span
-                      className={cn(
-                        'text-[10px] font-bold px-2 py-0.5 rounded font-mono border',
-                        sampleDetail.priority === 'STAT'
-                          ? 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
-                          : sampleDetail.priority === 'URGENT'
-                          ? 'bg-amber-100 text-amber-800 border-amber-300'
-                          : 'bg-blue-100 text-blue-800 border-blue-300'
-                      )}
-                    >
-                      {sampleDetail.priority === 'STAT'
-                        ? '24 Hours SLA'
-                        : sampleDetail.priority === 'URGENT'
-                        ? '2 Days SLA'
-                        : '5 Days SLA'}
-                    </span>
-                  </div>
-                  <div className="font-mono text-xs tracking-widest text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 inline-block mt-1">
-                    * {sampleDetail.barcode || `CP-${sampleDetail.sampleCode}`} *
                   </div>
                 </div>
 

@@ -17,10 +17,31 @@ export class SamplesService {
   constructor(private prisma: PrismaService) {}
 
   async generateSampleCode(): Promise<string> {
-    const year = new Date().getFullYear();
-    const count = await this.prisma.sample.count();
-    const sequence = (count + 1).toString().padStart(4, '0');
-    return `SMP-${year}-${sequence}`;
+    const samples = await this.prisma.sample.findMany({
+      select: { sampleCode: true, sampleId: true },
+    });
+    let maxNumber = 0;
+    for (const item of samples) {
+      const candidates = [item.sampleCode, item.sampleId].filter(Boolean);
+      for (const cand of candidates) {
+        const trimmed = cand!.trim();
+        if (/^\d+$/.test(trimmed)) {
+          const num = parseInt(trimmed, 10);
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num;
+          }
+        } else {
+          const match = trimmed.match(/(\d+)$/);
+          if (match && match[1]) {
+            const num = parseInt(match[1], 10);
+            if (!isNaN(num) && num > maxNumber) {
+              maxNumber = num;
+            }
+          }
+        }
+      }
+    }
+    return (maxNumber + 1).toString();
   }
 
   async generateRecordNumber(): Promise<string> {
