@@ -177,6 +177,7 @@ export class SamplingService {
           sampleQty: createSampleDto.sampleQty,
           quantity: createSampleDto.sampleQty,
           unit: createSampleDto.unit,
+          priority: (createSampleDto.priority as any) || 'ROUTINE',
           storageCondition: createSampleDto.storageCondition || 'Controlled Room Temp 20-25°C',
           laboratoryType: 'GENERAL' as any,
           chainOfCustody: createSampleDto.chainOfCustody || `Sample logged by ${user.fullName} (${user.employeeId})`,
@@ -208,24 +209,16 @@ export class SamplingService {
         }
       }
 
-      const isUrgentPriority = sample.priority === 'STAT' || sample.priority === 'URGENT';
-      const slaTurnaround =
-        sample.priority === 'STAT'
-          ? '24 Hours SLA'
-          : sample.priority === 'URGENT'
-          ? '2 Days SLA'
-          : '5 Days SLA';
+      const isUrgentPriority = sample.priority === 'URGENT' || sample.priority === 'STAT';
+      const slaTurnaround = isUrgentPriority ? '1 Hr - 2 Days SLA' : '5 - 15 Days SLA';
 
-      const priorityAction =
-        sample.priority === 'STAT'
-          ? 'CRITICAL_IMMEDIATE_SAMPLE'
-          : sample.priority === 'URGENT'
-          ? 'URGENT_PRIORITY_SAMPLE'
-          : 'SAMPLE_ACCESSIONED';
+      const priorityAction = isUrgentPriority
+        ? 'URGENT_PRIORITY_SAMPLE'
+        : 'SAMPLE_ACCESSIONED';
 
       const priorityReason = isUrgentPriority
-        ? `[PRIORITY NOTICE: ${slaTurnaround}] Sample flagged with ${sample.priority} testing window`
-        : 'Sample accession and initial intake';
+        ? `[URGENT NOTICE: ${slaTurnaround}] Sample ${sample.sampleCode} flagged with fast-track URGENT testing window (1 Hr - 2 Days)`
+        : `[ROUTINE NOTICE: ${slaTurnaround}] Sample ${sample.sampleCode} accession and routine testing intake`;
 
       await tx.auditTrail.create({
         data: {
@@ -347,6 +340,7 @@ export class SamplingService {
     if (query.section) {
       const sec = query.section.toString().toLowerCase();
       let sectionCond: any[] = [];
+      let excludeCond: any[] = [];
       if (
         sec === 'semi-base' ||
         sec === 'semi-basics' ||
@@ -356,9 +350,13 @@ export class SamplingService {
         sec === 'semibasic' ||
         sec === 'semi' ||
         sec === 'basic' ||
-        sec === 'basics'
+        sec === 'basics' ||
+        sec === 'sb'
       ) {
         sectionCond = [
+          { sampleCode: { contains: '/SB', mode: 'insensitive' } },
+          { sampleId: { contains: '/SB', mode: 'insensitive' } },
+          { recordNumber: { contains: '/SB', mode: 'insensitive' } },
           { stageType: { contains: '[Semi Basics]', mode: 'insensitive' } },
           { stageType: { contains: '[Semi Basic]', mode: 'insensitive' } },
           { stageType: { contains: '[Semi Base]', mode: 'insensitive' } },
@@ -374,8 +372,18 @@ export class SamplingService {
           { remarks: { contains: '[Semi Basic]', mode: 'insensitive' } },
           { remarks: { contains: '[Semi Base]', mode: 'insensitive' } },
         ];
-      } else if (sec === 'formulation') {
+        excludeCond = [
+          { sampleCode: { contains: '/F-', mode: 'insensitive' } },
+          { sampleId: { contains: '/F-', mode: 'insensitive' } },
+          { stageType: { contains: '[Formulation]', mode: 'insensitive' } },
+          { remarks: { contains: '[Formulation]', mode: 'insensitive' } },
+        ];
+      } else if (sec === 'formulation' || sec === 'formulations' || sec === 'fm') {
         sectionCond = [
+          { sampleCode: { contains: '/F-', mode: 'insensitive' } },
+          { sampleCode: { contains: '/F/', mode: 'insensitive' } },
+          { sampleId: { contains: '/F-', mode: 'insensitive' } },
+          { recordNumber: { contains: '/F-', mode: 'insensitive' } },
           { stageType: { contains: '[Formulation]', mode: 'insensitive' } },
           { stageType: { contains: 'Finish', mode: 'insensitive' } },
           { stageType: { contains: 'Coat', mode: 'insensitive' } },
@@ -386,16 +394,28 @@ export class SamplingService {
           { sampleType: { in: ['FINISHED_PRODUCT', 'STABILITY'] } },
           { remarks: { contains: '[Formulation]', mode: 'insensitive' } },
         ];
+        excludeCond = [
+          { sampleCode: { contains: '/SB', mode: 'insensitive' } },
+          { sampleId: { contains: '/SB', mode: 'insensitive' } },
+          { stageType: { contains: '[Semi Basic', mode: 'insensitive' } },
+          { stageType: { contains: '[Semi Base', mode: 'insensitive' } },
+          { remarks: { contains: '[Semi Basic', mode: 'insensitive' } },
+        ];
       }
 
       if (sectionCond.length > 0) {
+        const fullSectionCriteria: any[] = [{ OR: sectionCond }];
+        if (excludeCond.length > 0) {
+          fullSectionCriteria.push({ NOT: { OR: excludeCond } });
+        }
+
         if (where.AND) {
-          where.AND.push({ OR: sectionCond });
+          where.AND.push(...fullSectionCriteria);
         } else if (where.OR) {
-          where.AND = [{ OR: where.OR }, { OR: sectionCond }];
+          where.AND = [{ OR: where.OR }, ...fullSectionCriteria];
           delete where.OR;
         } else {
-          where.OR = sectionCond;
+          where.AND = fullSectionCriteria;
         }
       }
     }

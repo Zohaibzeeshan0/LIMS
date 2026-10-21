@@ -744,24 +744,20 @@ export function SubmitSampleModal({
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-800">Sample Testing Priority:</span>
             <span className="text-slate-600">
-              {sample.priority === 'STAT'
-                ? 'Immediate Priority (24 Hours)'
-                : sample.priority === 'URGENT'
-                ? 'Urgent Fast-Track (2 Days)'
-                : 'Routine Standard (5 Days)'}
+              {sample.priority === 'URGENT' || sample.priority === 'STAT'
+                ? 'Urgent Fast-Track (1 Hr - 2 Days)'
+                : 'Routine Standard (5 - 15 Days)'}
             </span>
           </div>
           <span
             className={cn(
               'font-mono font-bold px-2.5 py-1 rounded-lg text-xs shadow-2xs',
-              sample.priority === 'STAT'
-                ? 'bg-rose-600 text-white animate-pulse'
-                : sample.priority === 'URGENT'
-                ? 'bg-amber-500 text-white'
+              sample.priority === 'URGENT' || sample.priority === 'STAT'
+                ? 'bg-amber-500 text-white animate-pulse'
                 : 'bg-blue-600 text-white'
             )}
           >
-            {sample.priority === 'STAT' ? '24 Hours' : sample.priority === 'URGENT' ? '2 Days' : '5 Days'}
+            {sample.priority === 'URGENT' || sample.priority === 'STAT' ? '1 Hr - 2 Days' : '5 - 15 Days'}
           </span>
         </div>
 

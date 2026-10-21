@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ShieldAlert,
   Microscope,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -68,6 +69,11 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
       icon: FileText,
       hasSubmenu: true,
       badge: labBadgeLabel,
+    },
+    {
+      name: 'Reports',
+      href: '/reports',
+      icon: FileSpreadsheet,
     },
   ];
 

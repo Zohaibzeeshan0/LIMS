@@ -403,6 +403,90 @@ export class SamplesService {
       }
     }
 
+    // Lab Section filter (semi-base or formulation)
+    if (query.section) {
+      const sec = query.section.toString().toLowerCase();
+      let sectionCond: any[] = [];
+      let excludeCond: any[] = [];
+      if (
+        sec === 'semi-base' ||
+        sec === 'semi-basics' ||
+        sec === 'semi-basic' ||
+        sec === 'semibase' ||
+        sec === 'semibasics' ||
+        sec === 'semibasic' ||
+        sec === 'semi' ||
+        sec === 'basic' ||
+        sec === 'basics' ||
+        sec === 'sb'
+      ) {
+        sectionCond = [
+          { sampleCode: { contains: '/SB', mode: 'insensitive' } },
+          { sampleId: { contains: '/SB', mode: 'insensitive' } },
+          { recordNumber: { contains: '/SB', mode: 'insensitive' } },
+          { stageType: { contains: '[Semi Basics]', mode: 'insensitive' } },
+          { stageType: { contains: '[Semi Basic]', mode: 'insensitive' } },
+          { stageType: { contains: '[Semi Base]', mode: 'insensitive' } },
+          { stageType: { contains: 'Bulk', mode: 'insensitive' } },
+          { stageType: { contains: 'Core', mode: 'insensitive' } },
+          { stageType: { contains: 'Blend', mode: 'insensitive' } },
+          { stageType: { contains: 'Granul', mode: 'insensitive' } },
+          { stageType: { contains: 'In-Process', mode: 'insensitive' } },
+          { stageType: { contains: 'Water', mode: 'insensitive' } },
+          { stageType: { contains: 'Cleaning', mode: 'insensitive' } },
+          { sampleType: { in: ['IN_PROCESS', 'RAW_MATERIAL', 'WATER_PURIFIED'] } },
+          { remarks: { contains: '[Semi Basics]', mode: 'insensitive' } },
+          { remarks: { contains: '[Semi Basic]', mode: 'insensitive' } },
+          { remarks: { contains: '[Semi Base]', mode: 'insensitive' } },
+        ];
+        excludeCond = [
+          { sampleCode: { contains: '/F-', mode: 'insensitive' } },
+          { sampleId: { contains: '/F-', mode: 'insensitive' } },
+          { stageType: { contains: '[Formulation]', mode: 'insensitive' } },
+          { remarks: { contains: '[Formulation]', mode: 'insensitive' } },
+        ];
+      } else if (sec === 'formulation' || sec === 'formulations' || sec === 'fm') {
+        sectionCond = [
+          { sampleCode: { contains: '/F-', mode: 'insensitive' } },
+          { sampleCode: { contains: '/F/', mode: 'insensitive' } },
+          { sampleId: { contains: '/F-', mode: 'insensitive' } },
+          { recordNumber: { contains: '/F-', mode: 'insensitive' } },
+          { stageType: { contains: '[Formulation]', mode: 'insensitive' } },
+          { stageType: { contains: 'Finish', mode: 'insensitive' } },
+          { stageType: { contains: 'Coat', mode: 'insensitive' } },
+          { stageType: { contains: 'Fill', mode: 'insensitive' } },
+          { stageType: { contains: 'Packag', mode: 'insensitive' } },
+          { stageType: { contains: 'Stabilit', mode: 'insensitive' } },
+          { stageType: { contains: 'Process Validation', mode: 'insensitive' } },
+          { sampleType: { in: ['FINISHED_PRODUCT', 'STABILITY'] } },
+          { remarks: { contains: '[Formulation]', mode: 'insensitive' } },
+        ];
+        excludeCond = [
+          { sampleCode: { contains: '/SB', mode: 'insensitive' } },
+          { sampleId: { contains: '/SB', mode: 'insensitive' } },
+          { stageType: { contains: '[Semi Basic', mode: 'insensitive' } },
+          { stageType: { contains: '[Semi Base', mode: 'insensitive' } },
+          { remarks: { contains: '[Semi Basic', mode: 'insensitive' } },
+        ];
+      }
+
+      if (sectionCond.length > 0) {
+        const fullSectionCriteria: any[] = [{ OR: sectionCond }];
+        if (excludeCond.length > 0) {
+          fullSectionCriteria.push({ NOT: { OR: excludeCond } });
+        }
+
+        if (where.AND) {
+          where.AND.push(...fullSectionCriteria);
+        } else if (where.OR) {
+          where.AND = [{ OR: where.OR }, ...fullSectionCriteria];
+          delete where.OR;
+        } else {
+          where.AND = fullSectionCriteria;
+        }
+      }
+    }
+
     const page = Math.max(1, parseInt((query.page as any) || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt((query.limit as any) || '10', 10)));
     const skip = (page - 1) * limit;

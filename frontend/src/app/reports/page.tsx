@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useMemo, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { samplingService } from '@/services/sampling.service';
 import { api } from '@/lib/api';
 import { formatDateTime, formatDateOnly, formatLiveDate, formatLiveClock } from '@/lib/date';
 import { PrintSampleModal } from '@/components/samples/PrintSampleModal';
 import { CityPharmaLogo } from '@/components/ui/CityPharmaLogo';
-import { SAMPLE_STAGES, Sample } from '@/types/lims';
+import { SAMPLE_STAGES, Sample, getSampleSection, LabSection } from '@/types/lims';
+import { cn } from '@/lib/utils';
 import {
   FileSpreadsheet,
   Download,
@@ -22,6 +23,7 @@ import {
   FlaskConical,
   Microscope,
   Layers,
+  Sparkles,
   ArrowUpDown,
   Eye,
   RefreshCw,
@@ -33,11 +35,23 @@ import {
   FileText,
 } from 'lucide-react';
 
-export default function ReportsPage() {
+function ReportsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialSection = searchParams.get('section')?.toLowerCase();
+
+  const [selectedSection, setSelectedSection] = useState<'semi-base' | 'formulation' | 'ALL'>(
+    initialSection === 'formulation' ? 'formulation' : 'semi-base'
+  );
+
   useEffect(() => {
-    router.replace('/samples');
-  }, [router]);
+    const sec = searchParams.get('section')?.toLowerCase();
+    if (sec === 'formulation') {
+      setSelectedSection('formulation');
+    } else if (sec === 'semi-base' || sec === 'semi' || sec === 'sb') {
+      setSelectedSection('semi-base');
+    }
+  }, [searchParams]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLab, setSelectedLab] = useState('ALL');
@@ -51,17 +65,18 @@ export default function ReportsPage() {
   // Live real-time clock
   const [now] = useState(new Date());
 
-  // Query real samples from database
+  // Query real samples from database with section filtering
   const {
     data: samplesResponse,
     isLoading: isSamplesLoading,
     refetch: refetchSamples,
   } = useQuery({
-    queryKey: ['reports-samples', selectedLab, selectedStage, selectedStatus, fromDate, toDate],
+    queryKey: ['reports-samples', selectedLab, selectedSection, selectedStage, selectedStatus, fromDate, toDate],
     queryFn: () =>
       samplingService.getAll({
-        limit: 100,
+        limit: 200,
         laboratory: selectedLab !== 'ALL' ? selectedLab : undefined,
+        section: selectedSection !== 'ALL' ? selectedSection : undefined,
         stage: selectedStage !== 'ALL' ? selectedStage : undefined,
         status: selectedStatus !== 'ALL' ? selectedStatus : undefined,
         startDate: fromDate || undefined,
@@ -96,11 +111,18 @@ export default function ReportsPage() {
     return [];
   }, [samplesResponse]);
 
-  // Client-side text search filter
+  // Client-side text search & strict section filter
   const filteredSamples = useMemo(() => {
-    if (!searchTerm.trim()) return samplesList;
+    let list = samplesList;
+
+    // Strict section isolation (when Semi Basics is chosen, only Semi Basics samples appear)
+    if (selectedSection !== 'ALL') {
+      list = list.filter((s) => getSampleSection(s) === selectedSection);
+    }
+
+    if (!searchTerm.trim()) return list;
     const term = searchTerm.toLowerCase().trim();
-    return samplesList.filter((s) => {
+    return list.filter((s) => {
       const idMatch = (s.sampleCode || s.sampleId || s.accessionNo || '').toLowerCase().includes(term);
       const nameMatch = (s.nomenclature || s.materialName || '').toLowerCase().includes(term);
       const batchMatch = (s.lotNumber || s.batchLotNumber || '').toLowerCase().includes(term);
@@ -108,7 +130,15 @@ export default function ReportsPage() {
       const stageMatch = (s.stageType || s.sampleType || '').toLowerCase().includes(term);
       return idMatch || nameMatch || batchMatch || submitterMatch || stageMatch;
     });
-  }, [samplesList, searchTerm]);
+  }, [samplesList, searchTerm, selectedSection]);
+
+  const semiBasicsCount = useMemo(() => {
+    return samplesList.filter((s) => getSampleSection(s) === 'semi-base').length;
+  }, [samplesList]);
+
+  const formulationCount = useMemo(() => {
+    return samplesList.filter((s) => getSampleSection(s) === 'formulation').length;
+  }, [samplesList]);
 
   const submissionsList = useMemo(() => {
     if (!submissionsData) return [];
@@ -327,6 +357,69 @@ export default function ReportsPage() {
       {/* ================= TAB 1: SAMPLE ACCESSION REGISTER ================= */}
       {activeTab === 'accession' && (
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          {/* Section Selector Toolbar: Semi Basics vs Formulation */}
+          <div className="p-4 bg-slate-50/90 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider mr-1">Section:</span>
+              <button
+                type="button"
+                onClick={() => setSelectedSection('semi-base')}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border',
+                  selectedSection === 'semi-base'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200'
+                )}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span>1. Semi Basics</span>
+                <span className={cn(
+                  'text-[10px] px-1.5 py-0.2 rounded-full font-mono',
+                  selectedSection === 'semi-base' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                )}>
+                  {semiBasicsCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedSection('formulation')}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border',
+                  selectedSection === 'formulation'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200'
+                )}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>2. Formulation</span>
+                <span className={cn(
+                  'text-[10px] px-1.5 py-0.2 rounded-full font-mono',
+                  selectedSection === 'formulation' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                )}>
+                  {formulationCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedSection('ALL')}
+                className={cn(
+                  'px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border',
+                  selectedSection === 'ALL'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200'
+                )}
+              >
+                <span>All Records ({samplesList.length})</span>
+              </button>
+            </div>
+
+            <span className="text-xs text-slate-500 font-medium">
+              Active Section: <strong className="text-slate-900 font-bold">{selectedSection === 'semi-base' ? '1. Semi Basics' : selectedSection === 'formulation' ? '2. Formulation' : 'All Sections'}</strong>
+            </span>
+          </div>
+
           {/* Filter Bar */}
           <div className="p-4 bg-slate-50/70 border-b border-slate-200/80 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
@@ -408,10 +501,10 @@ export default function ReportsPage() {
                   <th className="py-3 px-4">Product Nomenclature</th>
                   <th className="py-3 px-4">Stage / Type</th>
                   <th className="py-3 px-4">Batch / Lot #</th>
+                  <th className="py-3 px-4">Priority (SLA)</th>
                   <th className="py-3 px-4">Intake Qty</th>
                   <th className="py-3 px-4">Sampling Date</th>
                   <th className="py-3 px-4">Submitted By</th>
-                  <th className="py-3 px-4">Lab Suite</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Dossier / CoA</th>
                 </tr>
@@ -463,13 +556,26 @@ export default function ReportsPage() {
 
                         <td className="py-3 px-4 font-mono text-slate-600">{lot}</td>
 
+                        <td className="py-3 px-4">
+                          <span
+                            className={cn(
+                              'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold font-mono',
+                              sample.priority === 'URGENT' || sample.priority === 'STAT'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            )}
+                          >
+                            {sample.priority === 'URGENT' || sample.priority === 'STAT'
+                              ? 'Urgent (1 Hr - 2 Days)'
+                              : 'Routine (5 - 15 Days)'}
+                          </span>
+                        </td>
+
                         <td className="py-3 px-4 font-mono text-slate-700">{qty}</td>
 
                         <td className="py-3 px-4 text-slate-600 font-mono text-[11px]">{dateFormatted}</td>
 
                         <td className="py-3 px-4 text-slate-700">{submitter}</td>
-
-                        <td className="py-3 px-4 font-semibold text-slate-700">{lab}</td>
 
                         <td className="py-3 px-4">
                           <span
@@ -662,5 +768,20 @@ export default function ReportsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-slate-400 flex items-center justify-center gap-2">
+          <div className="h-4 w-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+          <span>Loading Pharmaceutical Reports...</span>
+        </div>
+      }
+    >
+      <ReportsContent />
+    </Suspense>
   );
 }

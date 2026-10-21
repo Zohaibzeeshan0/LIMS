@@ -69,10 +69,20 @@ export type FormulationStage = typeof FORMULATION_STAGES[number];
 export type LabSection = 'semi-base' | 'formulation';
 
 export function getSampleSection(sample: {
+  sampleCode?: string | null;
+  sampleId?: string | null;
   stageType?: string | null;
   sampleType?: string | null;
   remarks?: string | null;
 }): LabSection {
+  const code = (sample.sampleCode || sample.sampleId || '').toUpperCase();
+  if (code.includes('/SB-') || code.includes('/SB/') || code.includes('/SB')) {
+    return 'semi-base';
+  }
+  if (code.includes('/F-') || code.includes('/F/')) {
+    return 'formulation';
+  }
+
   const stage = (sample.stageType || '').toLowerCase();
   const type = (sample.sampleType || '').toLowerCase();
   const remarks = (sample.remarks || '').toLowerCase();

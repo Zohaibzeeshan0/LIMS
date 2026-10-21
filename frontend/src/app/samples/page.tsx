@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -279,13 +280,29 @@ function SamplesPageInner() {
     queryFn: () => samplingService.getAll(queryFilters),
   });
 
-  // Extract samples array and pagination metadata safely
-  const samplesList: Sample[] = useMemo(() => {
-    if (!responseData) return [];
-    if (Array.isArray(responseData)) return responseData;
-    if (Array.isArray((responseData as any).data)) return (responseData as any).data;
+  // Live query for active Urgent Priority samples (1 Hr - 2 Days SLA)
+  const { data: urgentAlertsResponse } = useQuery({
+    queryKey: ['samples-urgent-alert-banner'],
+    queryFn: () => samplingService.getAll({ priority: 'URGENT', limit: 20 }),
+    refetchInterval: 5000,
+  });
+
+  const urgentSamples: Sample[] = useMemo(() => {
+    if (!urgentAlertsResponse) return [];
+    if (Array.isArray(urgentAlertsResponse)) return urgentAlertsResponse;
+    if (Array.isArray((urgentAlertsResponse as any).data)) return (urgentAlertsResponse as any).data;
     return [];
-  }, [responseData]);
+  }, [urgentAlertsResponse]);
+
+  // Extract samples array and strictly filter by active section (guarantees zero leakage)
+  const samplesList: Sample[] = useMemo(() => {
+    let raw: Sample[] = [];
+    if (responseData) {
+      if (Array.isArray(responseData)) raw = responseData;
+      else if (Array.isArray((responseData as any).data)) raw = (responseData as any).data;
+    }
+    return raw.filter((s) => getSampleSection(s) === activeSection);
+  }, [responseData, activeSection]);
 
   const meta = useMemo(() => {
     if (responseData && 'meta' in (responseData as any)) {
@@ -351,10 +368,53 @@ function SamplesPageInner() {
 
   return (
     <div className="space-y-6 font-sans">
+      {/* Top Analyst Priority Alert Banner for Expedited / Urgent Samples (1 Hr - 2 Days SLA) */}
+      {urgentSamples.length > 0 && (
+        <div className="rounded-2xl border-2 border-amber-400 bg-linear-to-r from-amber-50 via-orange-50/80 to-amber-50 p-4 shadow-sm animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-600 text-white shadow-2xs">
+                    Analyst Priority Alert
+                  </span>
+                  <span className="text-xs font-bold text-slate-900">
+                    {urgentSamples.length} Urgent {urgentSamples.length === 1 ? 'Sample Requires' : 'Samples Require'} Fast-Track Testing (1 Hr - 2 Days SLA)
+                  </span>
+                </div>
+                <p className="text-xs text-amber-950/80 mt-0.5">
+                  High-priority laboratory intake. Please initiate sampling testing workflow within the 1 Hr - 2 Days turnaround window.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-bold text-amber-900 bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-300 shadow-2xs">
+                Turnaround SLA: <strong>1 Hr - 2 Days</strong>
+              </span>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-2 flex-wrap pt-2.5 border-t border-amber-200">
+            {urgentSamples.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setSelectedSampleId(s.id)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-amber-300 hover:border-amber-500 shadow-2xs text-xs font-bold text-slate-800 hover:text-amber-900 transition-all cursor-pointer"
+              >
+                <span className="font-mono text-amber-700">{s.sampleCode}</span>
+                <span className="text-slate-600 truncate max-w-[140px]">{s.nomenclature || s.materialName}</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-mono">1 Hr - 2 Days</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-
-        {/* 2 Sub-Section Options under each Laboratory: Semi Base and Formulation */}
-        <div className="bg-slate-50/90 p-3 rounded-2xl border border-slate-200/90">
+      {/* 2 Sub-Section Options under Laboratory: Semi Base and Formulation */}
+      <div className="bg-slate-50/90 p-3 rounded-2xl border border-slate-200/90">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Option 1: Semi Basics */}
             <button
@@ -467,7 +527,16 @@ function SamplesPageInner() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <Link
+            href={`/reports?section=${activeSection}`}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold shadow-2xs transition-all cursor-pointer"
+            title={`View official pharmaceutical report for ${activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}`}
+          >
+            <FileSpreadsheet className="h-4 w-4 text-blue-600" />
+            <span>View {activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'} Report</span>
+          </Link>
+
           <Button
             onClick={() => setIsAccessionModalOpen(true)}
             variant="primary"
@@ -995,7 +1064,14 @@ function SamplesPageInner() {
 
                       {/* 4. Sample ID */}
                       <td className="py-3 px-3.5 font-mono font-bold text-teal-800 whitespace-nowrap">
-                        <div>{sample.sampleCode}</div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{sample.sampleCode}</span>
+                          {(sample.priority === 'URGENT' || sample.priority === 'STAT') && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                              Urgent (1h-2d)
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* 5. Stage / Type */}

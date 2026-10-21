@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Check,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -22,6 +23,8 @@ interface NavbarProps {
 
 import { useQuery } from '@tanstack/react-query';
 import { auditService } from '@/services/audit.service';
+import { samplingService } from '@/services/sampling.service';
+import { Sample } from '@/types/lims';
 import { parseAuditItem, FormattedAuditItem } from '@/lib/auditFormatter';
 
 interface NotificationItem {
@@ -84,6 +87,20 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
     refetchInterval: 5000,
   });
 
+  // Query live active Urgent samples (refreshes every 5 seconds for real-time analyst notification)
+  const { data: urgentSamplesRes } = useQuery({
+    queryKey: ['navbar-urgent-samples'],
+    queryFn: () => samplingService.getAll({ priority: 'URGENT', limit: 20 }),
+    refetchInterval: 5000,
+  });
+
+  const activeUrgentSamples: Sample[] = React.useMemo(() => {
+    if (!urgentSamplesRes) return [];
+    if (Array.isArray(urgentSamplesRes)) return urgentSamplesRes;
+    if (Array.isArray((urgentSamplesRes as any).data)) return (urgentSamplesRes as any).data;
+    return [];
+  }, [urgentSamplesRes]);
+
   // Parse and filter non-admin actions (staff below admin) PLUS Critical & Urgent sample notices
   const nonAdminAlerts: FormattedAuditItem[] = React.useMemo(() => {
     if (!rawAuditLogs) return [];
@@ -98,34 +115,67 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
       );
   }, [rawAuditLogs]);
 
-  // For Admin: notifications are real-time non-admin staff activities and urgent priority alerts
-  // For other users: standard workflow alerts
+  // Notifications for BOTH Analyst and Admin: real-time urgent sample alerts and workflow activity
   const notifications: NotificationItem[] = React.useMemo(() => {
-    if (isAdmin) {
-      if (nonAdminAlerts.length > 0) {
-        return nonAdminAlerts.map((item) => ({
+    const list: NotificationItem[] = [];
+
+    // 1. Real-time active Urgent samples (dispatched to Analyst and Admin)
+    activeUrgentSamples.forEach((sample) => {
+      const sampleIdKey = `urgent-${sample.id}`;
+      const code = sample.sampleCode || sample.sampleId || 'SMP';
+      const name = sample.nomenclature || sample.materialName || 'Product';
+      const lot = sample.lotNumber || sample.batchLotNumber || 'N/A';
+      list.push({
+        id: sampleIdKey,
+        title: `⚡ URGENT TESTING (1 Hr - 2 Days SLA)`,
+        description: `Sample ${code}: ${name} (Batch: ${lot}) requires expedited analytical testing.`,
+        timestamp: 'Active SLA',
+        type: 'urgent',
+        read: readAlertIds.includes(sampleIdKey),
+        link: `/samples?sampleId=${sample.id}`,
+        actionBadge: '1 Hr - 2 Days',
+      });
+    });
+
+    // 2. Audit Trail Events (urgent priority alerts for all, non-admin actions for Admin)
+    if (nonAdminAlerts.length > 0) {
+      nonAdminAlerts.forEach((item) => {
+        const isUrgentAction =
+          item.actionRaw.includes('URGENT') ||
+          item.actionRaw.includes('CRITICAL') ||
+          item.actionRaw.includes('STAT');
+
+        // Non-admin staff receives urgent alerts; Admin receives both urgent alerts and staff activity
+        if (!isAdmin && !isUrgentAction) {
+          return;
+        }
+
+        list.push({
           id: item.id,
           title: item.actionRaw.includes('CRITICAL')
-            ? `🚨 CRITICAL (24h SLA): ${item.userName}`
+            ? `🚨 CRITICAL (1 Hr - 2 Days SLA): ${item.userName}`
             : item.actionRaw.includes('URGENT')
-            ? `⚡ URGENT (2d SLA): ${item.userName}`
+            ? `⚡ URGENT (1 Hr - 2 Days SLA): ${item.userName}`
             : `${item.userName} (${item.roleBadge.label})`,
           description: `${item.actionLabel.label}: ${item.details}`,
           timestamp: `${item.relativeTime} • ${item.timeDisplay}`,
-          type: (item.actionRaw.includes('CRITICAL') || item.actionRaw.includes('URGENT') || item.actionRaw.includes('STATUS') || item.actionRaw.includes('UPDATE') ? 'urgent' : 'warning') as 'urgent' | 'warning',
+          type: (isUrgentAction || item.actionRaw.includes('STATUS') || item.actionRaw.includes('UPDATE') ? 'urgent' : 'warning') as 'urgent' | 'warning',
           read: readAlertIds.includes(item.id),
           link: '/samples',
           staffName: item.userName,
           staffRole: item.roleBadge.label,
           actionBadge: item.actionLabel.label,
           details: item.details,
-        }));
-      }
+        });
+      });
+    }
+
+    if (list.length === 0) {
       return [
         {
-          id: 'admin-empty',
+          id: 'empty-notif',
           title: 'All Systems Normal',
-          description: 'No new actions from laboratory staff. Live monitoring active.',
+          description: 'No active urgent samples or pending workflow alerts.',
           timestamp: 'Live',
           type: 'info',
           read: true,
@@ -134,15 +184,12 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
       ];
     }
 
-    return DEFAULT_STAFF_NOTIFICATIONS;
-  }, [isAdmin, nonAdminAlerts, readAlertIds]);
+    return list;
+  }, [isAdmin, activeUrgentSamples, nonAdminAlerts, readAlertIds]);
 
   const unreadCount = React.useMemo(() => {
-    if (isAdmin) {
-      return nonAdminAlerts.filter((a) => !readAlertIds.includes(a.id)).length;
-    }
-    return notifications.filter((n) => !n.read).length;
-  }, [isAdmin, nonAdminAlerts, readAlertIds, notifications]);
+    return notifications.filter((n) => !n.read && n.id !== 'empty-notif').length;
+  }, [notifications]);
 
   const markAllRead = () => {
     if (isAdmin) {
@@ -180,10 +227,23 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
           </div>
         </div>
 
-        {/* Right: Notification Bell (with red badge 3) + User Profile Avatar matching reference */}
-        <div className="flex items-center gap-4 sm:gap-6">
-          
-          {/* Notification Bell with red badge '3' */}
+        {/* Right: Urgent Alert Pill + Notification Bell + User Profile Avatar */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* Active Urgent Alert Pill (Visible at the very top of Navbar) */}
+          {activeUrgentSamples.length > 0 && (
+            <Link
+              href="/samples"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold shadow-2xs transition-all cursor-pointer animate-pulse"
+              title="Urgent Samples Requiring 1 Hr - 2 Days SLA Testing"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              <span>
+                {activeUrgentSamples.length} Urgent ({activeUrgentSamples.length === 1 ? '1 Hr - 2 Days' : `${activeUrgentSamples.length} Samples`})
+              </span>
+            </Link>
+          )}
+
+          {/* Notification Bell with red badge */}
           <div className="relative">
             <button
               onClick={() => {

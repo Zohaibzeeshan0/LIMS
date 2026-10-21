@@ -1078,27 +1078,22 @@ export function NewSampleModal({
               <span
                 className={cn(
                   'px-2 py-0.5 rounded text-[10px] font-bold font-mono border',
-                  watchedPriority === 'STAT'
-                    ? 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
-                    : watchedPriority === 'URGENT'
-                    ? 'bg-amber-100 text-amber-800 border-amber-300'
+                  watchedPriority === 'URGENT' || watchedPriority === 'STAT'
+                    ? 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse'
                     : 'bg-blue-100 text-blue-800 border-blue-300'
                 )}
               >
-                {watchedPriority === 'STAT'
-                  ? '24 Hours'
-                  : watchedPriority === 'URGENT'
-                  ? '2 Days'
-                  : '5 Days'}
+                {watchedPriority === 'URGENT' || watchedPriority === 'STAT'
+                  ? '1 Hr - 2 Days'
+                  : '5 - 15 Days'}
               </span>
             </div>
             <select
               {...register('priority')}
               className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium text-slate-800"
             >
-              <option value="ROUTINE">Routine (5 Days)</option>
-              <option value="URGENT">Urgent (2 Days)</option>
-              <option value="STAT">Immediate (24 Hours)</option>
+              <option value="ROUTINE">Routine (5 - 15 Days)</option>
+              <option value="URGENT">Urgent (1 Hr - 2 Days)</option>
             </select>
           </div>
 
@@ -1106,9 +1101,7 @@ export function NewSampleModal({
           <div
             className={cn(
               'p-3 rounded-xl border flex items-center justify-between gap-3 text-xs transition-all',
-              watchedPriority === 'STAT'
-                ? 'bg-rose-50/90 border-rose-300 text-rose-950 shadow-2xs'
-                : watchedPriority === 'URGENT'
+              watchedPriority === 'URGENT' || watchedPriority === 'STAT'
                 ? 'bg-amber-50/90 border-amber-300 text-amber-950 shadow-2xs'
                 : 'bg-blue-50/80 border-blue-200 text-blue-950'
             )}
@@ -1117,16 +1110,12 @@ export function NewSampleModal({
               <div
                 className={cn(
                   'h-8 w-8 rounded-lg flex items-center justify-center shrink-0 font-bold',
-                  watchedPriority === 'STAT'
-                    ? 'bg-rose-600 text-white animate-pulse'
-                    : watchedPriority === 'URGENT'
-                    ? 'bg-amber-500 text-white'
+                  watchedPriority === 'URGENT' || watchedPriority === 'STAT'
+                    ? 'bg-amber-500 text-white animate-pulse'
                     : 'bg-blue-600 text-white'
                 )}
               >
-                {watchedPriority === 'STAT' ? (
-                  <AlertCircle className="h-4 w-4" />
-                ) : watchedPriority === 'URGENT' ? (
+                {watchedPriority === 'URGENT' || watchedPriority === 'STAT' ? (
                   <AlertTriangle className="h-4 w-4" />
                 ) : (
                   <Clock className="h-4 w-4" />
@@ -1135,36 +1124,35 @@ export function NewSampleModal({
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-bold text-slate-900">
-                    {watchedPriority === 'STAT'
-                      ? 'Critical Immediate Testing Target'
-                      : watchedPriority === 'URGENT'
-                      ? 'Urgent Fast-Track Testing Target'
-                      : 'Standard Routine Testing Target'}
+                    {watchedPriority === 'URGENT' || watchedPriority === 'STAT'
+                      ? 'Urgent Fast-Track Testing Target (1 Hr - 2 Days)'
+                      : 'Standard Routine Testing Target (5 - 15 Days)'}
                   </span>
-                  {(watchedPriority === 'STAT' || watchedPriority === 'URGENT') && (
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider bg-rose-600 text-white">
-                      Admin Notice Active
+                  {(watchedPriority === 'URGENT' || watchedPriority === 'STAT') && (
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-600 text-white">
+                      Analyst Alert Active
                     </span>
                   )}
                 </div>
+                {(watchedPriority === 'URGENT' || watchedPriority === 'STAT') && (
+                  <p className="text-[11px] text-amber-800 mt-0.5">
+                    Live notification and top header alert will be sent directly to the QC Analyst and Administration.
+                  </p>
+                )}
               </div>
             </div>
             <div className="text-right shrink-0">
               <span
                 className={cn(
                   'inline-flex items-center px-3 py-1.5 rounded-lg font-mono font-bold text-xs shadow-2xs',
-                  watchedPriority === 'STAT'
-                    ? 'bg-rose-600 text-white animate-pulse'
-                    : watchedPriority === 'URGENT'
-                    ? 'bg-amber-500 text-white'
+                  watchedPriority === 'URGENT' || watchedPriority === 'STAT'
+                    ? 'bg-amber-500 text-white animate-pulse'
                     : 'bg-blue-600 text-white'
                 )}
               >
-                {watchedPriority === 'STAT'
-                  ? '24 Hours'
-                  : watchedPriority === 'URGENT'
-                  ? '2 Days'
-                  : '5 Days'}
+                {watchedPriority === 'URGENT' || watchedPriority === 'STAT'
+                  ? '1 Hr - 2 Days'
+                  : '5 - 15 Days'}
               </span>
             </div>
           </div>

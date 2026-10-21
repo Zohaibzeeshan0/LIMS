@@ -528,7 +528,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 mt-0.5">
-                    All active Immediate (24 Hours SLA) and Urgent (2 Days SLA) samples across laboratories.
+                    All active Urgent (1 Hr - 2 Days SLA) samples across the laboratory.
                   </p>
                 </div>
               </div>
