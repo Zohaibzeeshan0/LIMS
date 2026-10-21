@@ -8,7 +8,6 @@ import {
   Bell,
   User,
   LogOut,
-  UserCheck,
   CheckCircle2,
   ChevronDown,
   Check,
@@ -369,15 +368,8 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
                 />
                 <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white shadow-xl border border-slate-200 p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100">
                   <div className="px-3 py-2 border-b border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Current User Profile
-                    </p>
-                    <p className="text-sm font-bold text-slate-900 mt-0.5">{user?.fullName || displayName}</p>
-                    <p className="text-xs text-slate-500 font-mono">{user?.email || 'admin@citipharma.com'}</p>
-                    <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                      <UserCheck className="h-3 w-3 text-blue-600" />
-                      <span>{user?.department || 'Quality Control'} • {user?.employeeId || 'CP-EMP-001'}</span>
-                    </div>
+                    <p className="text-sm font-bold text-slate-900">{user?.fullName || displayName}</p>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5">{user?.email || 'admin@citipharma.com'}</p>
                   </div>
 
                   {/* Switch Persona for Live Testing - Only visible for Admin */}
