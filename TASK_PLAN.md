@@ -1,4 +1,4 @@
-# Star LIMS — Task Plan & Execution Tracker
+# LIMS — Task Plan & Execution Tracker
 
 > **Document Status:** Active  
 > **Repository:** [https://github.com/Zohaibzeeshan0/LIMS](https://github.com/Zohaibzeeshan0/LIMS)  

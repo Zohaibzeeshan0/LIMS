@@ -313,7 +313,7 @@ export function NewSampleModal({
     let isMounted = true;
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const payload = `==============================
-STAR LIMS • QUALITY CONTROL
+CITI PHARMA • LIMS
 SAMPLE INTAKE SLIP
 ==============================
 Sample ID: ${activeSampleCode}

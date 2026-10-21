@@ -107,7 +107,7 @@ export function QrScannerModal({ isOpen, onClose, onScan }: QrScannerModalProps)
       // Not JSON, continue to other formats
     }
 
-    // 2. Try key-value lines (such as STAR LIMS official Container Chit payload)
+    // 2. Try key-value lines (such as LIMS official Container Chit payload)
     if (raw.includes(':') && (raw.includes('\n') || raw.includes('•') || raw.includes(','))) {
       const lines = raw.split(/[\n,]/).map((l) => l.trim()).filter(Boolean);
       lines.forEach((line) => {

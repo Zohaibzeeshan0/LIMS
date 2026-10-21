@@ -51,7 +51,7 @@ City Pharma **LIMS** (Laboratory Information Management System) is an enterprise
 ## 3. Directory Structure
 
 ```
-Star LIMS/
+LIMS/
 ├── backend/                             # NestJS API Server (Port: 3001, Prefix: /api/v1)
 │   ├── prisma/
 │   │   ├── schema.prisma                # Database schema (PostgreSQL)

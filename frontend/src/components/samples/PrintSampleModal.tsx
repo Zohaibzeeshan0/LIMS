@@ -21,7 +21,7 @@ export function PrintSampleModal({ isOpen, onClose, sample }: PrintSampleModalPr
   useEffect(() => {
     if (sample) {
       const payload = JSON.stringify({
-        app: 'STAR-LIMS',
+        app: 'LIMS',
         sampleId: sample.sampleCode,
         barcode: sample.barcode || sample.sampleCode,
         nomenclature: sample.nomenclature || sample.materialName,
