@@ -50,7 +50,7 @@ export const DEMO_USERS = [
     employeeId: 'EMP-001',
     name: 'Dr. Tariq Mahmood',
     title: 'QC Director / Administrator',
-    desc: 'Unrestricted master access across all 3 laboratories',
+    desc: 'Master administrative access across the facility',
     labBadge: 'Master Administrator',
     labId: 'all',
   },

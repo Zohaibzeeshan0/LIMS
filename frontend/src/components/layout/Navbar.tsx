@@ -333,7 +333,7 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
                   {/* Switch Persona for Live Testing */}
                   <div className="p-2">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 px-1">
-                      Role Simulation (RBAC Profile)
+                      Profiles
                     </p>
                     <div className="space-y-1">
                       {DEMO_USERS.map((demo) => {
