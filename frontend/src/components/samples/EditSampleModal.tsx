@@ -209,7 +209,6 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
             value={formData.nomenclature}
             onChange={(e) => setFormData({ ...formData, nomenclature: e.target.value })}
             className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none"
-            placeholder="e.g. Paracetamol 500mg Film-Coated Tablets (USP/BP)"
           />
         </div>
 
@@ -224,7 +223,6 @@ export function EditSampleModal({ isOpen, onClose, sample }: EditSampleModalProp
               value={formData.lotNumber}
               onChange={(e) => setFormData({ ...formData, lotNumber: e.target.value })}
               className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none"
-              placeholder="e.g. CP-2026-B892"
             />
           </div>
 

@@ -531,7 +531,6 @@ export function NewSampleModal({
         isOpen={isOpen}
         onClose={handleRequestClose}
         title="Create Sampling Record"
-        subtitle="Official pharmaceutical accession intake, laboratory assignment, and compendial test worksheets"
         maxWidth="3xl"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-xs font-sans">
@@ -776,15 +775,8 @@ export function NewSampleModal({
                 />
               </div>
 
-              <div className="flex items-center justify-between mt-1 text-[10px]">
-                <span className="text-slate-500 font-mono">
-                  {isLiveClock
-                    ? `Live: ${format(liveDate, 'dd MMM yyyy, hh:mm:ss a')}`
-                    : 'Manual custom timestamp entered'}
-                </span>
-                {isLiveClock ? (
-                  <span className="text-emerald-700 font-medium">Auto-captures exact intake second</span>
-                ) : (
+              {!isLiveClock && (
+                <div className="flex items-center justify-end mt-1 text-[10px]">
                   <button
                     type="button"
                     onClick={() => {
@@ -797,8 +789,8 @@ export function NewSampleModal({
                   >
                     Switch to Live
                   </button>
-                )}
-              </div>
+                </div>
+              )}
 
               {errors.samplingDateTime && (
                 <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
@@ -873,7 +865,6 @@ export function NewSampleModal({
                     <input
                       type="text"
                       {...register('customSampleId')}
-                      placeholder="e.g. GL/SB-1, CP/F-1, PL/SB-1"
                       className={cn(
                         'w-full px-3 py-2 text-xs font-mono rounded-lg border outline-none pr-8',
                         idCheckStatus === 'duplicate'
@@ -920,7 +911,6 @@ export function NewSampleModal({
             <input
               type="text"
               {...register('nomenclature')}
-              placeholder="e.g. Paracetamol 500mg Film-Coated Tablets (USP/BP)"
               className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none text-slate-900 font-medium"
             />
             {errors.nomenclature && (
@@ -1031,7 +1021,6 @@ export function NewSampleModal({
               <input
                 type="text"
                 {...register('lotNumber')}
-                placeholder="e.g. CP-2026-B892"
                 className="w-full px-2.5 py-2 text-xs font-mono rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none text-slate-800"
               />
               {errors.lotNumber && (
@@ -1150,7 +1139,6 @@ export function NewSampleModal({
               <input
                 type="text"
                 {...register('submittedBy')}
-                placeholder="e.g. Bilal Raza (Packaging Line 2)"
                 className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none text-slate-800"
               />
               {errors.submittedBy && (
@@ -1166,7 +1154,6 @@ export function NewSampleModal({
               <input
                 type="text"
                 {...register('receivedBy')}
-                placeholder="e.g. Dr. Tariq Mahmood (QC Intake Analyst)"
                 className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none text-slate-800"
               />
               {errors.receivedBy && (
