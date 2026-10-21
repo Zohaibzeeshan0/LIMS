@@ -1264,30 +1264,32 @@ export function NewSampleModal({
       />
 
       {/* Official Post-Creation Container Chit Modal (End of Sample Addition) */}
-      <SampleRoutingChitModal
-        isOpen={isCreatedChitOpen && !!createdSampleForChit}
-        onClose={() => {
-          setIsCreatedChitOpen(false);
-          setCreatedSampleForChit(null);
-          reset(defaultValues);
-          onClose();
-        }}
-        chitData={createdSampleForChit ? {
-          sample: createdSampleForChit,
-          destinationLab: 'PENDING_WORKFLOW',
-          submittedByName: createdSampleForChit.submittedBy || user?.fullName || 'Sampling Officer',
-          submittedAt: createdSampleForChit.samplingDate || new Date().toISOString(),
-        } : null}
-        onProceedToSubmit={(sample) => {
-          setIsCreatedChitOpen(false);
-          setCreatedSampleForChit(null);
-          reset(defaultValues);
-          onClose();
-          if (onProceedToSubmit) {
-            onProceedToSubmit(sample);
-          }
-        }}
-      />
+      {isCreatedChitOpen && createdSampleForChit && (
+        <SampleRoutingChitModal
+          isOpen={isCreatedChitOpen}
+          onClose={() => {
+            setIsCreatedChitOpen(false);
+            setCreatedSampleForChit(null);
+            reset(defaultValues);
+            onClose();
+          }}
+          chitData={{
+            sample: createdSampleForChit,
+            destinationLab: 'PENDING_WORKFLOW',
+            submittedByName: createdSampleForChit.submittedBy || user?.fullName || 'Sampling Officer',
+            submittedAt: createdSampleForChit.samplingDate || new Date().toISOString(),
+          }}
+          onProceedToSubmit={(sample) => {
+            setIsCreatedChitOpen(false);
+            setCreatedSampleForChit(null);
+            reset(defaultValues);
+            onClose();
+            if (onProceedToSubmit) {
+              onProceedToSubmit(sample);
+            }
+          }}
+        />
+      )}
     </>
   );
 }

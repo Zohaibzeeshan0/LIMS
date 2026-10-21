@@ -59,11 +59,11 @@ export function SampleRoutingChitModal({
 
   const samplingDateStr = sample?.samplingDate
     ? formatDateTime(sample.samplingDate, 'dd MMM yyyy, hh:mm a')
-    : new Date().toLocaleString();
+    : '—';
 
   const submissionDateStr = chitData?.submittedAt
     ? formatDateTime(chitData.submittedAt, 'dd MMM yyyy, hh:mm a')
-    : new Date().toLocaleString();
+    : '—';
 
   // Comprehensive QR Code Payload (contains full structured data for universal scanning)
   useEffect(() => {
@@ -161,6 +161,8 @@ Verify: ${typeof window !== 'undefined' ? window.location.origin : ''}/samples?s
     document.body.removeChild(a);
   };
 
+  if (!isOpen || !sample) return null;
+
   return (
     <Modal
       isOpen={isOpen}
@@ -195,7 +197,7 @@ Verify: ${typeof window !== 'undefined' ? window.location.origin : ''}/samples?s
                   CONTAINER CHIT
                 </span>
                 <span className="block text-[8px] font-mono text-slate-500 mt-0.5">
-                  REF: {chitData?.submissionNumber || `SUB-${sample.id.slice(0, 6).toUpperCase()}`}
+                  REF: {chitData?.submissionNumber || (sample?.id ? `SUB-${String(sample.id).slice(0, 6).toUpperCase()}` : 'SUB-PENDING')}
                 </span>
               </div>
             </div>
@@ -301,7 +303,7 @@ Verify: ${typeof window !== 'undefined' ? window.location.origin : ''}/samples?s
                   Sample Dispatched By:
                 </span>
                 <span className="font-semibold text-slate-900 block truncate">
-                  {chitData?.submittedByName || sample.submittedBy || 'Sampling Officer'}
+                  {chitData?.submittedByName || sample?.submittedBy || 'Sampling Officer'}
                 </span>
                 <div className="mt-2 border-b border-dashed border-slate-400" />
                 <span className="text-[7px] text-slate-400 block text-center mt-0.5">Signature / Stamp</span>

@@ -851,14 +851,16 @@ export function SubmitSampleModal({
     </Modal>
 
       {/* Official Container Routing Slip / Chit Modal */}
-      <SampleRoutingChitModal
-        isOpen={isChitModalOpen}
-        onClose={() => {
-          setIsChitModalOpen(false);
-          setRoutingChitData(null);
-        }}
-        chitData={routingChitData}
-      />
+      {isChitModalOpen && routingChitData && (
+        <SampleRoutingChitModal
+          isOpen={isChitModalOpen}
+          onClose={() => {
+            setIsChitModalOpen(false);
+            setRoutingChitData(null);
+          }}
+          chitData={routingChitData}
+        />
+      )}
     </>
   );
 }
