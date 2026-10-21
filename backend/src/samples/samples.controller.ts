@@ -50,6 +50,14 @@ export class SamplesController {
     return this.samplesService.getSampleMetrics(laboratory);
   }
 
+  @Get('by-code')
+  @ApiOperation({ summary: 'Get sample record by sampleCode, sampleId, accessionNo, or id' })
+  @ApiResponse({ status: 200, description: 'Sample details retrieved' })
+  @ApiResponse({ status: 404, description: 'Sample not found' })
+  findByCode(@Query('code') code: string) {
+    return this.samplesService.findOne(code);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get detailed sample record including laboratory, custody, tests, and submissions' })
   @ApiResponse({ status: 200, description: 'Sample details retrieved' })

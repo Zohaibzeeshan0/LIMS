@@ -24,6 +24,7 @@ interface SampleRoutingChitModalProps {
   onClose: () => void;
   chitData: SampleRoutingChitData | null;
   onProceedToSubmit?: (sample: Sample) => void;
+  onViewSampleDetails?: (sample: Sample) => void;
 }
 
 export function SampleRoutingChitModal({
@@ -31,6 +32,7 @@ export function SampleRoutingChitModal({
   onClose,
   chitData,
   onProceedToSubmit,
+  onViewSampleDetails,
 }: SampleRoutingChitModalProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
@@ -311,9 +313,15 @@ View Details: ${sampleDetailUrl}`;
 
                 {/* Clickable Link Below QR Code */}
                 <a
-                  href={`/samples?sampleId=${encodeURIComponent(sampleCode)}`}
-                  target="_blank"
+                  href={`/samples?sampleId=${encodeURIComponent(sample?.id || sampleCode)}`}
+                  target={onViewSampleDetails ? undefined : '_blank'}
                   rel="noopener noreferrer"
+                  onClick={(e) => {
+                    if (onViewSampleDetails && sample) {
+                      e.preventDefault();
+                      onViewSampleDetails(sample);
+                    }
+                  }}
                   className="mt-1.5 px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-900 border border-blue-200 text-[9px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer group shadow-2xs"
                   title="Click to view complete sample details"
                 >

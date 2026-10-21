@@ -1248,6 +1248,15 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
               onProceedToSubmit(sample);
             }
           }}
+          onViewSampleDetails={(sample) => {
+            setIsCreatedChitOpen(false);
+            setCreatedSampleForChit(null);
+            reset(defaultValues);
+            onClose();
+            if (onSampleCreated) {
+              onSampleCreated(sample);
+            }
+          }}
         />
       )}
     </>

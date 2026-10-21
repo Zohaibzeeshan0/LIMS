@@ -44,7 +44,13 @@ export const samplingService = {
     return api.get<PaginatedResponse<Sample>>(`/sampling?${params.toString()}`);
   },
 
-  getById: (id: string) => api.get<Sample>(`/sampling/${id}`),
+  getById: (id: string) => {
+    const trimmed = (id || '').trim();
+    if (trimmed.includes('/') || trimmed.includes('\\')) {
+      return api.get<Sample>(`/sampling/by-code?code=${encodeURIComponent(trimmed)}`);
+    }
+    return api.get<Sample>(`/sampling/${encodeURIComponent(trimmed)}`);
+  },
 
   create: (data: any) => api.post<Sample>('/sampling', data),
 

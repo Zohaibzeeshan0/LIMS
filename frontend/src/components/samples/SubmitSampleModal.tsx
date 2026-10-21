@@ -859,6 +859,11 @@ export function SubmitSampleModal({
             setRoutingChitData(null);
           }}
           chitData={routingChitData}
+          onViewSampleDetails={() => {
+            setIsChitModalOpen(false);
+            setRoutingChitData(null);
+            onClose();
+          }}
         />
       )}
     </>

@@ -42,10 +42,16 @@ export function setStoredSession(
   sessionStorage.removeItem(REFRESH_KEY);
   sessionStorage.removeItem(USER_KEY);
 
-  const storage = rememberMe ? localStorage : sessionStorage;
-  storage.setItem(TOKEN_KEY, accessToken);
-  storage.setItem(REFRESH_KEY, refreshToken);
-  storage.setItem(USER_KEY, JSON.stringify(user));
+  // Always store in localStorage so cross-tab links and refreshes maintain authenticated state
+  localStorage.setItem(TOKEN_KEY, accessToken);
+  localStorage.setItem(REFRESH_KEY, refreshToken);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+
+  if (!rememberMe) {
+    sessionStorage.setItem(TOKEN_KEY, accessToken);
+    sessionStorage.setItem(REFRESH_KEY, refreshToken);
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+  }
 
   if (rememberMe) {
     localStorage.setItem(REMEMBER_KEY, user.email || user.employeeId);

@@ -98,6 +98,12 @@ export class SamplingController {
     return this.samplingService.getSampleSubmissions(id);
   }
 
+  @Get('by-code')
+  @ApiOperation({ summary: 'Get sample record by sampleCode, sampleId, accessionNo, or id' })
+  findByCode(@Query('code') code: string, @Request() req: any) {
+    return this.samplingService.findOne(code, req.user);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get detailed sample record including tests, custody, and OOS' })
   findOne(@Param('id') id: string, @Request() req: any) {

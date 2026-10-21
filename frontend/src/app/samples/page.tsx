@@ -160,9 +160,15 @@ function SamplesPageInner() {
 
   React.useEffect(() => {
     if (querySampleParam) {
-      setSelectedSampleId(querySampleParam);
+      const trimmed = querySampleParam.trim();
+      setSelectedSampleId(trimmed);
+      if (trimmed.includes('/F-') || trimmed.includes('/F')) {
+        if (activeSection !== 'formulation') selectSection('formulation');
+      } else if (trimmed.includes('/SB-') || trimmed.includes('/SB')) {
+        if (activeSection !== 'semi-base') selectSection('semi-base');
+      }
     }
-  }, [querySampleParam]);
+  }, [querySampleParam, activeSection]);
 
   React.useEffect(() => {
     if (queryStatusParam) {
@@ -328,11 +334,36 @@ function SamplesPageInner() {
   }, [responseData, samplesList.length, page, limit]);
 
   // Load single sample detail if selected
-  const { data: sampleDetail, isLoading: isDetailLoading } = useQuery({
+  const {
+    data: sampleDetail,
+    isLoading: isDetailLoading,
+    refetch: refetchDetail,
+  } = useQuery({
     queryKey: ['sample', selectedSampleId],
     queryFn: () => (selectedSampleId ? samplingService.getById(selectedSampleId) : null),
     enabled: !!selectedSampleId,
   });
+
+  const fallbackSampleFromList = useMemo(() => {
+    if (!selectedSampleId) return null;
+    const trimmed = selectedSampleId.trim().toLowerCase();
+    const allFetched: Sample[] = [];
+    if (responseData) {
+      if (Array.isArray(responseData)) allFetched.push(...responseData);
+      else if (Array.isArray((responseData as any).data)) allFetched.push(...(responseData as any).data);
+    }
+    return (
+      allFetched.find(
+        (s) =>
+          s.id?.toLowerCase() === trimmed ||
+          s.sampleCode?.toLowerCase() === trimmed ||
+          s.sampleId?.toLowerCase() === trimmed ||
+          s.accessionNo?.toLowerCase() === trimmed
+      ) || null
+    );
+  }, [selectedSampleId, responseData]);
+
+  const activeDossier = (sampleDetail || fallbackSampleFromList) as any;
 
   // Status transition mutation with 21 CFR Part 11 electronic reason
   const updateStatusMutation = useMutation({
@@ -1280,34 +1311,42 @@ function SamplesPageInner() {
         <Modal
           isOpen={!!selectedSampleId}
           onClose={handleCloseDetailModal}
-          title={`Sample Record Dossier: ${sampleDetail?.accessionNo || sampleDetail?.sampleCode || 'Loading...'}`}
-          subtitle={`Material: ${sampleDetail?.nomenclature || sampleDetail?.materialName || ''}`}
+          title={`Sample Record Dossier: ${activeDossier?.accessionNo || activeDossier?.sampleCode || (isDetailLoading ? 'Loading...' : 'Sample Record')}`}
+          subtitle={`Material: ${activeDossier?.nomenclature || activeDossier?.materialName || ''}`}
           maxWidth="3xl"
         >
-          {isDetailLoading ? (
-            <div className="py-12 text-center text-slate-400">Loading full sample records...</div>
-          ) : sampleDetail ? (
+          {isDetailLoading && !activeDossier ? (
+            <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
+              <div className="h-10 w-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <div className="text-sm font-bold text-slate-800">
+                Loading Sample Record Dossier...
+              </div>
+              <div className="text-xs text-slate-500 font-mono">
+                Retrieving record for identifier: {selectedSampleId}
+              </div>
+            </div>
+          ) : activeDossier ? (
             <div className="space-y-6">
               {/* Top Banner with Barcode, Laboratory Assignment & Actions */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200/80 gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-sm font-bold font-mono px-2 py-0.5 rounded bg-navy-900 text-white">
-                      {sampleDetail.accessionNo || 'A-0001'}
+                      {activeDossier.accessionNo || 'A-0001'}
                     </span>
                     <span className="text-base font-bold font-mono text-navy-950">
-                      {sampleDetail.sampleCode}
+                      {activeDossier.sampleCode}
                     </span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
-                      {typeof sampleDetail.laboratory === 'string'
-                        ? `${sampleDetail.laboratory} LAB`
-                        : (sampleDetail.laboratory as any)?.name
-                        ? (sampleDetail.laboratory as any).name
-                        : sampleDetail.laboratoryType
-                        ? `${sampleDetail.laboratoryType} LAB`
+                      {typeof activeDossier.laboratory === 'string'
+                        ? `${activeDossier.laboratory} LAB`
+                        : (activeDossier.laboratory as any)?.name
+                        ? (activeDossier.laboratory as any).name
+                        : activeDossier.laboratoryType
+                        ? `${activeDossier.laboratoryType} LAB`
                         : 'GENERAL LAB'}
                     </span>
-                    <StatusBadge status={sampleDetail.status} />
+                    <StatusBadge status={activeDossier.status} />
                   </div>
                 </div>
 
@@ -1315,7 +1354,7 @@ function SamplesPageInner() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setChitSample(sampleDetail)}
+                    onClick={() => setChitSample(activeDossier)}
                     className="text-xs border-blue-300 bg-blue-50/60 text-blue-800 hover:bg-blue-100 font-semibold"
                   >
                     <QrCode className="h-3.5 w-3.5 mr-1 text-blue-700" />
@@ -1326,7 +1365,7 @@ function SamplesPageInner() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      setPrintingSample(sampleDetail);
+                      setPrintingSample(activeDossier);
                     }}
                     className="text-xs border-slate-300 text-slate-700"
                   >
@@ -1338,7 +1377,7 @@ function SamplesPageInner() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      setSubmittingSample(sampleDetail);
+                      setSubmittingSample(activeDossier);
                     }}
                     className="text-xs border-teal-300 bg-teal-50/60 text-teal-800 hover:bg-teal-100 font-semibold"
                   >
@@ -1351,7 +1390,7 @@ function SamplesPageInner() {
                       size="sm"
                       variant="primary"
                       onClick={() => {
-                        setEditingSample(sampleDetail);
+                        setEditingSample(activeDossier);
                       }}
                       className="bg-navy-900 text-white text-xs font-semibold cursor-pointer"
                     >
@@ -1376,63 +1415,63 @@ function SamplesPageInner() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 text-xs">
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">A. No. (Serial No.)</span>
-                    <span className="font-mono font-bold text-navy-950">{sampleDetail.accessionNo || 'A-0001'}</span>
+                    <span className="font-mono font-bold text-navy-950">{activeDossier.accessionNo || 'A-0001'}</span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">Date & Time</span>
-                    <span className="font-mono text-slate-800">{formatDateTime(sampleDetail.samplingDate, 'dd/MM/yyyy HH:mm')}</span>
+                    <span className="font-mono text-slate-800">{formatDateTime(activeDossier.samplingDate, 'dd/MM/yyyy HH:mm')}</span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200 col-span-2">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">Nomenclature</span>
-                    <span className="font-bold text-navy-950 line-clamp-1">{sampleDetail.nomenclature || sampleDetail.materialName}</span>
+                    <span className="font-bold text-navy-950 line-clamp-1">{activeDossier.nomenclature || activeDossier.materialName}</span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">Sample ID</span>
-                    <span className="font-mono font-bold text-teal-800">{sampleDetail.sampleCode}</span>
+                    <span className="font-mono font-bold text-teal-800">{activeDossier.sampleCode}</span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">Stage / Type</span>
                     <span className="font-medium text-slate-800">
-                      {sampleDetail.stageType || (sampleDetail.sampleType ? sampleDetail.sampleType.replace(/_/g, ' ') : '—')}
+                      {activeDossier.stageType || (activeDossier.sampleType ? activeDossier.sampleType.replace(/_/g, ' ') : '—')}
                     </span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">Qty. of Sample</span>
-                    <span className="font-mono text-slate-800">{sampleDetail.sampleQty} {sampleDetail.unit}</span>
+                    <span className="font-mono text-slate-800">{activeDossier.sampleQty} {activeDossier.unit}</span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">Batch No. / Lot No.</span>
-                    <span className="font-mono font-bold text-slate-800">{sampleDetail.lotNumber || sampleDetail.batch?.batchNumber || 'N/A'}</span>
+                    <span className="font-mono font-bold text-slate-800">{activeDossier.lotNumber || activeDossier.batch?.batchNumber || 'N/A'}</span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">MFG Date</span>
                     <span className="font-mono text-slate-800">
-                      {sampleDetail.mfgDate ? formatDateTime(sampleDetail.mfgDate, 'dd/MM/yyyy') : '—'}
+                      {activeDossier.mfgDate ? formatDateTime(activeDossier.mfgDate, 'dd/MM/yyyy') : '—'}
                     </span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">EXP Date</span>
                     <span className="font-mono text-slate-800">
-                      {sampleDetail.expDate ? formatDateTime(sampleDetail.expDate, 'dd/MM/yyyy') : '—'}
+                      {activeDossier.expDate ? formatDateTime(activeDossier.expDate, 'dd/MM/yyyy') : '—'}
                     </span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">Submitted By</span>
-                    <span className="text-slate-800 truncate block">{sampleDetail.submittedBy || 'Plant Production'}</span>
+                    <span className="text-slate-800 truncate block">{activeDossier.submittedBy || 'Plant Production'}</span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-white border border-slate-200">
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">Received By</span>
-                    <span className="text-slate-800 truncate block">{sampleDetail.accessionedBy?.fullName || sampleDetail.assignedTo?.fullName || 'QC Intake Officer'}</span>
+                    <span className="text-slate-800 truncate block">{activeDossier.accessionedBy?.fullName || activeDossier.assignedTo?.fullName || 'QC Intake Officer'}</span>
                   </div>
                 </div>
               </div>
@@ -1445,7 +1484,7 @@ function SamplesPageInner() {
                 </div>
 
                 <select
-                  value={sampleDetail.status}
+                  value={activeDossier.status}
                   onChange={(e) => {
                     const newStatus = e.target.value;
                     const reason = prompt(
@@ -1454,7 +1493,7 @@ function SamplesPageInner() {
                     );
                     if (reason) {
                       updateStatusMutation.mutate({
-                        id: sampleDetail.id,
+                        id: activeDossier.id,
                         status: newStatus,
                         reason,
                       });
@@ -1477,12 +1516,12 @@ function SamplesPageInner() {
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-xs font-bold text-navy-950 uppercase tracking-wider flex items-center gap-1.5">
                     <Send className="h-3.5 w-3.5 text-teal-700" />
-                    <span>Laboratory Routing Submissions ({sampleDetail.submissions?.length || 0})</span>
+                    <span>Laboratory Routing Submissions ({activeDossier.submissions?.length || 0})</span>
                   </h4>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setSubmittingSample(sampleDetail)}
+                    onClick={() => setSubmittingSample(activeDossier)}
                     className="text-[11px] h-7 px-2.5 border-teal-300 text-teal-800 bg-teal-50 hover:bg-teal-100 font-semibold"
                   >
                     <PlusCircle className="h-3 w-3 mr-1" />
@@ -1490,13 +1529,13 @@ function SamplesPageInner() {
                   </Button>
                 </div>
 
-                {(!sampleDetail.submissions || sampleDetail.submissions.length === 0) ? (
+                {(!activeDossier.submissions || activeDossier.submissions.length === 0) ? (
                   <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center text-xs text-slate-500">
                     No destination laboratory routing records found. Click &quot;Route Sample&quot; to submit to Microbiology, Chemical, or Physical Lab.
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {sampleDetail.submissions.map((sub: any) => (
+                    {activeDossier.submissions.map((sub: any) => (
                       <div
                         key={sub.id}
                         className="p-3 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
@@ -1531,18 +1570,18 @@ function SamplesPageInner() {
               {/* Assigned Tests Worksheets */}
               <div>
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center justify-between">
-                  <span>Compendial Test Worksheets ({sampleDetail.tests?.length || 0})</span>
+                  <span>Compendial Test Worksheets ({activeDossier.tests?.length || 0})</span>
                 </h4>
                 <div className="space-y-2">
-                  {sampleDetail.tests?.map((test: any) => (
+                  {activeDossier.tests?.map((test: any) => (
                     <div
                       key={test.id}
                       className="p-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3 text-xs"
                     >
                       <div>
-                        <div className="font-semibold text-slate-900">{test.testSpecification.name}</div>
+                        <div className="font-semibold text-slate-900">{test.testSpecification?.name || test.testName || 'Assigned Test'}</div>
                         <div className="text-[11px] text-slate-500 mt-0.5">
-                          Method: {test.testSpecification.pharmacopeiaMethod} • Spec:{' '}
+                          Method: {test.testSpecification?.pharmacopeiaMethod || 'In-House Standard'} • Spec:{' '}
                           {test.minLimit !== null ? `${test.minLimit} - ${test.maxLimit} ${test.unit || ''}` : 'Qualitative'}
                         </div>
                         {test.numericResult !== null && (
@@ -1568,11 +1607,31 @@ function SamplesPageInner() {
                   <span>Chain of Custody (21 CFR Part 11 Audit Trail)</span>
                 </h4>
                 <pre className="p-3 rounded-xl bg-slate-900 text-slate-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto">
-                  {sampleDetail.chainOfCustody || 'Sample initial intake registered.'}
+                  {activeDossier.chainOfCustody || 'Sample initial intake registered.'}
                 </pre>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
+              <div className="h-12 w-12 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="text-sm font-bold text-slate-900">
+                Sample Record Not Found
+              </div>
+              <div className="text-xs text-slate-500 max-w-sm">
+                No sample record was found matching &ldquo;{selectedSampleId}&rdquo;. Please verify the sample code or accession number.
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchDetail()}
+                className="mt-2 text-xs"
+              >
+                Retry Lookup
+              </Button>
+            </div>
+          )}
         </Modal>
       )}
 
@@ -1642,6 +1701,10 @@ function SamplesPageInner() {
           onProceedToSubmit={(sample) => {
             setChitSample(null);
             setSubmittingSample(sample);
+          }}
+          onViewSampleDetails={(sample) => {
+            setChitSample(null);
+            setSelectedSampleId(sample.id || sample.sampleCode);
           }}
         />
       )}
