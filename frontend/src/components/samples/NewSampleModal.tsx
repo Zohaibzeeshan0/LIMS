@@ -572,39 +572,6 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
             </div>
           )}
 
-          {/* QR Code & Barcode Integration Card */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-gradient-to-r from-indigo-50/70 via-blue-50/50 to-slate-50 border border-indigo-200/80 shadow-2xs">
-            <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <ScanLine className="h-5 w-5" />
-              </div>
-              <div>
-                <span className="font-bold text-xs text-slate-900">QR Code & Barcode Integration</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setIsQrScannerOpen(true)}
-                className="text-xs px-3 py-1.5 bg-white hover:bg-slate-50 text-indigo-700 border-indigo-300 font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
-              >
-                <Camera className="h-3.5 w-3.5 text-indigo-600" />
-                <span>Scan QR / Barcode</span>
-              </Button>
-
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setIsQrLabelModalOpen(true)}
-                className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white border-transparent font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
-              >
-                <QrCode className="h-3.5 w-3.5" />
-                <span>View / Print QR Label</span>
-              </Button>
-            </div>
-          </div>
 
           {scannedBarcode && (
             <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
@@ -758,15 +725,6 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
                     <span>Auto: {nextAutoSampleCode}</span>
                   </span>
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsQrLabelModalOpen(true)}
-                      title="Click to view & print QR label"
-                      className="flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 hover:bg-blue-200/80 px-2 py-0.5 rounded transition-colors cursor-pointer"
-                    >
-                      <QrCode className="h-3 w-3" />
-                      <span>QR Label</span>
-                    </button>
                     <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-sans font-medium">
                       Auto-Sequential
                     </span>
