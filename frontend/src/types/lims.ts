@@ -23,22 +23,31 @@ export function getUserLabAccess(
 }
 
 export const SEMI_BASICS_STAGES = [
+  'Vendor Sample',
+  'Quarantine Raw Material',
+  'RM Retest',
+  'Raw Material',
+  'Finished Product',
+  'In-Process',
   'Bulk / Blended Product',
   'Core Tablet',
   'Granulation / Blend',
-  'In-Process Semi-Finished',
   'Raw Water',
   'Purified Water',
   'Distilled Water',
   'Cleaning Validation Sample',
-  'Raw Material',
   'Other',
 ] as const;
 
 export const SEMI_BASE_STAGES = SEMI_BASICS_STAGES;
 
 export const FORMULATION_STAGES = [
+  'Vendor Sample',
+  'Quarantine Raw Material',
+  'RM Retest',
+  'Raw Material',
   'Finished Product',
+  'In-Process',
   'Coated Product',
   'Filled Product',
   'Finished Formulation',
@@ -49,13 +58,21 @@ export const FORMULATION_STAGES = [
 ] as const;
 
 export const SAMPLE_STAGES = [
+  'Vendor Sample',
+  'Quarantine Raw Material',
+  'RM Retest',
+  'Raw Material',
+  'Finished Product',
+  'In-Process',
   'Bulk / Blended Product',
   'Core Tablet',
   'Filled Product',
   'Coated Product',
-  'Finished Product',
+  'Finished Formulation',
   'Cleaning Validation Sample',
   'Process Validation Sample',
+  'Packaging Material',
+  'Stability Sample',
   'Raw Water',
   'Purified Water',
   'Distilled Water',
@@ -116,13 +133,18 @@ export function getSampleSection(sample: {
     return 'formulation';
   }
 
-  // Semi Base classifications: Bulk, Core, Granulation, Blend, In-Process, Water, Cleaning
+  // Semi Base classifications: Bulk, Core, Granulation, Blend, In-Process, Water, Cleaning, Vendor, Quarantine, Retest, Raw Material
   if (
     stage.includes('bulk') ||
     stage.includes('core') ||
     stage.includes('blend') ||
     stage.includes('granul') ||
     stage.includes('in-process') ||
+    stage.includes('inprocess') ||
+    stage.includes('vendor') ||
+    stage.includes('quarantine') ||
+    stage.includes('retest') ||
+    stage.includes('raw material') ||
     stage.includes('water') ||
     stage.includes('cleaning') ||
     type.includes('in_process') ||
