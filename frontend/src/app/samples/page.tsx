@@ -506,29 +506,14 @@ function SamplesPageInner() {
         </div>
 
         {/* 2 Sub-Section Options under each Laboratory: Semi Base and Formulation */}
-        <div className="bg-slate-50/90 p-3.5 rounded-2xl border border-slate-200/90 space-y-2.5">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="h-3.5 w-3.5 text-blue-600" />
-                <span>{activeLab.name} Operational Sections</span>
-              </span>
-              <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
-                • Select an operational section to view records and accession new samples
-              </span>
-            </div>
-            <span className="text-[11px] font-bold text-blue-700 bg-blue-100/70 px-2.5 py-0.5 rounded-full border border-blue-200">
-              Active: {activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
-            </span>
-          </div>
-
+        <div className="bg-slate-50/90 p-3 rounded-2xl border border-slate-200/90">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Option 1: Semi Basics */}
             <button
               type="button"
               onClick={() => selectSection('semi-base')}
               className={cn(
-                'relative group flex items-start justify-between p-4 rounded-xl text-left transition-all duration-200 border cursor-pointer',
+                'relative group flex items-center justify-between p-3.5 rounded-xl text-left transition-all duration-200 border cursor-pointer',
                 activeSection === 'semi-base'
                   ? 'bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-sm'
                   : 'bg-white/70 hover:bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
@@ -537,7 +522,7 @@ function SamplesPageInner() {
               {activeSection === 'semi-base' && (
                 <span className="absolute top-0 left-6 right-6 h-1 bg-blue-600 rounded-b-full" />
               )}
-              <div className="flex items-start gap-3">
+              <div className="flex items-center gap-3">
                 <div
                   className={cn(
                     'h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-colors shadow-2xs',
@@ -562,12 +547,9 @@ function SamplesPageInner() {
                       {semiBaseCount} Samples
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Bulk blends, core tablets, granulation, in-process testing, raw & purified water
-                  </p>
                 </div>
               </div>
-              <div className="shrink-0 mt-1">
+              <div className="shrink-0">
                 {activeSection === 'semi-base' ? (
                   <CheckCircle2 className="h-5 w-5 text-blue-600" />
                 ) : (
@@ -581,7 +563,7 @@ function SamplesPageInner() {
               type="button"
               onClick={() => selectSection('formulation')}
               className={cn(
-                'relative group flex items-start justify-between p-4 rounded-xl text-left transition-all duration-200 border cursor-pointer',
+                'relative group flex items-center justify-between p-3.5 rounded-xl text-left transition-all duration-200 border cursor-pointer',
                 activeSection === 'formulation'
                   ? 'bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-sm'
                   : 'bg-white/70 hover:bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
@@ -590,7 +572,7 @@ function SamplesPageInner() {
               {activeSection === 'formulation' && (
                 <span className="absolute top-0 left-6 right-6 h-1 bg-blue-600 rounded-b-full" />
               )}
-              <div className="flex items-start gap-3">
+              <div className="flex items-center gap-3">
                 <div
                   className={cn(
                     'h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-colors shadow-2xs',
@@ -615,12 +597,9 @@ function SamplesPageInner() {
                       {formulationCount} Samples
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Finished pharmaceutical products, coated & filled batches, packaging & release
-                  </p>
                 </div>
               </div>
-              <div className="shrink-0 mt-1">
+              <div className="shrink-0">
                 {activeSection === 'formulation' ? (
                   <CheckCircle2 className="h-5 w-5 text-blue-600" />
                 ) : (
@@ -1140,9 +1119,6 @@ function SamplesPageInner() {
                         <div className="font-semibold text-slate-900 line-clamp-1 group-hover:text-navy-950">
                           {sample.nomenclature || sample.materialName}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5 truncate">
-                          {sample.sourceSupplier || 'City Pharma Formulations'}
-                        </div>
                         {sample.submissions && sample.submissions.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
                             {sample.submissions.slice(0, 2).map((s) => (
@@ -1173,10 +1149,6 @@ function SamplesPageInner() {
                       {/* 4. Sample ID */}
                       <td className="py-3 px-3.5 font-mono font-bold text-teal-800 whitespace-nowrap">
                         <div>{sample.sampleCode}</div>
-                        <div className="text-[10px] font-normal text-slate-400 flex items-center gap-1 mt-0.5">
-                          <QrCode className="h-2.5 w-2.5 text-slate-400" />
-                          <span className="truncate">{sample.barcode || sample.sampleCode}</span>
-                        </div>
                       </td>
 
                       {/* 5. Stage / Type */}
