@@ -65,7 +65,7 @@ export function SampleQrLabelModal({
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-slate-900" />
                 <span className="font-extrabold text-xs uppercase tracking-wider">
-                  STAR LIMS • QUALITY CONTROL
+                  CITI PHARMA • LIMS
                 </span>
               </div>
               <span className="text-[10px] font-mono font-bold bg-slate-900 text-white px-1.5 py-0.5 rounded">

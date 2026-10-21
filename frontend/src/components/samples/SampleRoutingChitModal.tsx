@@ -76,7 +76,7 @@ export function SampleRoutingChitModal({
     const sampleDetailUrl = `${origin}/samples?sampleId=${encodeURIComponent(sampleCode)}`;
 
     const qrText = `==============================
-STAR LIMS • QUALITY CONTROL
+CITI PHARMA • LIMS
 SAMPLE SLIP
 ==============================
 Sample ID: ${sampleCode}
@@ -187,7 +187,7 @@ View Details: ${sampleDetailUrl}`;
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-slate-900 shrink-0" />
                 <span className="font-extrabold text-xs tracking-wider uppercase">
-                  CITI PHARMA • STAR LIMS QC
+                  CITI PHARMA • LIMS
                 </span>
               </div>
 
