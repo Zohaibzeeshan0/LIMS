@@ -241,7 +241,7 @@ View Details: ${sampleDetailUrl}`;
                     <span className="font-mono font-bold text-slate-800 block truncate">{lotNumber}</span>
                   </div>
                   <div>
-                    <span className="font-bold text-slate-400 uppercase block text-[8px]">Container Qty:</span>
+                    <span className="font-bold text-slate-400 uppercase block text-[8px]">Quantity:</span>
                     <span className="font-mono font-bold text-slate-800 block truncate">{sampleQty} {unit}</span>
                   </div>
                 </div>
