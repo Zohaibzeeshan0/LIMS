@@ -580,15 +580,7 @@ export function NewSampleModal({
                 <ScanLine className="h-5 w-5" />
               </div>
               <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-xs text-slate-900">QR Code & Barcode Integration</span>
-                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/80 px-2 py-0.2 rounded-full border border-indigo-200">
-                    2D Scanner & Label
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  Scan incoming material labels or generate a live 2D QR label for sample containers
-                </p>
+                <span className="font-bold text-xs text-slate-900">QR Code & Barcode Integration</span>
               </div>
             </div>
 
@@ -1240,13 +1232,6 @@ export function NewSampleModal({
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-slate-600 mt-0.5 truncate sm:whitespace-normal">
-                  {watchedPriority === 'STAT'
-                    ? 'Immediate 24-hour testing turnaround. High-priority critical notice will be dispatched to Admin Dashboard.'
-                    : watchedPriority === 'URGENT'
-                    ? 'Fast-track 2-day testing turnaround. Expedited notice will be dispatched to Admin Dashboard.'
-                    : 'Standard analytical turnaround scheduled within the standard 5-day laboratory window.'}
-                </p>
               </div>
             </div>
             <div className="text-right shrink-0">
