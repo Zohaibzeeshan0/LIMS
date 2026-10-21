@@ -12,8 +12,9 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import { SAMPLE_STAGES, SEMI_BASE_STAGES, FORMULATION_STAGES, LabSection, getUserLabAccess } from '@/types/lims';
+import { SAMPLE_STAGES, SEMI_BASE_STAGES, FORMULATION_STAGES, LabSection, getUserLabAccess, Sample } from '@/types/lims';
 import { format } from 'date-fns';
+import { formatDateTime } from '@/lib/date';
 import QRCode from 'qrcode';
 import { QrScannerModal, ScannedSampleData } from '@/components/samples/QrScannerModal';
 import { SampleQrLabelModal } from '@/components/samples/SampleQrLabelModal';
@@ -307,19 +308,25 @@ export function NewSampleModal({
     watchedPolicy === 'MANUAL' && watchedCustomId ? watchedCustomId : nextAutoSampleCode;
   const watchedNomenclature = watch('nomenclature');
   const watchedLotNumber = watch('lotNumber');
+  const watchedMfgDate = watch('mfgDate');
+  const watchedExpDate = watch('expDate');
 
   // Real-time dynamic QR code generation
   useEffect(() => {
     let isMounted = true;
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const mfgStr = watchedMfgDate ? formatDateTime(watchedMfgDate, 'dd/MM/yyyy') : 'N/A';
+    const expStr = watchedExpDate ? formatDateTime(watchedExpDate, 'dd/MM/yyyy') : 'N/A';
     const payload = `==============================
 CITI PHARMA • LIMS
-SAMPLE INTAKE SLIP
+SAMPLE SLIP
 ==============================
 Sample ID: ${activeSampleCode}
 Product: ${watchedNomenclature || 'Pharmaceutical Sample'}
 Section: ${selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
 Batch / Lot: ${watchedLotNumber || 'N/A'}
+Mfg Date: ${mfgStr}
+Exp Date: ${expStr}
 Facility: General Laboratory
 ==============================
 View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}`;
@@ -337,7 +344,7 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
     return () => {
       isMounted = false;
     };
-  }, [activeSampleCode, watchedNomenclature, watchedLotNumber, watchedLab, selectedSection, scannedBarcode, liveDate]);
+  }, [activeSampleCode, watchedNomenclature, watchedLotNumber, watchedMfgDate, watchedExpDate, watchedLab, selectedSection, scannedBarcode, liveDate]);
 
   // Handle scanned QR code / Barcode data to autofill form
   const handleScanResult = (data: ScannedSampleData) => {
@@ -440,7 +447,12 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
       }
 
       // Automatically launch the generated QR Code and official container chit modal at end of sample addition
-      setCreatedSampleForChit(newSample);
+      const sampleForChit: Sample = {
+        ...newSample,
+        mfgDate: newSample.mfgDate || (newSample as any).manufacturingDate || watch('mfgDate') || null,
+        expDate: newSample.expDate || (newSample as any).expiryDate || watch('expDate') || null,
+      };
+      setCreatedSampleForChit(sampleForChit);
       setIsCreatedChitOpen(true);
     },
     onError: (err: any) => {
@@ -1216,6 +1228,8 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
         sampleCode={activeSampleCode}
         nomenclature={watchedNomenclature || 'Pharmaceutical Sample'}
         lotNumber={watchedLotNumber || 'N/A'}
+        mfgDate={watchedMfgDate}
+        expDate={watchedExpDate}
         laboratoryName="General Lab"
         sectionName={selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
         samplingDate={format(liveDate, 'dd MMM yyyy, hh:mm a')}

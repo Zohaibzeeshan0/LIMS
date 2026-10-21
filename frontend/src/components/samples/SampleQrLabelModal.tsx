@@ -4,6 +4,7 @@ import React from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Printer, Download, QrCode, CheckCircle2, ShieldCheck, ExternalLink } from 'lucide-react';
+import { formatDateTime } from '@/lib/date';
 
 interface SampleQrLabelModalProps {
   isOpen: boolean;
@@ -12,6 +13,8 @@ interface SampleQrLabelModalProps {
   sampleCode: string;
   nomenclature: string;
   lotNumber?: string;
+  mfgDate?: string | null;
+  expDate?: string | null;
   laboratoryName: string;
   sectionName: string;
   samplingDate: string;
@@ -26,6 +29,8 @@ export function SampleQrLabelModal({
   sampleCode,
   nomenclature,
   lotNumber,
+  mfgDate,
+  expDate,
   laboratoryName,
   sectionName,
   samplingDate,
@@ -97,6 +102,11 @@ export function SampleQrLabelModal({
                   CP-{sampleCode}
                 </span>
 
+                <div className="text-[7.5px] font-mono text-slate-600 mt-0.5 leading-tight text-center">
+                  <div>Mfg: {mfgDate ? formatDateTime(mfgDate, 'dd/MM/yyyy') : '—'}</div>
+                  <div className="text-rose-700 font-bold">Exp: {expDate ? formatDateTime(expDate, 'dd/MM/yyyy') : '—'}</div>
+                </div>
+
                 {/* Clickable Link Below QR Code */}
                 <a
                   href={`/samples?sampleId=${encodeURIComponent(sampleCode)}`}
@@ -137,6 +147,21 @@ export function SampleQrLabelModal({
                     <span className="font-bold text-slate-400 uppercase block text-[8px]">Quantity:</span>
                     <span className="font-mono font-bold text-slate-800 truncate block">
                       {sampleQty ? `${sampleQty} ${unit || ''}` : 'Standard'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1 text-[10px]">
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase block text-[8px]">Mfg Date:</span>
+                    <span className="font-mono font-bold text-slate-800 truncate block">
+                      {mfgDate ? formatDateTime(mfgDate, 'dd/MM/yyyy') : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase block text-[8px]">Exp Date:</span>
+                    <span className="font-mono font-bold text-slate-800 truncate block">
+                      {expDate ? formatDateTime(expDate, 'dd/MM/yyyy') : '—'}
                     </span>
                   </div>
                 </div>

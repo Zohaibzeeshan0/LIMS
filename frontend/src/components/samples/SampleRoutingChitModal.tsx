@@ -40,6 +40,10 @@ export function SampleRoutingChitModal({
   const sampleCode = sample?.sampleCode || sample?.sampleId || 'GL/SB-1';
   const nomenclature = sample?.nomenclature || sample?.materialName || 'Pharmaceutical Sample';
   const lotNumber = sample?.lotNumber || sample?.batchLotNumber || 'N/A';
+  const mfgDate = sample?.mfgDate || (sample as any)?.manufacturingDate;
+  const expDate = sample?.expDate || (sample as any)?.expiryDate;
+  const mfgDateFormatted = mfgDate ? formatDateTime(mfgDate, 'dd/MM/yyyy') : '—';
+  const expDateFormatted = expDate ? formatDateTime(expDate, 'dd/MM/yyyy') : '—';
   const stage = (sample?.stageType || sample?.sampleType || 'Standard').replace(/^\[(Semi Basics?|Formulation)\]\s*/i, '');
   const isSemiBasics = sampleCode.includes('/SB') || (sample?.stageType || '').toLowerCase().includes('semi');
   const sectionName = isSemiBasics ? '1. Semi Basics' : '2. Formulation';
@@ -84,6 +88,8 @@ Product: ${nomenclature}
 Category / Stage: ${stage}
 Section: ${sectionName}
 Batch / Lot: ${lotNumber || 'N/A'}
+Mfg Date: ${mfgDateFormatted}
+Exp Date: ${expDateFormatted}
 Quantity: ${sampleQty} ${unit}
 Priority / SLA: ${priorityLabel}
 Routed To: ${destLabFormatted}
@@ -108,7 +114,7 @@ View Details: ${sampleDetailUrl}`;
     return () => {
       isMounted = false;
     };
-  }, [sample, sampleCode, nomenclature, sectionName, stage, lotNumber, sampleQty, unit, priorityLabel, destLabFormatted, samplingDateStr, submissionDateStr]);
+  }, [sample, sampleCode, nomenclature, sectionName, stage, lotNumber, mfgDateFormatted, expDateFormatted, sampleQty, unit, priorityLabel, destLabFormatted, samplingDateStr, submissionDateStr]);
 
   const handlePrint = () => {
     const chitEl = document.getElementById('printable-routing-chit');
@@ -246,6 +252,18 @@ View Details: ${sampleDetailUrl}`;
                   </div>
                 </div>
 
+                {/* Manufacturing & Expiry Dates */}
+                <div className="grid grid-cols-2 gap-2 text-[10px]">
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase block text-[8px]">Mfg Date:</span>
+                    <span className="font-mono font-bold text-slate-800 block truncate">{mfgDateFormatted}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase block text-[8px]">Exp Date:</span>
+                    <span className="font-mono font-bold text-slate-800 block truncate">{expDateFormatted}</span>
+                  </div>
+                </div>
+
                 {/* Testing Priority SLA */}
                 <div>
                   <span className="font-bold text-slate-400 uppercase block text-[8px]">Priority & SLA:</span>
@@ -260,7 +278,7 @@ View Details: ${sampleDetailUrl}`;
                 </div>
               </div>
 
-              {/* Right Column: Product Name + QR Code + Clickable Detail Link */}
+              {/* Right Column: Product Name + QR Code + Mfg/Exp Dates + Clickable Detail Link */}
               <div className="col-span-4 flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50 border border-slate-200 shrink-0 text-center">
                 {/* Product Name Above QR Code */}
                 <div className="w-full mb-1.5 px-0.5">
@@ -285,6 +303,18 @@ View Details: ${sampleDetailUrl}`;
                   </div>
                 )}
 
+                {/* Mfg & Exp Date directly with QR Code */}
+                <div className="w-full mt-1.5 px-1 py-1 rounded-md bg-white border border-slate-200 text-[8.5px] font-mono text-slate-700 leading-tight shadow-2xs">
+                  <div className="flex justify-between items-center px-0.5">
+                    <span className="text-[7.5px] font-bold text-slate-400 uppercase">Mfg:</span>
+                    <span className="font-bold text-slate-800">{mfgDateFormatted}</span>
+                  </div>
+                  <div className="flex justify-between items-center px-0.5 mt-0.5">
+                    <span className="text-[7.5px] font-bold text-slate-400 uppercase">Exp:</span>
+                    <span className="font-bold text-rose-700">{expDateFormatted}</span>
+                  </div>
+                </div>
+
                 {/* Clickable Link Below QR Code */}
                 <a
                   href={`/samples?sampleId=${encodeURIComponent(sample?.id || sampleCode)}`}
@@ -296,7 +326,7 @@ View Details: ${sampleDetailUrl}`;
                       onViewSampleDetails(sample);
                     }
                   }}
-                  className="mt-2 px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-900 border border-blue-200 text-[10px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer group shadow-2xs"
+                  className="mt-1.5 px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-900 border border-blue-200 text-[10px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer group shadow-2xs"
                   title="Click to view complete sample details"
                 >
                   <span>View Sample Details</span>
