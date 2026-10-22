@@ -49,8 +49,6 @@ export function SampleRoutingChitModal({
   const sectionName = isSemiBasics ? '1. Semi Basics' : '2. Formulation';
   const sampleQty = sample?.sampleQty || sample?.quantity || 1;
   const unit = sample?.unit || sample?.quantityUnit || 'units';
-  const isUrgent = sample?.priority === 'URGENT' || sample?.priority === 'STAT';
-  const priorityLabel = isUrgent ? 'URGENT (1 Hr - 2 Days SLA)' : 'ROUTINE (5 - 15 Days SLA)';
   const destinationLab = chitData?.destinationLab;
   const destLabFormatted =
     !destinationLab || destinationLab === 'PENDING_WORKFLOW'
@@ -91,7 +89,6 @@ Batch / Lot: ${lotNumber || 'N/A'}
 Mfg Date: ${mfgDateFormatted}
 Exp Date: ${expDateFormatted}
 Quantity: ${sampleQty} ${unit}
-Priority / SLA: ${priorityLabel}
 Routed To: ${destLabFormatted}
 Sampling Date: ${samplingDateStr}
 Submission Date: ${submissionDateStr}
@@ -114,7 +111,7 @@ View Details: ${sampleDetailUrl}`;
     return () => {
       isMounted = false;
     };
-  }, [sample, sampleCode, nomenclature, sectionName, stage, lotNumber, mfgDateFormatted, expDateFormatted, sampleQty, unit, priorityLabel, destLabFormatted, samplingDateStr, submissionDateStr]);
+  }, [sample, sampleCode, nomenclature, sectionName, stage, lotNumber, mfgDateFormatted, expDateFormatted, sampleQty, unit, destLabFormatted, samplingDateStr, submissionDateStr]);
 
   const handlePrint = () => {
     const chitEl = document.getElementById('printable-routing-chit');
@@ -263,19 +260,6 @@ View Details: ${sampleDetailUrl}`;
                     <span className="font-mono font-bold text-slate-800 block truncate">{expDateFormatted}</span>
                   </div>
                 </div>
-
-                {/* Testing Priority SLA */}
-                <div>
-                  <span className="font-bold text-slate-400 uppercase block text-[8px]">Priority & SLA:</span>
-                  <span className={cn(
-                    'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold font-mono border',
-                    isUrgent
-                      ? 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold'
-                      : 'bg-blue-50 text-blue-800 border-blue-200'
-                  )}>
-                    {priorityLabel}
-                  </span>
-                </div>
               </div>
 
               {/* Right Column: Product Name + QR Code + Mfg/Exp Dates + Clickable Detail Link */}
@@ -338,13 +322,7 @@ View Details: ${sampleDetailUrl}`;
         </div>
 
         {/* Modal Bottom Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-200">
-          <div className="text-xs text-slate-500 flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            <span>Ready for thermal label printing & container attachment.</span>
-          </div>
-
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
             <Button
               type="button"
               variant="outline"
@@ -394,7 +372,6 @@ View Details: ${sampleDetailUrl}`;
             </Button>
           </div>
         </div>
-      </div>
     </Modal>
   );
 }
