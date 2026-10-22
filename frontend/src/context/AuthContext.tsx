@@ -51,7 +51,7 @@ export const DEMO_USERS = [
     name: 'Dr. Tariq Mahmood',
     title: 'QC Director / Administrator',
     desc: 'Master administrative access across the facility',
-    labBadge: 'Master Administrator',
+    labBadge: 'Administrator',
     labId: 'all',
   },
   {
