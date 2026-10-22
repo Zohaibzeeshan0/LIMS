@@ -102,6 +102,22 @@ function LoginFormContent() {
     setErrorMessage(null);
   };
 
+  const fillAndLogin = async (id: string, pass: string) => {
+    setValue('identifier', id, { shouldValidate: true });
+    setValue('password', pass, { shouldValidate: true });
+    setErrorMessage(null);
+    setIsSubmitting(true);
+    try {
+      await login(id, pass, true);
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const msg = err.message || 'Authentication failed. Please check your credentials.';
+      setErrorMessage(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F0F5FA] flex flex-col justify-between font-sans">
       <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -373,16 +389,16 @@ function LoginFormContent() {
                 )}
               </button>
 
-              {/* Quick Persona Switcher for easy testing */}
+              {/* Static Laboratory Credentials Panel (Strict RBAC) */}
               <div className="pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowDemoProfiles(!showDemoProfiles)}
-                  className="w-full flex items-center justify-between text-[11px] font-semibold text-slate-500 hover:text-slate-800 py-1 transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-between text-[11px] font-bold text-slate-700 hover:text-[#0066FF] py-1 transition-colors cursor-pointer"
                 >
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5 text-[#0066FF]" />
-                    <span>Quick-Select Personnel (Testing Roles)</span>
+                    <span>Quick Login Credentials</span>
                   </span>
                   {showDemoProfiles ? (
                     <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
@@ -392,24 +408,81 @@ function LoginFormContent() {
                 </button>
 
                 {showDemoProfiles && (
-                  <div className="mt-2.5 grid grid-cols-2 gap-1.5 animate-in fade-in duration-200">
-                    {DEMO_USERS.map((demo) => (
-                      <button
-                        key={demo.email}
-                        type="button"
-                        onClick={() => fillCredentials(demo.email, (demo as any).password || 'Password@123')}
-                        className="p-2.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-blue-50/50 hover:border-blue-300 text-left transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[9px] font-bold text-[#0066FF] uppercase">
-                            {(demo as any).labBadge || demo.role.replace(/_/g, ' ')}
-                          </span>
-                        </div>
-                        <div className="text-[11px] font-semibold text-slate-800 leading-tight truncate">
-                          {demo.name}
-                        </div>
-                      </button>
-                    ))}
+                  <div className="mt-2.5 space-y-1.5 animate-in fade-in duration-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {DEMO_USERS.map((demo) => {
+                        const targetUser = demo.username || demo.email;
+                        const targetPass = (demo as any).password || 'Password@123';
+                        const isCeph = (demo as any).labId === 'cephalosporin';
+                        const isPen = (demo as any).labId === 'penicillin';
+                        const isGen = (demo as any).labId === 'general';
+                        const isAdmin = (demo as any).labId === 'all';
+
+                        return (
+                          <div
+                            key={demo.email}
+                            className="p-2.5 rounded-xl border border-slate-200/90 bg-white hover:border-blue-400 hover:shadow-xs transition-all flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-1 mb-1">
+                                <span
+                                  className={cn(
+                                    'text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider',
+                                    isCeph
+                                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                      : isPen
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                      : isGen
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : 'bg-purple-50 text-purple-700 border border-purple-200'
+                                  )}
+                                >
+                                  {(demo as any).labBadge}
+                                </span>
+                                {isAdmin ? (
+                                  <span className="text-[9px] font-bold text-purple-600">All Labs</span>
+                                ) : (
+                                  <span className="text-[9px] font-bold text-slate-500">1 Lab Only</span>
+                                )}
+                              </div>
+
+                              <div className="text-[11px] font-bold text-slate-800 leading-tight">
+                                {demo.name}
+                              </div>
+
+                              <div className="mt-1 space-y-0.5 text-[10px] text-slate-600 font-mono bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-slate-400 font-sans">User:</span>
+                                  <strong className="text-slate-900">{targetUser}</strong>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-slate-400 font-sans">Pass:</span>
+                                  <strong className="text-slate-900">{targetPass}</strong>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => fillCredentials(targetUser, targetPass)}
+                                className="flex-1 py-1 px-2 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors text-center cursor-pointer"
+                              >
+                                Fill Form
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isSubmitting || authLoading}
+                                onClick={() => fillAndLogin(targetUser, targetPass)}
+                                className="flex-1 py-1 px-2 rounded-lg text-[10px] font-bold bg-[#0066FF] hover:bg-[#0055D4] text-white transition-colors text-center shadow-2xs cursor-pointer"
+                              >
+                                1-Click Login
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
