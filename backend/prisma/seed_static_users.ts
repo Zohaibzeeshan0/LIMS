@@ -10,6 +10,32 @@ async function main() {
   const analystPasswordHash = await bcrypt.hash('Password@123', salt);
   const adminPasswordHash = await bcrypt.hash('Admin@1234', salt);
 
+  // Ensure Laboratories exist
+  const existingLabs = await prisma.laboratory.findMany();
+  console.log('Current Labs in DB:', existingLabs);
+
+  const genExisting = existingLabs.find((l) => l.code === 'GEN' || l.code === 'GL' || l.name.toLowerCase().includes('general'));
+  if (genExisting) {
+    await prisma.laboratory.update({ where: { id: genExisting.id }, data: { name: 'General Lab', code: 'GEN', isActive: true } });
+  } else {
+    await prisma.laboratory.create({ data: { name: 'General Lab', code: 'GEN', isActive: true } });
+  }
+
+  const penExisting = existingLabs.find((l) => l.code === 'PEN' || l.code === 'PL' || l.name.toLowerCase().includes('penicillin'));
+  if (penExisting) {
+    await prisma.laboratory.update({ where: { id: penExisting.id }, data: { name: 'Penicillin Lab', code: 'PEN', isActive: true } });
+  } else {
+    await prisma.laboratory.create({ data: { name: 'Penicillin Lab', code: 'PEN', isActive: true } });
+  }
+
+  const cephExisting = existingLabs.find((l) => l.code === 'CEPH' || l.code === 'CP' || l.code === 'SAF' || l.code === 'SEF' || l.name.toLowerCase().includes('ceph') || l.name.toLowerCase().includes('saf'));
+  if (cephExisting) {
+    await prisma.laboratory.update({ where: { id: cephExisting.id }, data: { name: 'Cephalosporin Lab', code: 'CEPH', isActive: true } });
+  } else {
+    await prisma.laboratory.create({ data: { name: 'Cephalosporin Lab', code: 'CEPH', isActive: true } });
+  }
+  console.log('✓ Configured Laboratories: General Lab (GEN), Penicillin Lab (PEN), Cephalosporin Lab (CEPH)');
+
   // 1. Cephalosporin Lab Static User: ceph.analyst
   const cephUser = await prisma.user.upsert({
     where: { email: 'ceph.analyst@citypharma.com' },

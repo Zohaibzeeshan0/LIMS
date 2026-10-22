@@ -28,7 +28,23 @@ export const LABORATORIES = [
     name: 'General Lab',
     shortLabel: 'General Lab',
     code: 'GENERAL',
-    href: '/samples',
+    href: '/samples?lab=general',
+    icon: FlaskConical,
+  },
+  {
+    id: 'penicillin',
+    name: 'Penicillin Lab',
+    shortLabel: 'Penicillin Lab',
+    code: 'PENICILLIN',
+    href: '/samples?lab=penicillin',
+    icon: FlaskConical,
+  },
+  {
+    id: 'cephalosporin',
+    name: 'Cephalosporin Lab',
+    shortLabel: 'Cephalosporin Lab',
+    code: 'CEPHALOSPORIN',
+    href: '/samples?lab=cephalosporin',
     icon: FlaskConical,
   },
 ];
@@ -43,8 +59,24 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
   const isOnSamples = pathname.startsWith('/samples');
   const [isSamplingExpanded, setIsSamplingExpanded] = useState(true);
 
-  const visibleLaboratories = LABORATORIES;
-  const labBadgeLabel = 'General Lab';
+  const userAccess = getUserLabAccess(user);
+  const visibleLaboratories = React.useMemo(() => {
+    if (userAccess === 'ALL') return LABORATORIES;
+    return LABORATORIES.filter((l) => l.code === userAccess);
+  }, [userAccess]);
+
+  const activeLabParam =
+    searchParams.get('lab')?.toLowerCase() ||
+    (userAccess === 'ALL' ? 'general' : userAccess.toLowerCase());
+
+  const labBadgeLabel =
+    userAccess === 'ALL'
+      ? 'All Labs'
+      : userAccess === 'PENICILLIN'
+      ? 'Penicillin Lab'
+      : userAccess === 'CEPHALOSPORIN'
+      ? 'Cephalosporin Lab'
+      : 'General Lab';
 
   // Sidebar navigation items
   const menuItems: Array<{
@@ -182,29 +214,35 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
                   </div>
 
                   {/* Laboratory Sub-items (Restricted users only see their assigned laboratory) */}
-                  {/* Laboratory Sub-item (General Lab) */}
                   {isSamplingExpanded && (
                     <div className="pl-3.5 space-y-1 py-1 border-l border-white/15 ml-4 animate-in fade-in duration-150">
-                      <Link
-                        href="/samples"
-                        onClick={() => onClose && onClose()}
-                        className={cn(
-                          'group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors',
-                          isOnSamples
-                            ? 'bg-white/20 text-white font-bold border border-white/25 shadow-xs'
-                            : 'text-slate-300 hover:text-white hover:bg-white/10'
-                        )}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <FlaskConical
+                      {visibleLaboratories.map((lab) => {
+                        const isThisLabActive = isOnSamples && activeLabParam === lab.id;
+                        const LabIcon = lab.icon;
+                        return (
+                          <Link
+                            key={lab.id}
+                            href={lab.href}
+                            onClick={() => onClose && onClose()}
                             className={cn(
-                              'h-3.5 w-3.5 shrink-0',
-                              isOnSamples ? 'text-blue-300' : 'text-slate-400 group-hover:text-blue-300'
+                              'group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors',
+                              isThisLabActive
+                                ? 'bg-white/20 text-white font-bold border border-white/25 shadow-xs'
+                                : 'text-slate-300 hover:text-white hover:bg-white/10'
                             )}
-                          />
-                          <span className="truncate">General Lab</span>
-                        </div>
-                      </Link>
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <LabIcon
+                                className={cn(
+                                  'h-3.5 w-3.5 shrink-0',
+                                  isThisLabActive ? 'text-blue-300' : 'text-slate-400 group-hover:text-blue-300'
+                                )}
+                              />
+                              <span className="truncate">{lab.name}</span>
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

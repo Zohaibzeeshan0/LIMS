@@ -1180,7 +1180,7 @@ export default function DashboardPage() {
               </button>
 
               <button
-                onClick={() => router.push('/samples')}
+                onClick={() => router.push('/samples?lab=general')}
                 className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-sky-500 hover:bg-sky-50/60 transition-all text-center group shadow-2xs cursor-pointer"
               >
                 <div className="p-2 rounded-xl bg-sky-100/60 text-sky-600 group-hover:scale-105 transition-transform">
@@ -1189,7 +1189,33 @@ export default function DashboardPage() {
                 <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
                   General Lab
                 </span>
-                <span className="text-[9px] text-slate-400 mt-0.5">All Samples</span>
+                <span className="text-[9px] text-slate-400 mt-0.5">GL Samples</span>
+              </button>
+
+              <button
+                onClick={() => router.push('/samples?lab=penicillin')}
+                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-amber-500 hover:bg-amber-50/60 transition-all text-center group shadow-2xs cursor-pointer"
+              >
+                <div className="p-2 rounded-xl bg-amber-100/60 text-amber-600 group-hover:scale-105 transition-transform">
+                  <FlaskConical className="h-5 w-5 stroke-[1.8]" />
+                </div>
+                <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
+                  Penicillin Lab
+                </span>
+                <span className="text-[9px] text-slate-400 mt-0.5">PEN Samples</span>
+              </button>
+
+              <button
+                onClick={() => router.push('/samples?lab=cephalosporin')}
+                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-indigo-500 hover:bg-indigo-50/60 transition-all text-center group shadow-2xs cursor-pointer"
+              >
+                <div className="p-2 rounded-xl bg-indigo-100/60 text-indigo-600 group-hover:scale-105 transition-transform">
+                  <FlaskConical className="h-5 w-5 stroke-[1.8]" />
+                </div>
+                <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
+                  Cephalosporin Lab
+                </span>
+                <span className="text-[9px] text-slate-400 mt-0.5">CEPH Samples</span>
               </button>
 
             </div>

@@ -21,8 +21,16 @@ export class SamplesService {
     stageOrType?: string,
     explicitSection?: string
   ): Promise<string> {
-    // Single Laboratory in system: General Lab (GL)
-    const labPrefix = 'GL';
+    // 1. Determine Laboratory Prefix (GL = General, PEN = Penicillin, CEPH = Cephalosporin)
+    let labPrefix = 'GL';
+    const rawLab = (laboratory || '').toString().toUpperCase();
+    if (rawLab === 'PENICILLIN' || rawLab === 'PEN' || rawLab === 'PL') {
+      labPrefix = 'PEN';
+    } else if (rawLab === 'CEPHALOSPORIN' || rawLab === 'CEPH' || rawLab === 'CP' || rawLab === 'SAF' || rawLab === 'SEF') {
+      labPrefix = 'CEPH';
+    } else {
+      labPrefix = 'GL';
+    }
 
     let secPrefix = 'SB';
     const s = ((explicitSection || stageOrType) || '').toString().toLowerCase();
@@ -181,6 +189,11 @@ export class SamplesService {
           recordNumber,
           sampleId,
           laboratoryId: lab?.id || null,
+          laboratoryType: (lab?.code === 'PEN'
+            ? 'PENICILLIN'
+            : lab?.code === 'CEPH' || lab?.code === 'CP' || lab?.code === 'SAF'
+            ? 'CEPHALOSPORIN'
+            : 'GENERAL') as any,
           nomenclature,
           stageType,
           quantity,

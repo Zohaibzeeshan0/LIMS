@@ -61,11 +61,29 @@ import {
 const LAB_TABS = [
   {
     id: 'general',
-    legacyIds: ['gen', 'gl', 'sef', 'saf', 'cp', 'cephalosporin', 'pen', 'pl', 'penicillin', 'all'],
+    legacyIds: ['gen', 'gl'],
     key: 'GENERAL' as const,
     name: 'General Lab',
     shortLabel: 'General Lab',
     heading: 'Sampling / General Lab',
+    icon: FlaskConical,
+  },
+  {
+    id: 'penicillin',
+    legacyIds: ['pen', 'pl'],
+    key: 'PENICILLIN' as const,
+    name: 'Penicillin Lab',
+    shortLabel: 'Penicillin Lab',
+    heading: 'Sampling / Penicillin Lab',
+    icon: FlaskConical,
+  },
+  {
+    id: 'cephalosporin',
+    legacyIds: ['ceph', 'cp', 'saf', 'sef'],
+    key: 'CEPHALOSPORIN' as const,
+    name: 'Cephalosporin Lab',
+    shortLabel: 'Cephalosporin Lab',
+    heading: 'Sampling / Cephalosporin Lab',
     icon: FlaskConical,
   },
 ];
@@ -80,13 +98,26 @@ function SamplesPageInner() {
   // Non-admin staff (QA Manager, QC Analyst, Lab Technician, Auditor) can enter new data only
   const canEdit = user?.role === 'ADMIN';
 
-  // Single Laboratory System: General Lab
+  // 3-Laboratory System: General Lab, Penicillin Lab, Cephalosporin Lab
   const userLabAccess = useMemo(() => getUserLabAccess(user), [user]);
-  const isRestrictedToLab = false;
-  const authorizedLabId = 'general';
-  const labParam = 'general';
+  const isRestrictedToLab = userLabAccess !== 'ALL';
+  const authorizedLabId =
+    userLabAccess === 'PENICILLIN'
+      ? 'penicillin'
+      : userLabAccess === 'CEPHALOSPORIN'
+      ? 'cephalosporin'
+      : 'general';
+
+  const rawLabParam = searchParams.get('lab')?.toLowerCase();
+  const labParam = isRestrictedToLab ? authorizedLabId : (rawLabParam || 'general');
   const isAllLabs = false;
-  const activeLab = LAB_TABS[0];
+
+  const activeLab = useMemo(() => {
+    const found = LAB_TABS.find(
+      (l) => l.id === labParam || l.legacyIds.includes(labParam) || l.key.toLowerCase() === labParam
+    );
+    return found || LAB_TABS[0];
+  }, [labParam]);
 
   // Intercept unauthorized lab navigation via URL query parameters
   React.useEffect(() => {
@@ -447,6 +478,52 @@ function SamplesPageInner() {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* 3 Laboratory Selector Tabs (General Lab, Penicillin Lab, Cephalosporin Lab) */}
+      {!isRestrictedToLab ? (
+        <div className="bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Select Analytical Laboratory
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              Active: {activeLab.name}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {LAB_TABS.map((tab) => {
+              const isSelected = activeLab.id === tab.id;
+              const TabIcon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => selectLaboratory(tab.id)}
+                  className={cn(
+                    'flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer',
+                    isSelected
+                      ? 'bg-[#0066FF] text-white shadow-md shadow-blue-500/20'
+                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/80'
+                  )}
+                >
+                  <TabIcon className={cn('h-4 w-4', isSelected ? 'text-white' : 'text-slate-500')} />
+                  <span>{tab.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-blue-50 border border-blue-200 px-4 py-3 rounded-2xl flex items-center justify-between text-xs text-blue-900 font-semibold shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <FlaskConical className="h-4 w-4 text-blue-600" />
+            <span>Assigned Laboratory: <strong className="font-bold">{activeLab.name}</strong></span>
+          </div>
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-600 text-white uppercase tracking-wider">
+            Assigned Personnel
+          </span>
         </div>
       )}
 

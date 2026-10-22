@@ -52,7 +52,7 @@ export function SampleRoutingChitModal({
   const destinationLab = chitData?.destinationLab;
   const destLabFormatted =
     !destinationLab || destinationLab === 'PENDING_WORKFLOW'
-      ? 'General Lab Intake Desk (Pending Route)'
+      ? `${sampleCode.startsWith('PEN/') ? 'Penicillin' : sampleCode.startsWith('CEPH/') ? 'Cephalosporin' : 'General'} Lab Intake Desk (Pending Route)`
       : destinationLab === 'CHEMICAL'
       ? 'Chemical Testing Laboratory'
       : destinationLab === 'MICROBIOLOGY'
@@ -93,7 +93,7 @@ Routed To: ${destLabFormatted}
 Sampling Date: ${samplingDateStr}
 Submission Date: ${submissionDateStr}
 Status: ${sample.status || 'SUBMITTED'}
-Facility: General Laboratory
+Facility: ${sampleCode.startsWith('PEN/') ? 'Penicillin Laboratory' : sampleCode.startsWith('CEPH/') ? 'Cephalosporin Laboratory' : 'General Laboratory'}
 ==============================
 View Details: ${sampleDetailUrl}`;
 
