@@ -55,7 +55,7 @@ const sampleFormSchema = z
       .string()
       .min(3, 'Nomenclature / Material name must be at least 3 characters')
       .max(255, 'Nomenclature cannot exceed 255 characters'),
-    idGenerationPolicy: z.enum(['AUTO', 'MANUAL']),
+    idGenerationPolicy: z.enum(['AUTO', 'MANUAL']).default('AUTO').optional(),
     customSampleId: z.string().optional(),
     sampleType: z.string().min(1, 'Stage / Type is required'),
     customStage: z.string().optional(),
@@ -108,17 +108,6 @@ const sampleFormSchema = z
           code: z.ZodIssueCode.custom,
           message: 'Please specify custom unit when "Other" is selected',
           path: ['customUnit'],
-        });
-      }
-    }
-
-    // 3. If Manual ID generation policy is chosen, customSampleId is required and must follow format
-    if (data.idGenerationPolicy === 'MANUAL') {
-      if (!data.customSampleId || data.customSampleId.trim().length < 3) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Sample ID is required when manual entry policy is selected (min 3 chars)',
-          path: ['customSampleId'],
         });
       }
     }
@@ -288,7 +277,7 @@ export function NewSampleModal({
         section: selectedSection,
         stageType: watchedSampleType,
       }),
-    enabled: isOpen && watchedPolicy === 'AUTO',
+    enabled: isOpen,
     staleTime: 2000,
   });
 
@@ -304,8 +293,7 @@ export function NewSampleModal({
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
 
-  const activeSampleCode =
-    watchedPolicy === 'MANUAL' && watchedCustomId ? watchedCustomId : nextAutoSampleCode;
+  const activeSampleCode = nextAutoSampleCode;
   const watchedNomenclature = watch('nomenclature');
   const watchedLotNumber = watch('lotNumber');
   const watchedMfgDate = watch('mfgDate');
@@ -366,9 +354,8 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
     if (data.expDate) {
       setValue('expDate', data.expDate.slice(0, 10), { shouldValidate: true, shouldDirty: true });
     }
-    if (data.sampleCode) {
-      setValue('idGenerationPolicy', 'MANUAL', { shouldDirty: true });
-      setValue('customSampleId', data.sampleCode, { shouldValidate: true, shouldDirty: true });
+    if (data.sampleCode && !data.barcode) {
+      setScannedBarcode(data.sampleCode);
     }
     if (data.stageType) {
       setValue('sampleType', data.stageType, { shouldValidate: true, shouldDirty: true });
@@ -468,12 +455,6 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
   const onSubmit = (formData: SampleFormValues) => {
     setSubmitError(null);
 
-    // Prevent submission if duplicate ID was detected
-    if (formData.idGenerationPolicy === 'MANUAL' && idCheckStatus === 'duplicate') {
-      setSubmitError('Cannot submit: The specified Sample ID already exists in the registry.');
-      return;
-    }
-
     const finalStage =
       formData.sampleType === 'Other'
         ? (formData.customStage?.trim() || 'Other')
@@ -498,10 +479,7 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
       materialName: formData.nomenclature.trim(),
       stageType: finalStageWithTag,
       sampleType: finalStageWithTag,
-      sampleCode:
-        formData.idGenerationPolicy === 'MANUAL' && formData.customSampleId?.trim()
-          ? formData.customSampleId.trim()
-          : undefined, // Backend will auto-generate if undefined
+      sampleCode: undefined, // Backend will auto-generate sequential ID
       sampleQty: Number(formData.sampleQty),
       unit: finalUnit.trim(),
       batchId: formData.batchId || undefined,
@@ -692,97 +670,21 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
               )}
             </div>
 
-            {/* Sample ID Generation Policy & Unique ID */}
+            {/* Sample ID (Auto-Generated) */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-800 flex items-center gap-1">
-                  <span>Sample ID Policy <span className="text-rose-500">*</span></span>
-                </label>
-                <div className="flex items-center gap-1 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('idGenerationPolicy', 'AUTO', { shouldDirty: true });
-                      setIdCheckStatus('idle');
-                      setDuplicateMessage(null);
-                    }}
-                    className={cn(
-                      'px-2 py-0.5 rounded text-[10px] font-semibold cursor-pointer border',
-                      watchedPolicy === 'AUTO'
-                        ? 'bg-navy-900 text-white border-navy-900'
-                        : 'bg-white text-slate-600 border-slate-200'
-                    )}
-                  >
-                    Auto-Generate
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setValue('idGenerationPolicy', 'MANUAL', { shouldDirty: true })}
-                    className={cn(
-                      'px-2 py-0.5 rounded text-[10px] font-semibold cursor-pointer border',
-                      watchedPolicy === 'MANUAL'
-                        ? 'bg-navy-900 text-white border-navy-900'
-                        : 'bg-white text-slate-600 border-slate-200'
-                    )}
-                  >
-                    Manual Entry
-                  </button>
-                </div>
+              <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
+                <span>Sample ID <span className="text-rose-500">*</span></span>
+              </label>
+
+              <div className="px-3 py-2 text-xs font-mono rounded-lg border border-blue-200 bg-blue-50/70 text-blue-950 flex items-center justify-between">
+                <span className="font-extrabold flex items-center gap-1.5 text-blue-900 text-sm">
+                  <Sparkles className="h-4 w-4 text-blue-600" />
+                  <span>{nextAutoSampleCode}</span>
+                </span>
+                <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-sans font-semibold border border-blue-200">
+                  Auto-Generated
+                </span>
               </div>
-
-              {watchedPolicy === 'AUTO' ? (
-                <div className="px-3 py-2 text-xs font-mono rounded-lg border border-blue-200 bg-blue-50/70 text-blue-950 flex items-center justify-between">
-                  <span className="font-bold flex items-center gap-1.5 text-blue-900">
-                    <Sparkles className="h-3.5 w-3.5 text-blue-600" />
-                    <span>Auto: {nextAutoSampleCode}</span>
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-sans font-medium">
-                      Auto-Sequential
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      {...register('customSampleId')}
-                      className={cn(
-                        'w-full px-3 py-2 text-xs font-mono rounded-lg border outline-none pr-8',
-                        idCheckStatus === 'duplicate'
-                          ? 'border-rose-400 focus:ring-1 focus:ring-rose-500 bg-rose-50/50'
-                          : idCheckStatus === 'available'
-                          ? 'border-emerald-400 focus:ring-1 focus:ring-emerald-500 bg-emerald-50/30'
-                          : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900'
-                      )}
-                    />
-                    <div className="absolute right-2.5 top-2.5">
-                      {idCheckStatus === 'checking' && (
-                        <div className="h-3 w-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                      )}
-                      {idCheckStatus === 'available' && (
-                        <Check className="h-3.5 w-3.5 text-emerald-600 font-bold" />
-                      )}
-                      {idCheckStatus === 'duplicate' && (
-                        <X className="h-3.5 w-3.5 text-rose-600 font-bold" />
-                      )}
-                    </div>
-                  </div>
-
-                  {duplicateMessage && (
-                    <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1 font-medium">
-                      <AlertCircle className="h-3 w-3 shrink-0" />
-                      <span>{duplicateMessage}</span>
-                    </p>
-                  )}
-                  {errors.customSampleId && (
-                    <p className="text-[11px] text-rose-600 mt-1">
-                      {errors.customSampleId.message}
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 
