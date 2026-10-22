@@ -172,16 +172,6 @@ function LoginFormContent() {
               alt="Quality Control Scientist in Pharmaceutical Laboratory"
               className="w-full h-full object-cover object-center"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent flex items-end p-5">
-              <div className="text-white">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-600/90 text-white px-2 py-0.5 rounded-full">
-                  ISO 17025 & cGMP Suite
-                </span>
-                <p className="text-xs sm:text-sm font-semibold text-white/95 mt-1">
-                  High-Precision Chromatography, Monograph Testing & Sample Custody
-                </p>
-              </div>
-            </div>
           </div>
 
           {/* Bottom 4 Assurance Badges */}
