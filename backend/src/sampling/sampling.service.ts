@@ -14,18 +14,10 @@ export class SamplingService {
     stageOrType?: string,
     explicitSection?: string
   ): Promise<string> {
-    // 1. Determine Laboratory Prefix (GL = General, PEN = Penicillin, CEPH = Cephalosporin)
-    let labPrefix = 'GL';
-    const rawLab = (laboratory || '').toString().toUpperCase();
-    if (rawLab === 'PENICILLIN' || rawLab === 'PEN' || rawLab === 'PL') {
-      labPrefix = 'PEN';
-    } else if (rawLab === 'CEPHALOSPORIN' || rawLab === 'CEPH' || rawLab === 'CP' || rawLab === 'SAF' || rawLab === 'SEF') {
-      labPrefix = 'CEPH';
-    } else {
-      labPrefix = 'GL';
-    }
+    // Single Laboratory in system: General Lab (GL)
+    const labPrefix = 'GL';
 
-    // 2. Determine Section Prefix (SB = Semi Basics, F = Formulation)
+    // 2. Determine Section Prefix (SB = Semi Basics / Semi Basic, F = Formulation)
     let secPrefix = 'SB';
     const s = ((explicitSection || stageOrType) || '').toString().toLowerCase();
 
@@ -97,26 +89,8 @@ export class SamplingService {
     return `A-${sequence}`;
   }
 
-  getUserAssignedLab(user?: any): 'GENERAL' | 'PENICILLIN' | 'CEPHALOSPORIN' | 'ALL' {
-    if (!user) return 'ALL';
-    const role = user.role || '';
-    if (role === 'ADMIN' || role === 'QA_MANAGER' || role === 'AUDITOR') {
-      return 'ALL';
-    }
-    const dept = (user.department || '').toLowerCase();
-    const email = (user.email || '').toLowerCase();
-    const uname = (user.username || '').toLowerCase();
-
-    if (dept.includes('penicillin') || email.includes('pen') || uname.includes('pen')) {
-      return 'PENICILLIN';
-    }
-    if (dept.includes('cephalosporin') || dept.includes('ceph') || email.includes('ceph') || uname.includes('ceph')) {
-      return 'CEPHALOSPORIN';
-    }
-    if (dept.includes('general') || email.includes('gen') || uname.includes('gen')) {
-      return 'GENERAL';
-    }
-    return 'ALL';
+  getUserAssignedLab(user?: any): 'GENERAL' | 'ALL' {
+    return 'GENERAL';
   }
 
   async checkSampleIdAvailability(sampleCode: string) {
@@ -134,20 +108,9 @@ export class SamplingService {
   async create(createSampleDto: CreateSampleDto, user: any) {
     const userAssignedLab = this.getUserAssignedLab(user);
     const rawReqLab = createSampleDto.laboratory ? (createSampleDto.laboratory as string).toUpperCase() : undefined;
-    let targetLab: 'GENERAL' | 'PENICILLIN' | 'CEPHALOSPORIN' = 'GENERAL';
-    if (rawReqLab === 'PENICILLIN' || rawReqLab === 'PEN' || rawReqLab === 'PL') {
-      targetLab = 'PENICILLIN';
-    } else if (rawReqLab === 'CEPHALOSPORIN' || rawReqLab === 'CEPH' || rawReqLab === 'CP' || rawReqLab === 'SAF' || rawReqLab === 'SEF') {
-      targetLab = 'CEPHALOSPORIN';
-    } else {
-      targetLab = 'GENERAL';
-    }
+    const requestedLab = (rawReqLab === 'SEF' || rawReqLab === 'SAF' || rawReqLab === 'CP' || rawReqLab?.includes('CEPH')) ? 'SAF' : (rawReqLab || 'GENERAL');
 
-    if (userAssignedLab !== 'ALL') {
-      targetLab = userAssignedLab;
-    }
-
-    createSampleDto.laboratory = targetLab as any;
+    createSampleDto.laboratory = 'GENERAL' as any;
 
     let sampleCode = createSampleDto.sampleCode?.trim();
     if (sampleCode) {
@@ -216,7 +179,7 @@ export class SamplingService {
           unit: createSampleDto.unit,
           priority: (createSampleDto.priority as any) || 'ROUTINE',
           storageCondition: createSampleDto.storageCondition || 'Controlled Room Temp 20-25°C',
-          laboratoryType: targetLab as any,
+          laboratoryType: 'GENERAL' as any,
           chainOfCustody: createSampleDto.chainOfCustody || `Sample logged by ${user.fullName} (${user.employeeId})`,
           remarks: createSampleDto.remarks,
           accessionedById: user.id,
@@ -335,14 +298,14 @@ export class SamplingService {
       if (rawLab) {
         const u = rawLab.toString().toUpperCase();
         if (u === 'SEF' || u === 'SAF' || u === 'CP' || u.includes('CEPH')) {
-          lab = 'CEPHALOSPORIN';
+          lab = 'SAF';
         } else if (u === 'PENICILLIN' || u === 'PEN' || u === 'PL') {
           lab = 'PENICILLIN';
         } else if (u === 'GENERAL' || u === 'GEN' || u === 'GL') {
           lab = 'GENERAL';
         }
       }
-      if (lab && ['SAF', 'PENICILLIN', 'GENERAL', 'CEPHALOSPORIN'].includes(lab)) {
+      if (lab && ['SAF', 'PENICILLIN', 'GENERAL'].includes(lab)) {
         where.laboratoryType = lab as any;
       }
     }
@@ -719,14 +682,14 @@ export class SamplingService {
     const rawLab = targetLab?.toUpperCase();
     const normalizedLab =
       (rawLab === 'SEF' || rawLab === 'SAF' || rawLab === 'CP' || rawLab?.includes('CEPH'))
-        ? 'CEPHALOSPORIN'
+        ? 'SAF'
         : (rawLab === 'PENICILLIN' || rawLab === 'PL' || rawLab === 'PEN')
         ? 'PENICILLIN'
         : (rawLab === 'GENERAL' || rawLab === 'GL' || rawLab === 'GEN')
         ? 'GENERAL'
         : undefined;
     const labCondition =
-      normalizedLab && ['SAF', 'PENICILLIN', 'GENERAL', 'CEPHALOSPORIN'].includes(normalizedLab)
+      normalizedLab && ['SAF', 'PENICILLIN', 'GENERAL'].includes(normalizedLab)
         ? { laboratoryType: normalizedLab as any }
         : {};
 
@@ -744,9 +707,7 @@ export class SamplingService {
       },
     });
 
-    const generalCount = await this.prisma.sample.count({ where: { laboratoryType: 'GENERAL' } });
-    const penicillinCount = await this.prisma.sample.count({ where: { laboratoryType: 'PENICILLIN' } });
-    const cephalosporinCount = await this.prisma.sample.count({ where: { laboratoryType: 'CEPHALOSPORIN' } });
+    const generalCount = await this.prisma.sample.count();
 
     const activeBatches = await this.prisma.batch.count({
       where: {
@@ -757,8 +718,6 @@ export class SamplingService {
 
     const byLab = {
       general: generalCount,
-      penicillin: penicillinCount,
-      cephalosporin: cephalosporinCount,
     };
 
     return {

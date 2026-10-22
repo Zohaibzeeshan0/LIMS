@@ -83,7 +83,6 @@ enum LaboratoryType {
   SAF
   PENICILLIN
   GENERAL
-  CEPHALOSPORIN
 }
 
 model Laboratory {

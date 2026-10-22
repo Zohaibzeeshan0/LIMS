@@ -66,30 +66,6 @@ export const DEMO_USERS = [
     labBadge: 'General Lab',
     labId: 'general',
   },
-  {
-    role: 'QC_ANALYST' as const,
-    username: 'pen.analyst',
-    email: 'pen.analyst@citypharma.com',
-    password: 'Password@123',
-    employeeId: 'EMP-PEN-02',
-    name: 'Penicillin Lab Analyst',
-    title: 'Penicillin Analyst',
-    desc: 'Quality Control Analyst for Penicillin Laboratory',
-    labBadge: 'Penicillin Lab',
-    labId: 'penicillin',
-  },
-  {
-    role: 'QC_ANALYST' as const,
-    username: 'ceph.analyst',
-    email: 'ceph.analyst@citypharma.com',
-    password: 'Password@123',
-    employeeId: 'EMP-CP-01',
-    name: 'Cephalosporin Lab Analyst',
-    title: 'Cephalosporin Analyst',
-    desc: 'Quality Control Analyst for Cephalosporin Laboratory',
-    labBadge: 'Cephalosporin Lab',
-    labId: 'cephalosporin',
-  },
 ];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

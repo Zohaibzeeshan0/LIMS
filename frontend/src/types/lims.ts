@@ -12,32 +12,14 @@ export type SampleStatus =
 
 export type Priority = 'ROUTINE' | 'URGENT' | 'STAT';
 
-export type LaboratoryType = 'GENERAL' | 'PENICILLIN' | 'CEPHALOSPORIN';
+export type LaboratoryType = 'GENERAL';
 
-export type LaboratoryAccess = 'GENERAL' | 'PENICILLIN' | 'CEPHALOSPORIN' | 'ALL';
+export type LaboratoryAccess = 'GENERAL' | 'ALL';
 
 export function getUserLabAccess(
-  user: { role?: string; department?: string; email?: string; username?: string } | null | undefined
+  _user: { role?: string; department?: string; email?: string; username?: string } | null | undefined
 ): LaboratoryAccess {
-  if (!user) return 'ALL';
-  const role = user.role || '';
-  if (role === 'ADMIN' || role === 'QA_MANAGER' || role === 'AUDITOR') {
-    return 'ALL';
-  }
-  const dept = (user.department || '').toLowerCase();
-  const email = (user.email || '').toLowerCase();
-  const uname = (user.username || '').toLowerCase();
-
-  if (dept.includes('penicillin') || email.includes('pen') || uname.includes('pen')) {
-    return 'PENICILLIN';
-  }
-  if (dept.includes('cephalosporin') || dept.includes('ceph') || email.includes('ceph') || uname.includes('ceph') || dept.includes('saf')) {
-    return 'CEPHALOSPORIN';
-  }
-  if (dept.includes('general') || email.includes('gen') || uname.includes('gen')) {
-    return 'GENERAL';
-  }
-  return 'ALL';
+  return 'GENERAL';
 }
 
 export const SEMI_BASICS_STAGES = [

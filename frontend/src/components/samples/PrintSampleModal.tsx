@@ -40,13 +40,7 @@ export function PrintSampleModal({ isOpen, onClose, sample }: PrintSampleModalPr
     window.print();
   };
 
-  const sCode = sample.sampleCode || '';
-  const sLab = (sample.laboratory || sample.laboratoryType || '').toString().toUpperCase();
-  const labName = sLab.includes('PEN') || sCode.startsWith('PEN/')
-    ? 'Penicillin Lab'
-    : sLab.includes('CEPH') || sLab.includes('CP') || sLab.includes('SAF') || sCode.startsWith('CEPH/')
-    ? 'Cephalosporin Lab'
-    : 'General Lab';
+  const labName = 'General Lab';
 
   return (
     <Modal

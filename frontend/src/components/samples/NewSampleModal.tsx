@@ -135,11 +135,8 @@ export function NewSampleModal({
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const userAccess = getUserLabAccess(user);
-  const isRestrictedToLab = userAccess !== 'ALL';
-  const effectiveLab = isRestrictedToLab
-    ? userAccess
-    : (defaultLaboratory || 'GENERAL').toUpperCase();
+  const isRestrictedToLab = false;
+  const effectiveLab = 'GENERAL';
 
   // Active lab section: Semi Base vs Formulation
   const [selectedSection, setSelectedSection] = useState<LabSection>(defaultSection);
@@ -247,8 +244,7 @@ export function NewSampleModal({
       const now = new Date();
       setLiveDate(now);
       setSelectedSection(defaultSection);
-      const targetLab = isRestrictedToLab ? userAccess : (defaultLaboratory || 'GENERAL').toUpperCase();
-      setValue('laboratory', targetLab);
+      setValue('laboratory', effectiveLab);
       setValue('sampleType', defaultSection === 'semi-base' ? SEMI_BASE_STAGES[0] : FORMULATION_STAGES[0]);
       setValue('samplingDateTime', getLocalISOString(now));
       if (user?.fullName) {
@@ -261,7 +257,7 @@ export function NewSampleModal({
       setIdCheckStatus('idle');
       setDuplicateMessage(null);
     }
-  }, [isOpen, defaultLaboratory, defaultSection, user, setValue, isRestrictedToLab, userAccess]);
+  }, [isOpen, defaultLaboratory, defaultSection, user, setValue, effectiveLab]);
 
   const watchedLab = watch('laboratory');
   const watchedPolicy = watch('idGenerationPolicy');
@@ -288,9 +284,8 @@ export function NewSampleModal({
   const nextAutoSampleCode = useMemo(() => {
     if (nextIdData?.sampleCode) return nextIdData.sampleCode;
     const sec = selectedSection === 'formulation' ? 'F' : 'SB';
-    const labCode = watchedLab === 'PENICILLIN' ? 'PEN' : watchedLab === 'CEPHALOSPORIN' ? 'CEPH' : 'GL';
-    return `${labCode}/${sec}-1`;
-  }, [nextIdData, selectedSection, watchedLab]);
+    return `GL/${sec}-1`;
+  }, [nextIdData, selectedSection]);
 
   // QR Code & Barcode Integration States
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
@@ -310,12 +305,6 @@ export function NewSampleModal({
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const mfgStr = watchedMfgDate ? formatDateTime(watchedMfgDate, 'dd/MM/yyyy') : 'N/A';
     const expStr = watchedExpDate ? formatDateTime(watchedExpDate, 'dd/MM/yyyy') : 'N/A';
-    const facilityName =
-      watchedLab === 'PENICILLIN'
-        ? 'Penicillin Laboratory'
-        : watchedLab === 'CEPHALOSPORIN'
-        ? 'Cephalosporin Laboratory'
-        : 'General Laboratory';
     const payload = `==============================
 CITI PHARMA • LIMS
 SAMPLE SLIP
@@ -326,7 +315,7 @@ Section: ${selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
 Batch / Lot: ${watchedLotNumber || 'N/A'}
 Mfg Date: ${mfgStr}
 Exp Date: ${expStr}
-Facility: ${facilityName}
+Facility: General Laboratory
 ==============================
 View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}`;
 
@@ -592,40 +581,16 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
             </div>
           )}
 
-          {/* Section 1: Laboratory Suite (General, Penicillin, Cephalosporin) */}
-          <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          {/* Section 1: Laboratory Suite (General Lab) */}
+          <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FlaskConical className="h-4 w-4 text-blue-600 shrink-0" />
+              <FlaskConical className="h-4 w-4 text-blue-600" />
               <span className="text-xs font-bold text-slate-800">Target Laboratory:</span>
-            </div>
-
-            {!isRestrictedToLab ? (
-              <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto">
-                {[
-                  { key: 'GENERAL', label: 'General Lab' },
-                  { key: 'PENICILLIN', label: 'Penicillin Lab' },
-                  { key: 'CEPHALOSPORIN', label: 'Cephalosporin Lab' },
-                ].map((l) => (
-                  <button
-                    key={l.key}
-                    type="button"
-                    onClick={() => setValue('laboratory', l.key, { shouldDirty: true })}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center',
-                      watchedLab === l.key
-                        ? 'bg-[#0066FF] text-white shadow-xs'
-                        : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-                    )}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <span className="text-xs font-bold text-blue-900 bg-blue-100/70 px-3 py-1 rounded-md border border-blue-200">
-                {watchedLab === 'PENICILLIN' ? 'Penicillin Lab' : watchedLab === 'CEPHALOSPORIN' ? 'Cephalosporin Lab' : 'General Lab'}
+              <span className="text-xs font-bold text-blue-900 bg-blue-100/70 px-2.5 py-0.5 rounded-md border border-blue-200">
+                General Lab
               </span>
-            )}
+            </div>
+            <span className="text-[11px] text-slate-400 font-medium">Standard Quality Control Suite</span>
           </div>
 
           {/* Section 2: Core Identifiers & Timing */}
@@ -1167,13 +1132,7 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
         lotNumber={watchedLotNumber || 'N/A'}
         mfgDate={watchedMfgDate}
         expDate={watchedExpDate}
-        laboratoryName={
-          watchedLab === 'PENICILLIN'
-            ? 'Penicillin Lab'
-            : watchedLab === 'CEPHALOSPORIN'
-            ? 'Cephalosporin Lab'
-            : 'General Lab'
-        }
+        laboratoryName="General Lab"
         sectionName={selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
         samplingDate={format(liveDate, 'dd MMM yyyy, hh:mm a')}
         sampleQty={watch('sampleQty')}
