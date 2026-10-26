@@ -44,47 +44,74 @@ import {
   Printer,
   Download,
   QrCode,
+  PackageCheck,
+  MapPin,
 } from 'lucide-react';
+import { scrollToFirstError } from '@/hooks/useFormErrorFocus';
 
-// Zod Validation Schema enforcing cGMP / 21 CFR Part 11 requirements
-const sampleFormSchema = z
+// Strict Zod Validation Schema enforcing cGMP / 21 CFR Part 11 requirements
+export const sampleFormSchema = z
   .object({
-    laboratory: z.string().default('GENERAL'),
-    samplingDateTime: z.string().min(1, 'Sampling Date & Time is required'),
+    laboratory: z.string().trim().min(1, 'Target Laboratory is required'),
+    samplingDateTime: z.string().trim().min(1, 'Sampling Date & Time is required'),
     nomenclature: z
-      .string()
-      .min(3, 'Nomenclature / Material name must be at least 3 characters')
+      .string({ required_error: 'Material Name / Code is required' })
+      .trim()
+      .min(1, 'Material Name / Code is required and cannot be empty')
       .max(255, 'Nomenclature cannot exceed 255 characters'),
     idGenerationPolicy: z.enum(['AUTO', 'MANUAL']).default('AUTO').optional(),
     customSampleId: z.string().optional(),
-    sampleType: z.string().min(1, 'Stage / Type is required'),
+    sampleType: z.string().trim().min(1, 'Stage / Sample Type is required'),
     customStage: z.string().optional(),
     sampleQty: z.coerce
-      .number({ invalid_type_error: 'Quantity must be a valid number' })
-      .positive('Quantity must be a positive number greater than 0'),
-    unit: z.string().min(1, 'Quantity unit is required'),
+      .number({ invalid_type_error: 'Received Quantity must be a valid number' })
+      .positive('Received Quantity must be greater than 0'),
+    unit: z.string().trim().min(1, 'Unit of measurement (UoM) is required'),
     customUnit: z.string().optional(),
     batchId: z.string().optional(),
-    lotNumber: z.string().optional(),
-    mfgDate: z.string().optional(),
-    expDate: z.string().optional(),
-    submittedBy: z.string().min(2, 'Submitted By name is required'),
-    receivedBy: z.string().min(2, 'Received By name is required'),
-    samplingLocation: z.string().min(2, 'Sampling location / suite is required'),
+    lotNumber: z
+      .string({ required_error: 'Batch / Lot Number is required' })
+      .trim()
+      .min(1, 'Batch / Lot Number is required and cannot be empty'),
+    mfgDate: z
+      .string({ required_error: 'Manufacturing Date is required' })
+      .trim()
+      .min(1, 'Manufacturing Date is required and cannot be empty'),
+    expDate: z
+      .string({ required_error: 'Expiry Date is required' })
+      .trim()
+      .min(1, 'Expiry Date is required and cannot be empty'),
+    submittedBy: z.string().trim().min(1, 'Submitted By name is required'),
+    receivedBy: z.string().trim().min(1, 'Received By name is required'),
+    samplingLocation: z.string().optional(),
     storageCondition: z.string().optional(),
-    priority: z.enum(['ROUTINE', 'URGENT', 'STAT']),
+    priority: z.enum(['ROUTINE', 'URGENT', 'STAT', 'STABILITY']),
     testSpecificationIds: z.array(z.string()).optional(),
     remarks: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    // 1. Never accept an expiry date earlier than the manufacturing date
+    // 1. Manufacturing Date & Expiry Date validation (expiry date must be strictly after manufacturing date)
     if (data.mfgDate && data.expDate) {
       const mfg = new Date(data.mfgDate);
       const exp = new Date(data.expDate);
-      if (exp < mfg) {
+      if (isNaN(mfg.getTime())) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'Expiry date cannot be earlier than manufacturing date',
+          message: 'Manufacturing Date is invalid',
+          path: ['mfgDate'],
+        });
+      }
+      if (isNaN(exp.getTime())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Expiry Date is invalid',
+          path: ['expDate'],
+        });
+      }
+      if (!isNaN(mfg.getTime()) && !isNaN(exp.getTime()) && exp <= mfg) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Expiry Date must be later than Manufacturing Date',
           path: ['expDate'],
         });
       }
@@ -135,8 +162,14 @@ export function NewSampleModal({
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const isRestrictedToLab = false;
-  const effectiveLab = 'GENERAL';
+  const userAccess = getUserLabAccess(user);
+  const isRestrictedToLab = userAccess !== 'ALL';
+  const effectiveLab = isRestrictedToLab
+    ? userAccess
+    : (defaultLaboratory || 'GENERAL').toUpperCase();
+
+  // Selected laboratory state (explicitly controls target laboratory)
+  const [selectedLab, setSelectedLab] = useState<string>(effectiveLab);
 
   // Active lab section: Semi Base vs Formulation
   const [selectedSection, setSelectedSection] = useState<LabSection>(defaultSection);
@@ -150,12 +183,17 @@ export function NewSampleModal({
 
   // Success / Failure notification banner states
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<{
     sampleCode: string;
     accessionNo?: string;
     nomenclature: string;
     laboratory: string;
   } | null>(null);
+
+  // Confirmation Review Modal state (Protected: Opens ONLY when all client validations pass 100%)
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [pendingConfirmationData, setPendingConfirmationData] = useState<SampleFormValues | null>(null);
 
   // Real-time duplicate ID check states
   const [idCheckStatus, setIdCheckStatus] = useState<
@@ -205,8 +243,8 @@ export function NewSampleModal({
     expDate: '',
     submittedBy: user?.fullName ? `${user.fullName} (${user.department || 'Production'})` : 'Production Line Lead',
     receivedBy: user?.fullName ? `${user.fullName} (QC Intake Officer)` : 'QC Accession Desk',
-    samplingLocation: 'Sampling Booth SB-01 (Grade D)',
-    storageCondition: 'Controlled Room Temp 20-25°C',
+    samplingLocation: '',
+    storageCondition: '',
     priority: 'ROUTINE',
     testSpecificationIds: [],
     remarks: '',
@@ -243,9 +281,12 @@ export function NewSampleModal({
       setIsLiveClock(true);
       const now = new Date();
       setLiveDate(now);
-      setSelectedSection(defaultSection);
-      setValue('laboratory', effectiveLab);
-      setValue('sampleType', defaultSection === 'semi-base' ? SEMI_BASE_STAGES[0] : FORMULATION_STAGES[0]);
+      const targetSec = defaultSection === 'formulation' ? 'formulation' : 'semi-base';
+      setSelectedSection(targetSec);
+      const targetLab = isRestrictedToLab ? userAccess : (defaultLaboratory || 'GENERAL').toUpperCase();
+      setSelectedLab(targetLab);
+      setValue('laboratory', targetLab, { shouldValidate: true, shouldDirty: true });
+      setValue('sampleType', targetSec === 'semi-base' ? SEMI_BASE_STAGES[0] : FORMULATION_STAGES[0], { shouldValidate: true });
       setValue('samplingDateTime', getLocalISOString(now));
       if (user?.fullName) {
         setValue('submittedBy', `${user.fullName} (${user.department || 'Production'})`);
@@ -257,7 +298,7 @@ export function NewSampleModal({
       setIdCheckStatus('idle');
       setDuplicateMessage(null);
     }
-  }, [isOpen, defaultLaboratory, defaultSection, user, setValue, effectiveLab]);
+  }, [isOpen, defaultLaboratory, defaultSection, user, setValue, isRestrictedToLab, userAccess]);
 
   const watchedLab = watch('laboratory');
   const watchedPolicy = watch('idGenerationPolicy');
@@ -270,10 +311,10 @@ export function NewSampleModal({
 
   // Fetch next sequential Sample ID preview based on active lab & section
   const { data: nextIdData } = useQuery({
-    queryKey: ['next-sample-id', watchedLab, selectedSection, watchedSampleType],
+    queryKey: ['next-sample-id', selectedLab, selectedSection, watchedSampleType],
     queryFn: () =>
       samplingService.getNextSampleId({
-        laboratory: watchedLab,
+        laboratory: selectedLab,
         section: selectedSection,
         stageType: watchedSampleType,
       }),
@@ -283,9 +324,11 @@ export function NewSampleModal({
 
   const nextAutoSampleCode = useMemo(() => {
     if (nextIdData?.sampleCode) return nextIdData.sampleCode;
+    const currentLab = selectedLab || watchedLab || 'GENERAL';
+    const prefix = currentLab === 'PENICILLIN' ? 'PEN' : currentLab === 'CEPHALOSPORIN' ? 'CEPH' : 'GL';
     const sec = selectedSection === 'formulation' ? 'F' : 'SB';
-    return `GL/${sec}-1`;
-  }, [nextIdData, selectedSection]);
+    return `${prefix}/${sec}-1`;
+  }, [nextIdData, selectedLab, watchedLab, selectedSection]);
 
   // QR Code & Barcode Integration States
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
@@ -305,6 +348,13 @@ export function NewSampleModal({
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const mfgStr = watchedMfgDate ? formatDateTime(watchedMfgDate, 'dd/MM/yyyy') : 'N/A';
     const expStr = watchedExpDate ? formatDateTime(watchedExpDate, 'dd/MM/yyyy') : 'N/A';
+    const currentLab = selectedLab || watchedLab || 'GENERAL';
+    const facilityName =
+      currentLab === 'PENICILLIN'
+        ? 'Penicillin Laboratory'
+        : currentLab === 'CEPHALOSPORIN'
+        ? 'Cephalosporin Laboratory'
+        : 'General Laboratory';
     const payload = `==============================
 CITI PHARMA • LIMS
 SAMPLE SLIP
@@ -315,7 +365,7 @@ Section: ${selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
 Batch / Lot: ${watchedLotNumber || 'N/A'}
 Mfg Date: ${mfgStr}
 Exp Date: ${expStr}
-Facility: General Laboratory
+Facility: ${facilityName}
 ==============================
 View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}`;
 
@@ -421,12 +471,14 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-audit-logs'] });
       queryClient.invalidateQueries({ queryKey: ['navbar-audit-alerts'] });
+      setIsConfirmModalOpen(false);
+      setPendingConfirmationData(null);
 
       setSuccessInfo({
         sampleCode: newSample.sampleCode,
         accessionNo: newSample.accessionNo,
         nomenclature: newSample.nomenclature || newSample.materialName,
-        laboratory: newSample.laboratory || watchedLab,
+        laboratory: newSample.laboratory || newSample.laboratoryType || selectedLab,
       });
 
       if (onSampleCreated) {
@@ -448,50 +500,79 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
         err?.message ||
         'Failed to save sampling record to PostgreSQL database.';
       setSubmitError(Array.isArray(msg) ? msg.join(', ') : msg);
+      setIsConfirmModalOpen(false);
     },
   });
 
-  // Handle Form Submit
-  const onSubmit = (formData: SampleFormValues) => {
+  // Step 1: Validation Handler - If valid, opens Confirmation Review Modal.
+  const handleFormValid = (data: SampleFormValues) => {
     setSubmitError(null);
+    setToastMessage(null);
+    setPendingConfirmationData(data);
+    setIsConfirmModalOpen(true); // Guaranteed: Confirmation modal NEVER opens if validation fails
+  };
 
+  // Step 2: Validation Failure Handler - Prevents submission, auto-scrolls and focuses the first invalid field, displays toast.
+  const handleFormInvalid = (formErrors: any) => {
+    setIsConfirmModalOpen(false);
+    setPendingConfirmationData(null);
+
+    // Show Global Incomplete Form Toast
+    setToastMessage('Incomplete Form: Please fill in all required fields before confirming.');
+    setTimeout(() => {
+      setToastMessage((prev) =>
+        prev === 'Incomplete Form: Please fill in all required fields before confirming.' ? null : prev
+      );
+    }, 5000);
+
+    // Programmatically scroll and focus directly on the first invalid field
+    scrollToFirstError(formErrors, '#new-sample-form-modal');
+  };
+
+  // Step 3: Final Confirmation Committer - Submits payload after user confirms in dialog
+  const handleFinalConfirm = () => {
+    if (!pendingConfirmationData) return;
+
+    const data = pendingConfirmationData;
     const finalStage =
-      formData.sampleType === 'Other'
-        ? (formData.customStage?.trim() || 'Other')
-        : formData.sampleType;
+      data.sampleType === 'Other'
+        ? (data.customStage?.trim() || 'Other')
+        : data.sampleType;
 
     const sectionTag = selectedSection === 'semi-base' ? '[Semi Basics]' : '[Formulation]';
     const finalStageWithTag = `${sectionTag} ${finalStage}`;
 
     const finalUnit =
-      formData.unit === 'Other'
-        ? (formData.customUnit?.trim() || 'units')
-        : formData.unit;
+      data.unit === 'Other'
+        ? (data.customUnit?.trim() || 'units')
+        : data.unit;
 
+    const labToSend = selectedLab || data.laboratory || watchedLab || defaultLaboratory || 'GENERAL';
     const payload: any = {
-      laboratory: formData.laboratory,
+      laboratory: labToSend,
       section: selectedSection,
-      barcode: scannedBarcode || activeSampleCode,
+      barcode: scannedBarcode || undefined,
       samplingDate: isLiveClock
         ? new Date().toISOString()
-        : new Date(formData.samplingDateTime).toISOString(),
-      nomenclature: formData.nomenclature.trim(),
-      materialName: formData.nomenclature.trim(),
+        : new Date(data.samplingDateTime).toISOString(),
+      nomenclature: data.nomenclature.trim(),
+      materialName: data.nomenclature.trim(),
       stageType: finalStageWithTag,
       sampleType: finalStageWithTag,
       sampleCode: undefined, // Backend will auto-generate sequential ID
-      sampleQty: Number(formData.sampleQty),
+      sampleQty: Number(data.sampleQty),
       unit: finalUnit.trim(),
-      batchId: formData.batchId || undefined,
-      lotNumber: formData.lotNumber?.trim() || undefined,
-      mfgDate: formData.mfgDate || undefined,
-      expDate: formData.expDate || undefined,
-      submittedBy: formData.submittedBy.trim(),
-      samplingLocation: formData.samplingLocation.trim(),
-      storageCondition: formData.storageCondition?.trim() || 'Controlled Room Temp 20-25°C',
-      priority: formData.priority,
-      testSpecificationIds: formData.testSpecificationIds || [],
-      remarks: [sectionTag, formData.remarks?.trim()].filter(Boolean).join(' '),
+      batchId: data.batchId || undefined,
+      lotNumber: data.lotNumber.trim(),
+      mfgDate: data.mfgDate.trim(),
+      expDate: data.expDate.trim(),
+      submittedBy: data.submittedBy.trim(),
+      receivedBy: data.receivedBy.trim(),
+      samplingLocation: data.samplingLocation ? data.samplingLocation.trim() : undefined,
+      storageCondition: data.storageCondition ? data.storageCondition.trim() : undefined,
+      priority: data.priority,
+      testSpecificationIds: data.testSpecificationIds || [],
+      remarks: [sectionTag, data.remarks?.trim()].filter(Boolean).join(' '),
     };
 
     createMutation.mutate(payload);
@@ -516,13 +597,35 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
 
   return (
     <>
+      {/* Global Incomplete Form Toast Alert */}
+      {toastMessage && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-red-600 text-white px-4 py-3 rounded-2xl shadow-2xl border border-red-500 animate-in slide-in-from-top-4 duration-200">
+          <AlertCircle className="h-5 w-5 text-white shrink-0 animate-bounce" />
+          <p className="text-xs font-bold">{toastMessage}</p>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="text-red-200 hover:text-white p-1 rounded-md transition-colors ml-2 cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <Modal
         isOpen={isOpen}
         onClose={handleRequestClose}
         title="Create Sampling Record"
         maxWidth="3xl"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-xs font-sans">
+        <form
+          id="new-sample-form-modal"
+          onSubmit={handleSubmit(handleFormValid, handleFormInvalid)}
+          noValidate
+          className="space-y-4 text-xs font-sans"
+        >
+          {/* Explicit hidden input ensuring laboratory is registered in form */}
+          <input type="hidden" {...register('laboratory')} value={selectedLab} />
           {/* Success Banner */}
           {successInfo && (
             <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-3 animate-in fade-in">
@@ -562,7 +665,6 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
             </div>
           )}
 
-
           {scannedBarcode && (
             <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
               <div className="flex items-center gap-2 truncate">
@@ -581,26 +683,62 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
             </div>
           )}
 
-          {/* Section 1: Laboratory Suite (General Lab) */}
-          <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-200 flex items-center justify-between">
+          {/* Section 1: Laboratory Suite (General, Penicillin, Cephalosporin) */}
+          <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
-              <FlaskConical className="h-4 w-4 text-blue-600" />
+              <FlaskConical className="h-4 w-4 text-blue-600 shrink-0" />
               <span className="text-xs font-bold text-slate-800">Target Laboratory:</span>
-              <span className="text-xs font-bold text-blue-900 bg-blue-100/70 px-2.5 py-0.5 rounded-md border border-blue-200">
-                General Lab
-              </span>
             </div>
-            <span className="text-[11px] text-slate-400 font-medium">Standard Quality Control Suite</span>
+
+            {!isRestrictedToLab ? (
+              <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto">
+                {[
+                  { key: 'GENERAL', label: 'General Lab' },
+                  { key: 'PENICILLIN', label: 'Penicillin Lab' },
+                  { key: 'CEPHALOSPORIN', label: 'Cephalosporin Lab' },
+                ].map((l) => (
+                  <button
+                    key={l.key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedLab(l.key);
+                      setValue('laboratory', l.key, { shouldValidate: true, shouldDirty: true });
+                    }}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center',
+                      (selectedLab === l.key || watchedLab === l.key)
+                        ? 'bg-[#0066FF] text-white shadow-xs'
+                        : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    )}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-blue-900 bg-blue-100/70 px-2.5 py-0.5 rounded-md border border-blue-200">
+                  {selectedLab === 'PENICILLIN'
+                    ? 'Penicillin Lab'
+                    : selectedLab === 'CEPHALOSPORIN'
+                    ? 'Cephalosporin Lab'
+                    : 'General Lab'}
+                </span>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Assigned Facility
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Section 2: Core Identifiers & Timing */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* Date & Time (Defaults to live current time with real-time second updates) */}
-            <div>
+            <div id="samplingDateTime-container">
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5 text-navy-900" />
-                  <span>Sampling Date & Time <span className="text-rose-500">*</span></span>
+                  <span>Sampling Date & Time <span className="text-red-500">*</span></span>
                 </label>
                 <div className="flex items-center gap-1.5">
                   {isLiveClock ? (
@@ -616,7 +754,7 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
                         setIsLiveClock(true);
                         const now = new Date();
                         setLiveDate(now);
-                        setValue('samplingDateTime', getLocalISOString(now), { shouldDirty: true });
+                        setValue('samplingDateTime', getLocalISOString(now), { shouldDirty: true, shouldValidate: true });
                       }}
                       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer"
                     >
@@ -631,6 +769,7 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
                 <input
                   type="datetime-local"
                   step="1"
+                  id="samplingDateTime"
                   {...register('samplingDateTime')}
                   onChange={(e) => {
                     setIsLiveClock(false);
@@ -638,7 +777,9 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
                   }}
                   className={cn(
                     'w-full px-3 py-2 text-xs font-mono rounded-lg border outline-none bg-white transition-all',
-                    isLiveClock
+                    errors.samplingDateTime
+                      ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-red-50/20 text-slate-900'
+                      : isLiveClock
                       ? 'border-emerald-300 ring-2 ring-emerald-500/10 text-emerald-950 font-semibold bg-emerald-50/20'
                       : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 text-slate-800'
                   )}
@@ -653,7 +794,7 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
                       setIsLiveClock(true);
                       const now = new Date();
                       setLiveDate(now);
-                      setValue('samplingDateTime', getLocalISOString(now), { shouldDirty: true });
+                      setValue('samplingDateTime', getLocalISOString(now), { shouldDirty: true, shouldValidate: true });
                     }}
                     className="text-[10px] text-blue-600 hover:text-blue-800 underline cursor-pointer"
                   >
@@ -663,44 +804,63 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
               )}
 
               {errors.samplingDateTime && (
-                <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
+                <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1 font-medium">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
                   <span>{errors.samplingDateTime.message}</span>
                 </p>
               )}
             </div>
 
-            {/* Sample ID (Auto-Generated) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                <span>Sample ID <span className="text-rose-500">*</span></span>
-              </label>
+            {/* Sample ID & Accession No. (Auto-Generated) */}
+            <div id="sampleId-container">
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-800 flex items-center gap-1">
+                  <span>Sample ID & A. No. <span className="text-red-500">*</span></span>
+                </label>
+                {nextIdData?.accessionNo && (
+                  <span className="text-[11px] font-mono font-bold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                    A. No: {nextIdData.accessionNo}
+                  </span>
+                )}
+              </div>
 
               <div className="px-3 py-2 text-xs font-mono rounded-lg border border-blue-200 bg-blue-50/70 text-blue-950 flex items-center justify-between">
                 <span className="font-extrabold flex items-center gap-1.5 text-blue-900 text-sm">
                   <Sparkles className="h-4 w-4 text-blue-600" />
                   <span>{nextAutoSampleCode}</span>
+                  {nextIdData?.accessionNo && (
+                    <span className="text-xs font-semibold text-slate-500 font-mono">
+                      ({nextIdData.accessionNo})
+                    </span>
+                  )}
                 </span>
                 <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-sans font-semibold border border-blue-200">
-                  Auto-Generated
+                  Auto Sequence
                 </span>
               </div>
             </div>
           </div>
 
           {/* Section 3: Nomenclature (Required Text Field) */}
-          <div>
+          <div id="nomenclature-container">
             <label className="block text-xs font-bold text-slate-800 mb-1">
-              Nomenclature / Drug Substance or Product Name <span className="text-rose-500">*</span>
+              Material Name / Drug Substance <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
+              id="nomenclature"
               {...register('nomenclature')}
-              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none text-slate-900 font-medium"
+              placeholder="e.g. Paracetamol API / Cefixime Trihydrate USP"
+              className={cn(
+                'w-full px-3 py-2 text-xs rounded-lg border outline-none font-medium transition-all',
+                errors.nomenclature
+                  ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-red-50/20 text-slate-900'
+                  : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 bg-white text-slate-900'
+              )}
             />
             {errors.nomenclature && (
-              <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
+              <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1 font-medium">
+                <AlertCircle className="h-3 w-3 shrink-0" />
                 <span>{errors.nomenclature.message}</span>
               </p>
             )}
@@ -712,7 +872,7 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
               <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <Layers className="h-4 w-4 text-blue-600" />
                 <span>Laboratory Section</span>
-                <span className="text-rose-500">*</span>
+                <span className="text-red-500">*</span>
               </label>
               <span className="text-[11px] font-semibold text-blue-700 bg-blue-100/60 px-2 py-0.5 rounded-md border border-blue-200/60">
                 {selectedSection === 'semi-base' ? 'Semi Basics Active' : 'Formulation Active'}
@@ -723,7 +883,7 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
                 type="button"
                 onClick={() => {
                   setSelectedSection('semi-base');
-                  setValue('sampleType', SEMI_BASE_STAGES[0]);
+                  setValue('sampleType', SEMI_BASE_STAGES[0], { shouldValidate: true });
                 }}
                 className={cn(
                   'px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-2 cursor-pointer',
@@ -739,7 +899,7 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
                 type="button"
                 onClick={() => {
                   setSelectedSection('formulation');
-                  setValue('sampleType', FORMULATION_STAGES[0]);
+                  setValue('sampleType', FORMULATION_STAGES[0], { shouldValidate: true });
                 }}
                 className={cn(
                   'px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-2 cursor-pointer',
@@ -756,14 +916,20 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Stage / Type */}
-            <div>
+            <div id="sampleType-container">
               <label className="block text-xs font-bold text-slate-800 mb-1">
                 {selectedSection === 'semi-base' ? 'Semi Basics Category' : 'Formulation Category'}{' '}
-                <span className="text-rose-500">*</span>
+                <span className="text-red-500">*</span>
               </label>
               <select
+                id="sampleType"
                 {...register('sampleType')}
-                className="w-full px-2.5 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium text-slate-800"
+                className={cn(
+                  'w-full px-2.5 py-2 text-xs rounded-lg border outline-none bg-white font-medium text-slate-800 transition-all',
+                  errors.sampleType
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-red-50/20'
+                    : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900'
+                )}
               >
                 {(selectedSection === 'semi-base' ? SEMI_BASE_STAGES : FORMULATION_STAGES).map((stg) => (
                   <option key={stg} value={stg}>
@@ -772,25 +938,31 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
                 ))}
               </select>
               {errors.sampleType && (
-                <p className="text-[11px] text-rose-600 mt-1">
+                <p className="text-[11px] text-red-600 mt-1 font-medium">
                   {errors.sampleType.message}
                 </p>
               )}
 
               {/* When "Other" is selected, render manual text input */}
               {watchedSampleType === 'Other' && (
-                <div className="mt-2 animate-in fade-in duration-150">
+                <div className="mt-2 animate-in fade-in duration-150" id="customStage-container">
                   <label className="block text-[10px] font-bold text-blue-700 mb-0.5">
-                    Specify Custom Stage <span className="text-rose-500">*</span>
+                    Specify Custom Stage <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
+                    id="customStage"
                     {...register('customStage')}
                     placeholder="Enter manual stage..."
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-blue-400 bg-blue-50/40 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium text-slate-900"
+                    className={cn(
+                      'w-full px-2.5 py-1.5 text-xs rounded-lg border outline-none font-medium text-slate-900',
+                      errors.customStage
+                        ? 'border-red-500 focus:border-red-500 bg-red-50/20'
+                        : 'border-blue-400 bg-blue-50/40 focus:border-blue-600'
+                    )}
                   />
                   {errors.customStage && (
-                    <p className="text-[10px] text-rose-600 mt-0.5">
+                    <p className="text-[10px] text-red-600 mt-0.5">
                       {errors.customStage.message}
                     </p>
                   )}
@@ -799,72 +971,108 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
             </div>
 
             {/* Batch / Lot No. */}
-            <div>
+            <div id="lotNumber-container">
               <label className="block text-xs font-bold text-slate-800 mb-1">
-                Batch No. / Lot No. <span className="text-rose-500">*</span>
+                Batch No. / Lot No. <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                id="lotNumber"
                 {...register('lotNumber')}
-                className="w-full px-2.5 py-2 text-xs font-mono rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none text-slate-800"
+                placeholder="e.g. CP-PCM-204"
+                className={cn(
+                  'w-full px-2.5 py-2 text-xs font-mono rounded-lg border outline-none transition-all',
+                  errors.lotNumber
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-red-50/20 text-slate-900'
+                    : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 bg-white text-slate-800'
+                )}
               />
               {errors.lotNumber && (
-                <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
+                <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1 font-medium">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
                   <span>{errors.lotNumber.message}</span>
                 </p>
               )}
             </div>
 
             {/* Qty. of Sample */}
-            <div>
+            <div id="sampleQty-container">
               <label className="block text-xs font-bold text-slate-800 mb-1">
-                Qty. of Sample <span className="text-rose-500">*</span>
+                Qty. of Sample <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
+                id="sampleQty"
                 step="any"
                 min="0.01"
                 {...register('sampleQty')}
-                className="w-full px-2.5 py-2 text-xs font-mono rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none text-slate-800"
+                className={cn(
+                  'w-full px-2.5 py-2 text-xs font-mono rounded-lg border outline-none transition-all',
+                  errors.sampleQty
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-red-50/20 text-slate-900'
+                    : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 bg-white text-slate-800'
+                )}
               />
               {errors.sampleQty && (
-                <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
+                <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1 font-medium">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
                   <span>{errors.sampleQty.message}</span>
                 </p>
               )}
             </div>
 
             {/* Quantity Unit */}
-            <div>
+            <div id="unit-container">
               <label className="block text-xs font-bold text-slate-800 mb-1">
-                Quantity Unit <span className="text-rose-500">*</span>
+                Quantity Unit <span className="text-red-500">*</span>
               </label>
               <select
+                id="unit"
                 {...register('unit')}
-                className="w-full px-2.5 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium text-slate-800"
+                className={cn(
+                  'w-full px-2.5 py-2 text-xs rounded-lg border outline-none bg-white font-medium text-slate-800 transition-all',
+                  errors.unit
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-red-50/20'
+                    : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900'
+                )}
               >
                 <option value="tablets">Tablets</option>
                 <option value="capsules">Capsules</option>
-                <option value="raw data">Raw Data</option>
+                <option value="kg">Kilograms (kg)</option>
+                <option value="g">Grams (g)</option>
+                <option value="L">Liters (L)</option>
+                <option value="mL">Milliliters (mL)</option>
+                <option value="vials">Vials</option>
+                <option value="ampoules">Ampoules</option>
+                <option value="strips">Strips</option>
                 <option value="Other">Other</option>
               </select>
+              {errors.unit && (
+                <p className="text-[11px] text-red-600 mt-1 font-medium">
+                  {errors.unit.message}
+                </p>
+              )}
 
               {/* When "Other" is selected, render manual text input */}
               {watchedUnit === 'Other' && (
-                <div className="mt-2 animate-in fade-in duration-150">
+                <div className="mt-2 animate-in fade-in duration-150" id="customUnit-container">
                   <label className="block text-[10px] font-bold text-blue-700 mb-0.5">
-                    Specify Custom Unit <span className="text-rose-500">*</span>
+                    Specify Custom Unit <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
+                    id="customUnit"
                     {...register('customUnit')}
                     placeholder="Enter manual unit (e.g. strips, vials, mL...)"
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-blue-400 bg-blue-50/40 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium text-slate-900"
+                    className={cn(
+                      'w-full px-2.5 py-1.5 text-xs rounded-lg border outline-none font-medium text-slate-900',
+                      errors.customUnit
+                        ? 'border-red-500 focus:border-red-500 bg-red-50/20'
+                        : 'border-blue-400 bg-blue-50/40 focus:border-blue-600'
+                    )}
                   />
                   {errors.customUnit && (
-                    <p className="text-[10px] text-rose-600 mt-0.5">
+                    <p className="text-[10px] text-red-600 mt-0.5">
                       {errors.customUnit.message}
                     </p>
                   )}
@@ -874,39 +1082,49 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
           </div>
 
           {/* Section 5: Dates with Validation (Never accept expiry earlier than manufacturing) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+            <div id="mfgDate-container">
               <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5 text-navy-900" />
-                <span>Manufacturing Date (MFG Date)</span>
+                <span>Manufacturing Date (MFG Date) <span className="text-red-500">*</span></span>
               </label>
               <input
                 type="date"
+                id="mfgDate"
                 {...register('mfgDate')}
-                className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white"
+                className={cn(
+                  'w-full px-3 py-2 text-xs rounded-lg border outline-none bg-white transition-all',
+                  errors.mfgDate
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-red-50/20 text-slate-900'
+                    : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 text-slate-800'
+                )}
               />
               {errors.mfgDate && (
-                <p className="text-[11px] text-rose-600 mt-1">{errors.mfgDate.message}</p>
+                <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1 font-medium">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{errors.mfgDate.message}</span>
+                </p>
               )}
             </div>
 
-            <div>
+            <div id="expDate-container">
               <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5 text-navy-900" />
-                <span>Expiry Date (EXP Date)</span>
+                <span>Expiry Date (EXP Date) <span className="text-red-500">*</span></span>
               </label>
               <input
                 type="date"
+                id="expDate"
                 {...register('expDate')}
                 className={cn(
-                  'w-full px-3 py-1.5 text-xs rounded-lg border outline-none bg-white',
+                  'w-full px-3 py-2 text-xs rounded-lg border outline-none bg-white transition-all',
                   errors.expDate
-                    ? 'border-rose-400 bg-rose-50 focus:ring-1 focus:ring-rose-500'
-                    : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900'
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-red-50/20 text-slate-900'
+                    : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 text-slate-800'
                 )}
               />
               {errors.expDate && (
-                <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1 font-medium">
+                <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1 font-medium">
                   <AlertCircle className="h-3 w-3 shrink-0" />
                   <span>{errors.expDate.message}</span>
                 </p>
@@ -914,44 +1132,64 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
             </div>
           </div>
 
-          {/* Section 6: Personnel (Submitted By & Received By) */}
+
+
+          {/* Section 7: Personnel (Submitted By & Received By) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
+            <div id="submittedBy-container">
               <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
                 <User className="h-3.5 w-3.5 text-navy-900" />
-                <span>Submitted By <span className="text-rose-500">*</span></span>
+                <span>Submitted By <span className="text-red-500">*</span></span>
               </label>
               <input
                 type="text"
+                id="submittedBy"
                 {...register('submittedBy')}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none text-slate-800"
+                className={cn(
+                  'w-full px-3 py-2 text-xs rounded-lg border outline-none transition-all',
+                  errors.submittedBy
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-red-50/20 text-slate-900'
+                    : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 bg-white text-slate-800'
+                )}
               />
               {errors.submittedBy && (
-                <p className="text-[11px] text-rose-600 mt-1">{errors.submittedBy.message}</p>
+                <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1 font-medium">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{errors.submittedBy.message}</span>
+                </p>
               )}
             </div>
 
-            <div>
+            <div id="receivedBy-container">
               <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 text-teal-700" />
-                <span>Received By <span className="text-rose-500">*</span></span>
+                <span>Received By <span className="text-red-500">*</span></span>
               </label>
               <input
                 type="text"
+                id="receivedBy"
                 {...register('receivedBy')}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none text-slate-800"
+                className={cn(
+                  'w-full px-3 py-2 text-xs rounded-lg border outline-none transition-all',
+                  errors.receivedBy
+                    ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-red-50/20 text-slate-900'
+                    : 'border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 bg-white text-slate-800'
+                )}
               />
               {errors.receivedBy && (
-                <p className="text-[11px] text-rose-600 mt-1">{errors.receivedBy.message}</p>
+                <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1 font-medium">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{errors.receivedBy.message}</span>
+                </p>
               )}
             </div>
           </div>
 
-          {/* Section 7: Testing Priority */}
-          <div>
+          {/* Section 8: Testing Priority */}
+          <div id="priority-container">
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-bold text-slate-800">
-                Priority <span className="text-rose-500">*</span>
+                Priority <span className="text-red-500">*</span>
               </label>
               <span
                 className={cn(
@@ -967,11 +1205,13 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
               </span>
             </div>
             <select
+              id="priority"
               {...register('priority')}
               className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-navy-900 focus:ring-1 focus:ring-navy-900 outline-none bg-white font-medium text-slate-800"
             >
               <option value="ROUTINE">Routine (5 - 15 Days)</option>
               <option value="URGENT">Urgent (1 Hr - 2 Days)</option>
+              <option value="STABILITY">Stability Protocol (Scheduled Interval)</option>
             </select>
           </div>
 
@@ -1052,7 +1292,7 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
                 type="submit"
                 variant="primary"
                 disabled={isSubmitting || createMutation.isPending || idCheckStatus === 'duplicate'}
-                className="bg-navy-900 hover:bg-navy-800 text-white font-semibold text-xs shadow-xs"
+                className="bg-navy-900 hover:bg-navy-800 text-white font-semibold text-xs shadow-xs cursor-pointer px-4 py-2"
               >
                 {isSubmitting || createMutation.isPending ? (
                   <div className="flex items-center gap-2">
@@ -1061,8 +1301,8 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-teal-400" />
-                    <span>Confirm & Accession Sample</span>
+                    <Sparkles className="h-3.5 w-3.5 text-teal-400 mr-1" />
+                    <span>Review & Confirm Details</span>
                   </div>
                 )}
               </Button>
@@ -1070,6 +1310,117 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
           </div>
         </form>
       </Modal>
+
+      {/* Protected Confirmation Modal: Opens ONLY when all client-side validations pass with 100% valid state */}
+      {isConfirmModalOpen && pendingConfirmationData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" onClick={() => setIsConfirmModalOpen(false)} />
+
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 flex flex-col my-auto animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-900 via-slate-800 to-navy-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30">
+                  <ShieldCheck className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Confirm Sample Registration Details</h3>
+                  <p className="text-[11px] text-slate-300">21 CFR Part 11 Electronic cGMP Record Verification</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Verified Details Summary */}
+            <div className="p-6 space-y-3.5 max-h-[70vh] overflow-y-auto text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="text-slate-500 font-medium">Sample ID / Preview:</span>
+                  <span className="font-mono font-bold text-slate-900 text-sm">{activeSampleCode}</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="text-slate-500 font-medium">Material Name:</span>
+                  <span className="font-bold text-slate-900 text-right max-w-[220px] truncate">{pendingConfirmationData.nomenclature}</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="text-slate-500 font-medium">Batch / Lot Number:</span>
+                  <span className="font-mono font-bold text-slate-900">{pendingConfirmationData.lotNumber}</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="text-slate-500 font-medium">Target Laboratory:</span>
+                  <span className="font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    {selectedLab === 'PENICILLIN'
+                      ? 'Penicillin Lab'
+                      : selectedLab === 'CEPHALOSPORIN'
+                      ? 'Cephalosporin Lab'
+                      : 'General Lab'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="text-slate-500 font-medium">Stage / Lab Section:</span>
+                  <span className="font-semibold text-slate-900">
+                    {selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation'} • {pendingConfirmationData.sampleType}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="text-slate-500 font-medium">Received Quantity & UoM:</span>
+                  <span className="font-bold text-slate-900">{pendingConfirmationData.sampleQty} {pendingConfirmationData.unit}</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="text-slate-500 font-medium">Manufacturing & Expiry:</span>
+                  <span className="font-mono text-slate-900">MFG: {pendingConfirmationData.mfgDate} | EXP: {pendingConfirmationData.expDate}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Priority SLA:</span>
+                  <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    {pendingConfirmationData.priority} (1 Hr - 2 Days)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Confirmation Action Buttons */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsConfirmModalOpen(false)}
+                disabled={createMutation.isPending}
+                className="text-xs"
+              >
+                Keep Editing
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={handleFinalConfirm}
+                disabled={createMutation.isPending}
+                className="bg-navy-900 hover:bg-navy-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                {createMutation.isPending ? (
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Committing to Database...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-teal-400" />
+                    <span>Confirm & Accession Sample</span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Unsaved Changes Confirmation Modal */}
       {showDiscardConfirm && (
@@ -1132,7 +1483,13 @@ View Details: ${origin}/samples?sampleId=${encodeURIComponent(activeSampleCode)}
         lotNumber={watchedLotNumber || 'N/A'}
         mfgDate={watchedMfgDate}
         expDate={watchedExpDate}
-        laboratoryName="General Lab"
+        laboratoryName={
+          watchedLab === 'PENICILLIN'
+            ? 'Penicillin Lab'
+            : watchedLab === 'CEPHALOSPORIN'
+            ? 'Cephalosporin Lab'
+            : 'General Lab'
+        }
         sectionName={selectedSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
         samplingDate={format(liveDate, 'dd MMM yyyy, hh:mm a')}
         sampleQty={watch('sampleQty')}

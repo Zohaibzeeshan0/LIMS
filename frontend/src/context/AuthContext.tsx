@@ -9,7 +9,10 @@ import {
   setStoredSession,
   clearStoredSession,
   REMEMBER_KEY,
+  USER_KEY,
 } from '@/lib/api';
+
+import { Role } from '@/types/lims';
 
 export interface User {
   id: string;
@@ -18,7 +21,7 @@ export interface User {
   fullName: string;
   employeeId: string;
   department: string;
-  role: 'ADMIN' | 'QA_MANAGER' | 'QC_ANALYST' | 'LAB_TECHNICIAN' | 'AUDITOR';
+  role: Role;
 }
 
 interface AuthResponse {
@@ -46,7 +49,7 @@ export const DEMO_USERS = [
     role: 'ADMIN' as const,
     username: 'admin',
     email: 'admin@citypharma.com',
-    password: 'Admin@1234',
+    password: 'Password@123',
     employeeId: 'EMP-001',
     name: 'Dr. Tariq Mahmood',
     title: 'QC Director / Administrator',
@@ -55,18 +58,32 @@ export const DEMO_USERS = [
     labId: 'all',
   },
   {
-    role: 'QC_ANALYST' as const,
-    username: 'gen.analyst',
-    email: 'gen.analyst@citypharma.com',
+    role: 'ANALYST' as const,
+    username: 'analyst',
+    email: 'analyst@citypharma.com',
     password: 'Password@123',
-    employeeId: 'EMP-GEN-02',
-    name: 'General Lab Analyst',
-    title: 'General Analyst',
-    desc: 'Quality Control Analyst for General Laboratory',
-    labBadge: 'General Lab',
-    labId: 'general',
+    employeeId: 'EMP-ANL-01',
+    name: 'Muhammad Ali',
+    title: 'Quality Control Analyst',
+    desc: 'Sample registration, accessioning, and testing',
+    labBadge: 'QC Analyst',
+    labId: 'all',
   },
 ];
+
+function syncUserWithDemo(u: User | null): User | null {
+  if (!u) return null;
+  const demoMatch = DEMO_USERS.find(
+    (d) =>
+      (u.email && d.email.toLowerCase() === u.email.toLowerCase()) ||
+      (u.username && d.username?.toLowerCase() === u.username.toLowerCase()) ||
+      (u.employeeId && d.employeeId?.toUpperCase() === u.employeeId.toUpperCase())
+  );
+  if (demoMatch) {
+    return { ...u, fullName: demoMatch.name };
+  }
+  return u;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -92,18 +109,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedUser = getStoredUser<User>();
 
         if (storedToken && storedUser) {
-          setUser(storedUser);
+          const synced = syncUserWithDemo(storedUser);
+          setUser(synced);
           setToken(storedToken);
 
           // Background verification of token validity
           try {
             const freshProfile = await api.get<User>('/auth/me');
             if (isMounted) {
-              setUser(freshProfile);
+              const freshSynced = syncUserWithDemo(freshProfile);
+              setUser(freshSynced);
+              if (freshSynced) {
+                try {
+                  localStorage.setItem(USER_KEY, JSON.stringify(freshSynced));
+                } catch {}
+              }
             }
           } catch (e) {
             // If verification fails, api.request handles refresh automatically.
-            // If refresh fails too, clearStoredSession will be triggered.
           }
         }
       }
@@ -128,8 +151,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!user && !isLoginPage) {
       router.replace('/login');
-    } else if (user && isLoginPage) {
-      router.replace('/');
+      return;
+    }
+
+    if (user && isLoginPage) {
+      router.replace(user.role === 'ADMIN' ? '/' : '/samples');
+      return;
     }
   }, [user, isLoading, pathname, router]);
 
@@ -141,9 +168,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password: pass,
       });
 
-      setStoredSession(res.accessToken, res.refreshToken, res.user, rememberMe);
+      const syncedUser = syncUserWithDemo(res.user) || res.user;
+
+      setStoredSession(res.accessToken, res.refreshToken, syncedUser, rememberMe);
       setToken(res.accessToken);
-      setUser(res.user);
+      setUser(syncedUser);
 
       if (rememberMe) {
         setRememberedIdentifier(identifier.trim());
@@ -157,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginAs = async (role: User['role']) => {
     const demo = DEMO_USERS.find((u) => u.role === role) || DEMO_USERS[0];
-    await login(demo.email, 'Admin@1234', true);
+    await login(demo.email, (demo as any).password || 'Password@123', true);
   };
 
   const logout = useCallback(async () => {

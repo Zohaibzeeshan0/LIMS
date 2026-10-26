@@ -56,16 +56,35 @@ import {
   FileText,
   User,
   Lock,
+  Users,
 } from 'lucide-react';
 
 const LAB_TABS = [
   {
     id: 'general',
-    legacyIds: ['gen', 'gl', 'sef', 'saf', 'cp', 'cephalosporin', 'pen', 'pl', 'penicillin', 'all'],
+    legacyIds: ['gen', 'gl'],
     key: 'GENERAL' as const,
     name: 'General Lab',
     shortLabel: 'General Lab',
     heading: 'Sampling / General Lab',
+    icon: FlaskConical,
+  },
+  {
+    id: 'penicillin',
+    legacyIds: ['pen', 'pl'],
+    key: 'PENICILLIN' as const,
+    name: 'Penicillin Lab',
+    shortLabel: 'Penicillin Lab',
+    heading: 'Sampling / Penicillin Lab',
+    icon: FlaskConical,
+  },
+  {
+    id: 'cephalosporin',
+    legacyIds: ['ceph', 'cp', 'saf', 'sef'],
+    key: 'CEPHALOSPORIN' as const,
+    name: 'Cephalosporin Lab',
+    shortLabel: 'Cephalosporin Lab',
+    heading: 'Sampling / Cephalosporin Lab',
     icon: FlaskConical,
   },
 ];
@@ -80,13 +99,26 @@ function SamplesPageInner() {
   // Non-admin staff (QA Manager, QC Analyst, Lab Technician, Auditor) can enter new data only
   const canEdit = user?.role === 'ADMIN';
 
-  // Single Laboratory System: General Lab
+  // 3-Laboratory System: General Lab, Penicillin Lab, Cephalosporin Lab
   const userLabAccess = useMemo(() => getUserLabAccess(user), [user]);
-  const isRestrictedToLab = false;
-  const authorizedLabId = 'general';
-  const labParam = 'general';
+  const isRestrictedToLab = userLabAccess !== 'ALL';
+  const authorizedLabId =
+    userLabAccess === 'PENICILLIN'
+      ? 'penicillin'
+      : userLabAccess === 'CEPHALOSPORIN'
+      ? 'cephalosporin'
+      : 'general';
+
+  const rawLabParam = searchParams.get('lab')?.toLowerCase();
+  const labParam = isRestrictedToLab ? authorizedLabId : (rawLabParam || 'general');
   const isAllLabs = false;
-  const activeLab = LAB_TABS[0];
+
+  const activeLab = useMemo(() => {
+    const found = LAB_TABS.find(
+      (l) => l.id === labParam || l.legacyIds.includes(labParam) || l.key.toLowerCase() === labParam
+    );
+    return found || LAB_TABS[0];
+  }, [labParam]);
 
   // Intercept unauthorized lab navigation via URL query parameters
   React.useEffect(() => {
@@ -129,8 +161,8 @@ function SamplesPageInner() {
   // Pagination & Sorting state
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [sortBy, setSortBy] = useState('samplingDate');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState('accessionNo');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Debounced search terms for smooth server queries
   const debouncedSampleId = useDebounce(sampleIdSearch, 300);
@@ -292,19 +324,40 @@ function SamplesPageInner() {
     queryFn: () => samplingService.getAll(queryFilters),
   });
 
-  // Live query for active Urgent Priority samples (1 Hr - 2 Days SLA)
+  // Live query for active Urgent & STAT Priority samples (1 Hr - 2 Days SLA)
   const { data: urgentAlertsResponse } = useQuery({
-    queryKey: ['samples-urgent-alert-banner'],
-    queryFn: () => samplingService.getAll({ priority: 'URGENT', limit: 20 }),
+    queryKey: ['active-expedited-urgent-samples', isAllLabs ? 'all' : activeLab.key],
+    queryFn: () => samplingService.getAll({ priority: 'STAT,URGENT', laboratory: isAllLabs ? undefined : activeLab.key, limit: 100 }),
     refetchInterval: 5000,
   });
 
-  const urgentSamples: Sample[] = useMemo(() => {
+  const allUrgentSamples: Sample[] = useMemo(() => {
     if (!urgentAlertsResponse) return [];
-    if (Array.isArray(urgentAlertsResponse)) return urgentAlertsResponse;
-    if (Array.isArray((urgentAlertsResponse as any).data)) return (urgentAlertsResponse as any).data;
-    return [];
+    const list: Sample[] = Array.isArray(urgentAlertsResponse)
+      ? urgentAlertsResponse
+      : (urgentAlertsResponse as any).data || [];
+    return list.filter(
+      (s: Sample) =>
+        (s.priority === 'STAT' || s.priority === 'URGENT') &&
+        s.status !== 'APPROVED' &&
+        s.status !== 'REJECTED' &&
+        s.status !== 'ARCHIVED'
+    );
   }, [urgentAlertsResponse]);
+
+  // Section-specific urgent sample distribution
+  const semiBaseUrgentSamples: Sample[] = useMemo(() => {
+    return allUrgentSamples.filter((s) => getSampleSection(s) === 'semi-base');
+  }, [allUrgentSamples]);
+
+  const formulationUrgentSamples: Sample[] = useMemo(() => {
+    return allUrgentSamples.filter((s) => getSampleSection(s) === 'formulation');
+  }, [allUrgentSamples]);
+
+  // Active section urgent samples (matches whether Semi Basics or Formulation is selected)
+  const urgentSamples: Sample[] = useMemo(() => {
+    return activeSection === 'semi-base' ? semiBaseUrgentSamples : formulationUrgentSamples;
+  }, [activeSection, semiBaseUrgentSamples, formulationUrgentSamples]);
 
   // Extract samples array and strictly filter by active section (guarantees zero leakage)
   const samplesList: Sample[] = useMemo(() => {
@@ -405,48 +458,49 @@ function SamplesPageInner() {
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Top Analyst Priority Alert Banner for Expedited / Urgent Samples (1 Hr - 2 Days SLA) */}
-      {urgentSamples.length > 0 && (
-        <div className="rounded-2xl border-2 border-amber-400 bg-linear-to-r from-amber-50 via-orange-50/80 to-amber-50 p-4 shadow-sm animate-in fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse">
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-600 text-white shadow-2xs">
-                    Analyst Priority Alert
-                  </span>
-                  <span className="text-xs font-bold text-slate-900">
-                    {urgentSamples.length} Urgent {urgentSamples.length === 1 ? 'Sample Requires' : 'Samples Require'} Fast-Track Testing (1 Hr - 2 Days SLA)
-                  </span>
-                </div>
-                <p className="text-xs text-amber-950/80 mt-0.5">
-                  High-priority laboratory intake. Please initiate sampling testing workflow within the 1 Hr - 2 Days turnaround window.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-bold text-amber-900 bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-300 shadow-2xs">
-                Turnaround SLA: <strong>1 Hr - 2 Days</strong>
-              </span>
-            </div>
+      {/* 3 Laboratory Selector Tabs (General Lab, Penicillin Lab, Cephalosporin Lab) */}
+      {!isRestrictedToLab ? (
+        <div className="bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Select Analytical Laboratory
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              Active: {activeLab.name}
+            </span>
           </div>
-          <div className="mt-3 flex items-center gap-2 flex-wrap pt-2.5 border-t border-amber-200">
-            {urgentSamples.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSelectedSampleId(s.id)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-amber-300 hover:border-amber-500 shadow-2xs text-xs font-bold text-slate-800 hover:text-amber-900 transition-all cursor-pointer"
-              >
-                <span className="font-mono text-amber-700">{s.sampleCode}</span>
-                <span className="text-slate-600 truncate max-w-[140px]">{s.nomenclature || s.materialName}</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-mono">1 Hr - 2 Days</span>
-              </button>
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {LAB_TABS.map((tab) => {
+              const isSelected = activeLab.id === tab.id;
+              const TabIcon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => selectLaboratory(tab.id)}
+                  className={cn(
+                    'flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer',
+                    isSelected
+                      ? 'bg-[#0066FF] text-white shadow-md shadow-blue-500/20'
+                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/80'
+                  )}
+                >
+                  <TabIcon className={cn('h-4 w-4', isSelected ? 'text-white' : 'text-slate-500')} />
+                  <span>{tab.name}</span>
+                </button>
+              );
+            })}
           </div>
+        </div>
+      ) : (
+        <div className="bg-blue-50 border border-blue-200 px-4 py-3 rounded-2xl flex items-center justify-between text-xs text-blue-900 font-semibold shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <FlaskConical className="h-4 w-4 text-blue-600" />
+            <span>Assigned Laboratory: <strong className="font-bold">{activeLab.name}</strong></span>
+          </div>
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-600 text-white uppercase tracking-wider">
+            Assigned Personnel
+          </span>
         </div>
       )}
 
@@ -460,13 +514,10 @@ function SamplesPageInner() {
               className={cn(
                 'relative group flex items-center justify-between p-3.5 rounded-xl text-left transition-all duration-200 border cursor-pointer',
                 activeSection === 'semi-base'
-                  ? 'bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-sm'
+                  ? 'bg-white border-slate-300 shadow-sm'
                   : 'bg-white/70 hover:bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
               )}
             >
-              {activeSection === 'semi-base' && (
-                <span className="absolute top-0 left-6 right-6 h-1 bg-blue-600 rounded-b-full" />
-              )}
               <div className="flex items-center gap-3">
                 <div
                   className={cn(
@@ -479,18 +530,19 @@ function SamplesPageInner() {
                   <Layers className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h4
-                      className={cn(
-                        'text-sm font-bold tracking-tight',
-                        activeSection === 'semi-base' ? 'text-blue-950 font-bold' : 'text-slate-900'
-                      )}
-                    >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-bold tracking-tight text-slate-900">
                       1. Semi Basics
                     </h4>
                     <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                       {semiBaseCount} Samples
                     </span>
+                    {semiBaseUrgentSamples.length > 0 && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs flex items-center gap-1 animate-pulse">
+                        <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                        <span>{semiBaseUrgentSamples.length} Urgent</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -510,13 +562,10 @@ function SamplesPageInner() {
               className={cn(
                 'relative group flex items-center justify-between p-3.5 rounded-xl text-left transition-all duration-200 border cursor-pointer',
                 activeSection === 'formulation'
-                  ? 'bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-sm'
+                  ? 'bg-white border-slate-300 shadow-sm'
                   : 'bg-white/70 hover:bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
               )}
             >
-              {activeSection === 'formulation' && (
-                <span className="absolute top-0 left-6 right-6 h-1 bg-blue-600 rounded-b-full" />
-              )}
               <div className="flex items-center gap-3">
                 <div
                   className={cn(
@@ -529,18 +578,19 @@ function SamplesPageInner() {
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h4
-                      className={cn(
-                        'text-sm font-bold tracking-tight',
-                        activeSection === 'formulation' ? 'text-blue-950 font-bold' : 'text-slate-900'
-                      )}
-                    >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-bold tracking-tight text-slate-900">
                       2. Formulation
                     </h4>
                     <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                       {formulationCount} Samples
                     </span>
+                    {formulationUrgentSamples.length > 0 && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs flex items-center gap-1 animate-pulse">
+                        <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                        <span>{formulationUrgentSamples.length} Urgent</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -558,6 +608,11 @@ function SamplesPageInner() {
       {/* 2. Page Title Header: Selected Laboratory in Heading & Actions */}
       <div className="bg-white rounded-2xl border border-slate-200/90 px-6 py-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              {activeLab.name}
+            </span>
+          </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
             {activeSection === 'semi-base' ? 'Semi Basics' : 'Formulation'}
           </h1>
@@ -1147,6 +1202,7 @@ function SamplesPageInner() {
                           className="flex items-center justify-end gap-1"
                           onClick={(e) => e.stopPropagation()}
                         >
+
                           {/* View Record Details */}
                           <button
                             type="button"
@@ -1368,17 +1424,7 @@ function SamplesPageInner() {
                     <span>Print Dossier</span>
                   </Button>
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setSubmittingSample(activeDossier);
-                    }}
-                    className="text-xs border-teal-300 bg-teal-50/60 text-teal-800 hover:bg-teal-100 font-semibold"
-                  >
-                    <Send className="h-3.5 w-3.5 mr-1 text-teal-700" />
-                    <span>Submit to Workflow</span>
-                  </Button>
+
 
                   {canEdit ? (
                     <Button
@@ -1505,105 +1551,8 @@ function SamplesPageInner() {
                 </select>
               </div>
 
-              {/* Destination Laboratory Routing Submissions */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-bold text-navy-950 uppercase tracking-wider flex items-center gap-1.5">
-                    <Send className="h-3.5 w-3.5 text-teal-700" />
-                    <span>Laboratory Routing Submissions ({activeDossier.submissions?.length || 0})</span>
-                  </h4>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSubmittingSample(activeDossier)}
-                    className="text-[11px] h-7 px-2.5 border-teal-300 text-teal-800 bg-teal-50 hover:bg-teal-100 font-semibold"
-                  >
-                    <PlusCircle className="h-3 w-3 mr-1" />
-                    <span>Route Sample</span>
-                  </Button>
-                </div>
 
-                {(!activeDossier.submissions || activeDossier.submissions.length === 0) ? (
-                  <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center text-xs text-slate-500">
-                    No destination laboratory routing records found. Click &quot;Route Sample&quot; to submit to Microbiology, Chemical, or Physical Lab.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {activeDossier.submissions.map((sub: any) => (
-                      <div
-                        key={sub.id}
-                        className="p-3 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-navy-950">
-                              {sub.destinationLab === 'MICROBIOLOGY'
-                                ? 'Microbiology Lab'
-                                : sub.destinationLab === 'CHEMICAL'
-                                ? 'Chemical Lab'
-                                : 'Physical Lab'}
-                            </span>
-                            <StatusBadge status={sub.status} />
-                          </div>
-                          <div className="text-[11px] text-slate-500 mt-0.5">
-                            Submitted by <strong>{sub.submittedByName || sub.submittedBy?.fullName || 'Authorized Analyst'}</strong> on{' '}
-                            {formatDateTime(sub.submissionDate, 'dd/MM/yyyy HH:mm')}
-                          </div>
-                          {sub.remarks && (
-                            <div className="text-[11px] text-slate-600 bg-slate-50 p-1.5 rounded mt-1 border border-slate-200/60">
-                              <span className="font-semibold text-slate-500">Remarks:</span> {sub.remarks}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {/* Assigned Tests Worksheets */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center justify-between">
-                  <span>Compendial Test Worksheets ({activeDossier.tests?.length || 0})</span>
-                </h4>
-                <div className="space-y-2">
-                  {activeDossier.tests?.map((test: any) => (
-                    <div
-                      key={test.id}
-                      className="p-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div>
-                        <div className="font-semibold text-slate-900">{test.testSpecification?.name || test.testName || 'Assigned Test'}</div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
-                          Method: {test.testSpecification?.pharmacopeiaMethod || 'In-House Standard'} • Spec:{' '}
-                          {test.minLimit !== null ? `${test.minLimit} - ${test.maxLimit} ${test.unit || ''}` : 'Qualitative'}
-                        </div>
-                        {test.numericResult !== null && (
-                          <div className="mt-1 font-mono text-xs">
-                            Observed Result: <strong className="text-slate-900">{test.numericResult} {test.unit}</strong>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={test.resultStatus} />
-                        <StatusBadge status={test.status} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Chain of Custody Timeline */}
-              <div className="pt-2 border-t border-slate-100">
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <History className="h-4 w-4 text-teal-700" />
-                  <span>Chain of Custody Audit Trail</span>
-                </h4>
-                <pre className="p-3 rounded-xl bg-slate-900 text-slate-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto">
-                  {activeDossier.chainOfCustody || 'Sample initial intake registered.'}
-                </pre>
-              </div>
             </div>
           ) : (
             <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">

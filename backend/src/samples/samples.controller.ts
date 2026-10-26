@@ -29,7 +29,7 @@ export class SamplesController {
   constructor(private readonly samplesService: SamplesService) {}
 
   @Post()
-  @Roles(Role.ADMIN, Role.QA_MANAGER, Role.QC_ANALYST, Role.LAB_TECHNICIAN)
+  @Roles(Role.ADMIN, Role.QA_MANAGER, Role.QC_ANALYST, Role.LAB_TECHNICIAN, Role.ANALYST)
   @ApiOperation({ summary: 'Accession / intake a new pharmaceutical sample (Transactional with AuditLog)' })
   @ApiResponse({ status: 201, description: 'Sample created successfully with unique sampleId and recordNumber' })
   @ApiResponse({ status: 409, description: 'Sample ID violates uniqueness policy' })
@@ -40,8 +40,8 @@ export class SamplesController {
   @Get()
   @ApiOperation({ summary: 'Query samples with pagination, search, laboratory, and status filters' })
   @ApiResponse({ status: 200, description: 'List of paginated sample records with metadata' })
-  findAll(@Query() query: SampleQueryDto) {
-    return this.samplesService.findAll(query);
+  findAll(@Query() query: SampleQueryDto, @Request() req: any) {
+    return this.samplesService.findAll(query, req.user);
   }
 
   @Get('metrics')
@@ -54,16 +54,17 @@ export class SamplesController {
   @ApiOperation({ summary: 'Get sample record by sampleCode, sampleId, accessionNo, or id' })
   @ApiResponse({ status: 200, description: 'Sample details retrieved' })
   @ApiResponse({ status: 404, description: 'Sample not found' })
-  findByCode(@Query('code') code: string) {
-    return this.samplesService.findOne(code);
+  findByCode(@Query('code') code: string, @Request() req: any) {
+    return this.samplesService.findOne(code, req.user);
   }
+
 
   @Get(':id')
   @ApiOperation({ summary: 'Get detailed sample record including laboratory, custody, tests, and submissions' })
   @ApiResponse({ status: 200, description: 'Sample details retrieved' })
   @ApiResponse({ status: 404, description: 'Sample not found' })
-  findOne(@Param('id') id: string) {
-    return this.samplesService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    return this.samplesService.findOne(id, req.user);
   }
 
   @Patch(':id')
@@ -140,4 +141,5 @@ export class SamplesController {
       req.user,
     );
   }
+
 }

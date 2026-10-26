@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RecordResultDto } from './dto/record-result.dto';
 import { CreateSpecDto } from './dto/create-spec.dto';
@@ -67,6 +67,19 @@ export class TestsService {
     });
 
     if (!test) throw new NotFoundException('Sample test not found');
+
+    // Strict RBAC: Non-supervisors can only record results on their assigned tests/samples
+    const isSupervisorOrAdmin = ['ADMIN', 'QA_MANAGER'].includes(user.role);
+
+    if (
+      !isSupervisorOrAdmin &&
+      test.analystId !== user.id &&
+      test.sample.assignedToId !== user.id
+    ) {
+      throw new ForbiddenException(
+        'Access Denied: You cannot record results on a test assigned to another analyst.'
+      );
+    }
 
     // Automatic OOS Detection Logic
     let calculatedResultStatus: 'WITHIN_SPEC' | 'OUT_OF_SPEC' | 'NOT_TESTED' = 'WITHIN_SPEC';

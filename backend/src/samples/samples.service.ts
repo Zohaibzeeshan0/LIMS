@@ -9,8 +9,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateSampleDto } from './dto/create-sample.dto';
 import { UpdateSampleDto } from './dto/update-sample.dto';
 import { SampleQueryDto } from './dto/sample-query.dto';
+import { SampleStatus, SubmissionStatus, Priority, Role } from '@prisma/client';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
-import { SampleStatus, SubmissionStatus } from '@prisma/client';
 
 @Injectable()
 export class SamplesService {
@@ -21,8 +21,15 @@ export class SamplesService {
     stageOrType?: string,
     explicitSection?: string
   ): Promise<string> {
-    // Single Laboratory in system: General Lab (GL)
-    const labPrefix = 'GL';
+    let labPrefix = 'GL';
+    const rawLab = (laboratory || '').toString().toUpperCase();
+    if (rawLab === 'PENICILLIN' || rawLab === 'PEN' || rawLab === 'PL') {
+      labPrefix = 'PEN';
+    } else if (rawLab === 'CEPHALOSPORIN' || rawLab === 'CEPH' || rawLab === 'CP' || rawLab === 'SAF' || rawLab === 'SEF') {
+      labPrefix = 'CEPH';
+    } else {
+      labPrefix = 'GL';
+    }
 
     let secPrefix = 'SB';
     const s = ((explicitSection || stageOrType) || '').toString().toLowerCase();
@@ -81,10 +88,82 @@ export class SamplesService {
     return `REC-${year}-${sequence}`;
   }
 
-  async generateAccessionNo(): Promise<string> {
-    const count = await this.prisma.sample.count();
-    const sequence = (count + 1).toString().padStart(4, '0');
-    return `A-${sequence}`;
+  async generateAccessionNo(
+    laboratory?: string,
+    stageType?: string,
+    section?: string
+  ): Promise<string> {
+    const sec = (section || '').toString().toLowerCase();
+    const st = (stageType || '').toString().toLowerCase();
+    let secPrefix = 'SB';
+    if (
+      sec.includes('form') ||
+      sec.includes('fm') ||
+      st.includes('[formulation]') ||
+      st.includes('finish') ||
+      st.includes('coat') ||
+      st.includes('fill') ||
+      st.includes('packag') ||
+      st.includes('stabilit')
+    ) {
+      secPrefix = 'F';
+    }
+
+    const lab = (laboratory || 'GENERAL').toString().toUpperCase();
+    let labPrefix = 'GL';
+    if (lab === 'SEF' || lab === 'SAF' || lab === 'CP' || lab.includes('CEPH')) {
+      labPrefix = 'CEPH';
+    } else if (lab.includes('PEN')) {
+      labPrefix = 'PEN';
+    }
+
+    const existingSamples = await this.prisma.sample.findMany({
+      where: {
+        OR: [
+          { sampleCode: { startsWith: `${labPrefix}/${secPrefix}` } },
+          { sampleId: { startsWith: `${labPrefix}/${secPrefix}` } },
+          { recordNumber: { startsWith: `${labPrefix}/${secPrefix}` } },
+          ...(secPrefix === 'SB'
+            ? [
+                { stageType: { contains: '[Semi Basics]', mode: 'insensitive' as const } },
+                { stageType: { contains: '[Semi Basic]', mode: 'insensitive' as const } },
+              ]
+            : [
+                { stageType: { contains: '[Formulation]', mode: 'insensitive' as const } },
+              ]),
+        ],
+      },
+      select: { sampleCode: true, sampleId: true, recordNumber: true, accessionNo: true },
+    });
+
+    const codeRegex = new RegExp(`^(${labPrefix}|CP|PL|GL)\\/${secPrefix}[-\\/](\\d+)$`, 'i');
+    const accRegex = /^A-(\d+)$/i;
+    let maxNumber = 0;
+
+    for (const item of existingSamples) {
+      const candidates = [item.sampleCode, item.sampleId, item.recordNumber].filter(Boolean);
+      for (const cand of candidates) {
+        const match = cand!.trim().match(codeRegex);
+        if (match && match[1]) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      }
+      if (item.accessionNo) {
+        const matchAcc = item.accessionNo.trim().match(accRegex);
+        if (matchAcc && matchAcc[1]) {
+          const num = parseInt(matchAcc[1], 10);
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      }
+    }
+
+    const nextNumber = maxNumber + 1;
+    return `A-${nextNumber.toString().padStart(4, '0')}`;
   }
 
   private async resolveLaboratory(laboratoryId?: string, laboratoryNameOrCode?: string) {
@@ -94,9 +173,16 @@ export class SamplesService {
     }
 
     if (laboratoryNameOrCode) {
+      const u = laboratoryNameOrCode.toUpperCase();
+      let searchCode = laboratoryNameOrCode;
+      if (u === 'PENICILLIN' || u === 'PEN' || u === 'PL') searchCode = 'PEN';
+      else if (u === 'CEPHALOSPORIN' || u === 'CEPH' || u === 'SAF' || u === 'SEF' || u === 'CP') searchCode = 'CEPH';
+      else if (u === 'GENERAL' || u === 'GEN' || u === 'GL') searchCode = 'GEN';
+
       const lab = await this.prisma.laboratory.findFirst({
         where: {
           OR: [
+            { code: { equals: searchCode, mode: 'insensitive' } },
             { code: { equals: laboratoryNameOrCode, mode: 'insensitive' } },
             { name: { contains: laboratoryNameOrCode, mode: 'insensitive' } },
           ],
@@ -128,18 +214,25 @@ export class SamplesService {
       }
     }
 
+    const stageType = (createSampleDto.stageType || createSampleDto.sampleType || 'Finished Product').toString().trim();
     const sampleId =
       targetSampleId ||
       (await this.generateSampleCode(
         (createSampleDto as any).laboratoryType || createSampleDto.laboratory,
-        createSampleDto.sampleType || (createSampleDto as any).stageType,
+        stageType,
         (createSampleDto as any).section
       ));
     const recordNumber =
       createSampleDto.recordNumber?.trim() ||
       createSampleDto.accessionNo?.trim() ||
       (await this.generateRecordNumber());
-    const accessionNo = createSampleDto.accessionNo?.trim() || (await this.generateAccessionNo());
+    const accessionNo =
+      createSampleDto.accessionNo?.trim() ||
+      (await this.generateAccessionNo(
+        (createSampleDto as any).laboratoryType || createSampleDto.laboratory,
+        stageType,
+        (createSampleDto as any).section
+      ));
 
     // 2. Validate Dates & Quantities
     const mfgDate = createSampleDto.manufacturingDate || createSampleDto.mfgDate
@@ -160,7 +253,6 @@ export class SamplesService {
 
     const quantityUnit = (createSampleDto.quantityUnit || createSampleDto.unit || 'units').trim();
     const nomenclature = (createSampleDto.nomenclature || createSampleDto.materialName || 'Unnamed Sample').trim();
-    const stageType = (createSampleDto.stageType || createSampleDto.sampleType || 'Finished Product').toString().trim();
     const batchLotNumber = createSampleDto.batchLotNumber || createSampleDto.lotNumber || null;
     const sampledAt = createSampleDto.sampledAt || createSampleDto.samplingDate
       ? new Date(createSampleDto.sampledAt || createSampleDto.samplingDate!)
@@ -181,6 +273,11 @@ export class SamplesService {
           recordNumber,
           sampleId,
           laboratoryId: lab?.id || null,
+          laboratoryType: (lab?.code === 'PEN'
+            ? 'PENICILLIN'
+            : lab?.code === 'CEPH' || lab?.code === 'SAF'
+            ? 'CEPHALOSPORIN'
+            : 'GENERAL') as any,
           nomenclature,
           stageType,
           quantity,
@@ -292,7 +389,7 @@ export class SamplesService {
     });
   }
 
-  async findAll(query: SampleQueryDto) {
+  async findAll(query: SampleQueryDto, user?: any) {
     const where: any = {};
 
     // Filter by Archival Status
@@ -540,7 +637,7 @@ export class SamplesService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: any) {
     const sample = await this.prisma.sample.findFirst({
       where: {
         OR: [{ id }, { sampleId: id }, { sampleCode: id }, { recordNumber: id }, { accessionNo: id }],
@@ -579,6 +676,7 @@ export class SamplesService {
     if (!sample) {
       throw new NotFoundException(`Sample '${id}' not found in registry`);
     }
+
 
     return sample;
   }
@@ -917,4 +1015,5 @@ export class SamplesService {
       urgentCount,
     };
   }
+
 }

@@ -72,7 +72,7 @@ export const samplingService = {
     if (query.laboratory) params.append('laboratory', query.laboratory);
     if (query.section) params.append('section', query.section);
     if (query.stageType) params.append('stageType', query.stageType);
-    return api.get<{ sampleCode: string; sampleId: string; laboratory: string; section: string }>(
+    return api.get<{ sampleCode: string; sampleId: string; accessionNo?: string; laboratory: string; section: string }>(
       `/sampling/next-sample-id?${params.toString()}`
     );
   },
@@ -100,4 +100,5 @@ export const samplingService = {
     submissionId: string,
     data: { status: string; reasonForChange?: string; remarks?: string }
   ) => api.patch<any>(`/sampling/submissions/${submissionId}/status`, data),
+
 };

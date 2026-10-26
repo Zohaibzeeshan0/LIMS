@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useAuth, DEMO_USERS } from '@/context/AuthContext';
 import { CityPharmaLogo } from '@/components/ui/CityPharmaLogo';
@@ -12,7 +12,11 @@ import {
   ChevronDown,
   Check,
   AlertTriangle,
+  Menu,
+  Sliders,
+  FlaskConical,
 } from 'lucide-react';
+import { SystemClock } from './SystemClock';
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -67,6 +71,41 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside or pressing Escape
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node;
+      if (notifRef.current && !notifRef.current.contains(target)) {
+        setIsNotifOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsNotifOpen(false);
+        setIsUserMenuOpen(false);
+      }
+    }
+
+    if (isNotifOpen || isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isNotifOpen, isUserMenuOpen]);
+
   // Stored read alerts in sessionStorage
   const [readAlertIds, setReadAlertIds] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -85,18 +124,25 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
     refetchInterval: 5000,
   });
 
-  // Query live active Urgent samples (refreshes every 5 seconds for real-time analyst notification)
+  // Query live active Urgent & STAT samples (synchronized with Dashboard notice)
   const { data: urgentSamplesRes } = useQuery({
-    queryKey: ['navbar-urgent-samples'],
-    queryFn: () => samplingService.getAll({ priority: 'URGENT', limit: 20 }),
+    queryKey: ['active-expedited-urgent-samples'],
+    queryFn: () => samplingService.getAll({ priority: 'STAT,URGENT', limit: 100 }),
     refetchInterval: 5000,
   });
 
   const activeUrgentSamples: Sample[] = React.useMemo(() => {
     if (!urgentSamplesRes) return [];
-    if (Array.isArray(urgentSamplesRes)) return urgentSamplesRes;
-    if (Array.isArray((urgentSamplesRes as any).data)) return (urgentSamplesRes as any).data;
-    return [];
+    const list: Sample[] = Array.isArray(urgentSamplesRes)
+      ? urgentSamplesRes
+      : (urgentSamplesRes as any).data || [];
+    return list.filter(
+      (s: Sample) =>
+        (s.priority === 'STAT' || s.priority === 'URGENT') &&
+        s.status !== 'APPROVED' &&
+        s.status !== 'REJECTED' &&
+        s.status !== 'ARCHIVED'
+    );
   }, [urgentSamplesRes]);
 
   // Parse and filter non-admin actions (staff below admin) PLUS Critical & Urgent sample notices
@@ -125,7 +171,7 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
       const lot = sample.lotNumber || sample.batchLotNumber || 'N/A';
       list.push({
         id: sampleIdKey,
-        title: `⚡ URGENT TESTING (1 Hr - 2 Days SLA)`,
+        title: `⚡ URGENT TESTING (1 Hr - 2 Days)`,
         description: `Sample ${code}: ${name} (Batch: ${lot}) requires expedited analytical testing.`,
         timestamp: 'Active SLA',
         type: 'urgent',
@@ -151,9 +197,9 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
         list.push({
           id: item.id,
           title: item.actionRaw.includes('CRITICAL')
-            ? `🚨 CRITICAL (1 Hr - 2 Days SLA): ${item.userName}`
+            ? `🚨 CRITICAL (24h SLA): ${item.userName}`
             : item.actionRaw.includes('URGENT')
-            ? `⚡ URGENT (1 Hr - 2 Days SLA): ${item.userName}`
+            ? `⚡ URGENT (1 Hr - 2 Days): ${item.userName}`
             : `${item.userName} (${item.roleBadge.label})`,
           description: `${item.actionLabel.label}: ${item.details}`,
           timestamp: `${item.relativeTime} • ${item.timeDisplay}`,
@@ -199,47 +245,73 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
     }
   };
 
-  // Get display name & role title
-  const displayName = user?.fullName || 'Muhammad Ali';
-  const displayRole = user?.role === 'ADMIN' ? 'Lab Manager' : (user?.role ? user.role.replace(/_/g, ' ') : 'Lab Manager');
+  // Get display name & role title matching login demo card exactly
+  const demoMatch = DEMO_USERS.find(
+    (d) =>
+      (user?.email && d.email.toLowerCase() === user.email.toLowerCase()) ||
+      (user?.username && d.username?.toLowerCase() === user.username.toLowerCase()) ||
+      (user?.employeeId && d.employeeId?.toUpperCase() === user.employeeId.toUpperCase())
+  );
+
+  const displayName = demoMatch?.name || user?.fullName || 'Lab Staff';
+  const displayRole = demoMatch?.labBadge || (user?.role === 'ADMIN' ? 'Master Administrator' : (user?.role ? user.role.replace(/_/g, ' ') : 'Lab Staff'));
 
   return (
     <header className="sticky top-0 z-40 w-full lg:pl-64 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
-      <div className="px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+      <div className="px-3 sm:px-6 lg:px-8 flex items-center justify-between h-16 gap-3 sm:gap-6">
         
-        {/* Left: Page Title */}
-        <div className="flex items-center gap-3.5">
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-              Laboratory Information Management System
-            </h1>
-          </div>
+        {/* Left: Mobile Sidebar Trigger & Top Left Stacked Date/Time */}
+        <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
+          {onToggleSidebar && (
+            <button
+              type="button"
+              onClick={onToggleSidebar}
+              className="lg:hidden p-1.5 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              aria-label="Toggle Sidebar Navigation"
+              title="Toggle Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
+          {/* Top Left: Date on top, Time underneath */}
+          <SystemClock layout="stacked" />
         </div>
 
-        {/* Right: Urgent Alert Pill + Notification Bell + User Profile Avatar */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          {/* Active Urgent Alert Pill (Visible at the very top of Navbar) */}
+        {/* Center: Page Title */}
+        <div className="flex-1 flex items-center justify-center min-w-0 px-2 sm:px-6">
+          <h1 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 tracking-tight whitespace-nowrap text-center">
+            <span className="hidden sm:inline">Laboratory Information Management System</span>
+            <span className="sm:hidden font-extrabold text-blue-700">City Pharma LIMS</span>
+          </h1>
+        </div>
+
+        {/* Right: Urgent Alerts + Notification Bell + User Profile Avatar */}
+        <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
+
+          {/* Active Urgent Alert Pill (Visible on lg+ screens to conserve space) */}
           {activeUrgentSamples.length > 0 && (
             <Link
               href="/samples"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold shadow-2xs transition-all cursor-pointer animate-pulse"
+              className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold shadow-2xs transition-all cursor-pointer animate-pulse"
               title="Urgent Samples Requiring 1 Hr - 2 Days SLA Testing"
             >
               <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
               <span>
-                Urgent ({activeUrgentSamples.length} {activeUrgentSamples.length === 1 ? 'sample' : 'samples'})
+                <span className="hidden xl:inline">Urgent </span>({activeUrgentSamples.length})
               </span>
             </Link>
           )}
 
+
+
           {/* Notification Bell with red badge */}
-          <div className="relative">
+          <div className="relative" ref={notifRef}>
             <button
               onClick={() => {
                 setIsNotifOpen(!isNotifOpen);
                 setIsUserMenuOpen(false);
               }}
-              className="relative p-2 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              className="relative p-2 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
@@ -252,98 +324,92 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
 
             {/* Notifications Dropdown */}
             {isNotifOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsNotifOpen(false)}
-                />
-                <div className="absolute right-0 mt-2 w-80 sm:w-88 rounded-2xl bg-white shadow-xl border border-slate-200 p-3.5 z-50 animate-in fade-in zoom-in-95 duration-100">
-                  <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">
-                        {isAdmin ? 'Staff Activity Alerts' : 'Recent Alerts'}
-                      </span>
-                      {unreadCount > 0 && (
-                        <span className="text-[10px] bg-rose-50 text-rose-600 font-bold px-1.5 py-0.5 rounded border border-rose-200">
-                          {unreadCount} new
-                        </span>
-                      )}
-                    </div>
+              <div className="absolute right-0 mt-2 w-80 sm:w-88 rounded-2xl bg-white shadow-xl border border-slate-200 p-3.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">
+                      {isAdmin ? 'Staff Activity Alerts' : 'Recent Alerts'}
+                    </span>
                     {unreadCount > 0 && (
-                      <button
-                        onClick={markAllRead}
-                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                      >
-                        <Check className="h-3 w-3" />
-                        <span>Mark all read</span>
-                      </button>
+                      <span className="text-[10px] bg-rose-50 text-rose-600 font-bold px-1.5 py-0.5 rounded border border-rose-200">
+                        {unreadCount} new
+                      </span>
                     )}
                   </div>
-
-                  <div className="space-y-1.5 max-h-80 overflow-y-auto">
-                    {notifications.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={item.link || '#'}
-                        onClick={() => {
-                          if (isAdmin && !readAlertIds.includes(item.id)) {
-                            const updated = [...readAlertIds, item.id];
-                            setReadAlertIds(updated);
-                            try {
-                              sessionStorage.setItem('cp_admin_read_alerts', JSON.stringify(updated));
-                            } catch {}
-                          }
-                          setIsNotifOpen(false);
-                        }}
-                        className={`block p-2.5 rounded-xl border transition-colors ${
-                          item.read
-                            ? 'bg-white border-slate-100 hover:bg-slate-50'
-                            : 'bg-amber-50/70 border-amber-200/90 hover:bg-amber-100/70 shadow-2xs'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span
-                              className={`text-xs ${
-                                item.read ? 'font-semibold text-slate-800' : 'font-bold text-amber-950'
-                              }`}
-                            >
-                              {item.title}
-                            </span>
-                            {!item.read && (
-                              <span className="text-[9px] bg-rose-500 text-white font-bold px-1.5 py-0.2 rounded-full">
-                                NEW
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-slate-400 shrink-0 font-mono">
-                            {item.timestamp}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-700 mt-1 leading-snug">
-                          {item.description}
-                        </p>
-                      </Link>
-                    ))}
-                  </div>
-
-                  <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-                    <span>Laboratory Facility: Central QC Unit</span>
-                    <span className="text-blue-600 font-medium">Real-Time Sync</span>
-                  </div>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllRead}
+                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Check className="h-3 w-3" />
+                      <span>Mark all read</span>
+                    </button>
+                  )}
                 </div>
-              </>
+
+                <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                  {notifications.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={item.link || '#'}
+                      onClick={() => {
+                        if (isAdmin && !readAlertIds.includes(item.id)) {
+                          const updated = [...readAlertIds, item.id];
+                          setReadAlertIds(updated);
+                          try {
+                            sessionStorage.setItem('cp_admin_read_alerts', JSON.stringify(updated));
+                          } catch {}
+                        }
+                        setIsNotifOpen(false);
+                      }}
+                      className={`block p-2.5 rounded-xl border transition-colors ${
+                        item.read
+                          ? 'bg-white border-slate-100 hover:bg-slate-50'
+                          : 'bg-amber-50/70 border-amber-200/90 hover:bg-amber-100/70 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className={`text-xs ${
+                              item.read ? 'font-semibold text-slate-800' : 'font-bold text-amber-950'
+                            }`}
+                          >
+                            {item.title}
+                          </span>
+                          {!item.read && (
+                            <span className="text-[9px] bg-rose-500 text-white font-bold px-1.5 py-0.2 rounded-full">
+                              NEW
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-400 shrink-0 font-mono">
+                          {item.timestamp}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-700 mt-1 leading-snug">
+                        {item.description}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+
+                <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Laboratory Facility: Central QC Unit</span>
+                  <span className="text-blue-600 font-medium">Real-Time Sync</span>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* User Profile Avatar matching Image 1: Blue circle with User icon + Muhammad Ali / Lab Manager */}
-          <div className="relative">
+          {/* User Profile Avatar */}
+          <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => {
                 setIsUserMenuOpen(!isUserMenuOpen);
                 setIsNotifOpen(false);
               }}
-              className="flex items-center gap-2.5 py-1 px-1.5 rounded-xl hover:bg-slate-50 transition-colors text-left"
+              className="flex items-center gap-2.5 py-1 px-1.5 rounded-xl hover:bg-slate-50 transition-colors text-left cursor-pointer"
             >
               <div className="h-9 w-9 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
                 <User className="h-5 w-5 text-white" />
@@ -361,73 +427,70 @@ function NavbarInner({ onToggleSidebar }: NavbarProps) {
 
             {/* Profile & Persona Switcher Dropdown */}
             {isUserMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsUserMenuOpen(false)}
-                />
-                <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white shadow-xl border border-slate-200 p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100">
-                  <div className="px-3 py-2 border-b border-slate-100">
-                    <p className="text-sm font-bold text-slate-900">{user?.fullName || displayName}</p>
-                    <p className="text-xs text-slate-500 font-mono mt-0.5">{user?.email || 'admin@citipharma.com'}</p>
-                  </div>
-
-                  {/* Switch Persona for Live Testing - Only visible for Admin */}
-                  {user?.role === 'ADMIN' && (
-                    <div className="p-2 border-b border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 px-1">
-                        Profiles
-                      </p>
-                      <div className="space-y-1">
-                        {DEMO_USERS.map((demo) => {
-                          const isCurrent = user?.email === demo.email;
-                          return (
-                            <button
-                              key={demo.role}
-                              onClick={() => {
-                                loginAs(demo.role);
-                                setIsUserMenuOpen(false);
-                              }}
-                              className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors ${
-                                isCurrent
-                                  ? 'bg-blue-50 text-blue-700 font-semibold border border-blue-200'
-                                  : 'hover:bg-slate-50 text-slate-700'
-                              }`}
-                            >
-                              <div>
-                                <div className="font-medium text-slate-900">{demo.name}</div>
-                                <div className="text-[10px] text-slate-500">{demo.title}</div>
-                              </div>
-                              {isCurrent && (
-                                <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Sign Out Button */}
-                  <div className="pt-1.5">
-                    <button
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        logout();
-                      }}
-                      className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                    >
-                      <LogOut className="h-3.5 w-3.5" />
-                      <span>Sign Out from Workstation</span>
-                    </button>
-                  </div>
+              <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white shadow-xl border border-slate-200 p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-3 py-2 border-b border-slate-100">
+                  <p className="text-sm font-bold text-slate-900">{displayName}</p>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">{user?.email || demoMatch?.email || 'admin@citypharma.com'}</p>
                 </div>
-              </>
+
+
+                {/* Switch Persona for Live Testing - Only visible for Admin */}
+                {user?.role === 'ADMIN' && (
+                  <div className="p-2 border-b border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 px-1">
+                      Profiles
+                    </p>
+                    <div className="space-y-1">
+                      {DEMO_USERS.map((demo) => {
+                        const isCurrent = user?.email === demo.email;
+                        return (
+                          <button
+                            key={demo.role}
+                            onClick={() => {
+                              loginAs(demo.role);
+                              setIsUserMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+                              isCurrent
+                                ? 'bg-blue-50 text-blue-700 font-semibold border border-blue-200'
+                                : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <div>
+                              <div className="font-medium text-slate-900">{demo.name}</div>
+                              <div className="text-[10px] text-slate-500">{demo.title}</div>
+                            </div>
+                            {isCurrent && (
+                              <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sign Out Button */}
+                <div className="pt-1.5">
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    <span>Sign Out from Workstation</span>
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
         </div>
       </div>
+
+
     </header>
   );
 }

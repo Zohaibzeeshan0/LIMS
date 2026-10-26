@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException, 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSampleDto } from './dto/create-sample.dto';
 import { UpdateSampleDto } from './dto/update-sample.dto';
-import { SubmissionDestination, SubmissionStatus } from '@prisma/client';
+import { SubmissionDestination, SubmissionStatus, SampleStatus, Priority, Role } from '@prisma/client';
 import { SubmitSampleDto, UpdateSubmissionStatusDto } from './dto/submit-sample.dto';
 
 @Injectable()
@@ -14,8 +14,16 @@ export class SamplingService {
     stageOrType?: string,
     explicitSection?: string
   ): Promise<string> {
-    // Single Laboratory in system: General Lab (GL)
-    const labPrefix = 'GL';
+    // 1. Determine Laboratory Prefix (GL = General, PEN = Penicillin, CEPH = Cephalosporin)
+    let labPrefix = 'GL';
+    const rawLab = (laboratory || '').toString().toUpperCase();
+    if (rawLab === 'PENICILLIN' || rawLab === 'PEN' || rawLab === 'PL') {
+      labPrefix = 'PEN';
+    } else if (rawLab === 'CEPHALOSPORIN' || rawLab === 'CEPH' || rawLab === 'CP' || rawLab === 'SAF' || rawLab === 'SEF') {
+      labPrefix = 'CEPH';
+    } else {
+      labPrefix = 'GL';
+    }
 
     // 2. Determine Section Prefix (SB = Semi Basics / Semi Basic, F = Formulation)
     let secPrefix = 'SB';
@@ -75,22 +83,122 @@ export class SamplingService {
     stageType?: string
   ) {
     const nextSampleCode = await this.generateSampleCode(laboratory, stageType, section);
+    const nextAccessionNo = await this.generateAccessionNo(laboratory, stageType, section);
     return {
       sampleCode: nextSampleCode,
       sampleId: nextSampleCode,
+      accessionNo: nextAccessionNo,
       laboratory: laboratory || 'GENERAL',
       section: section || 'semi-base',
     };
   }
 
-  async generateAccessionNo(): Promise<string> {
-    const count = await this.prisma.sample.count();
-    const sequence = (count + 1).toString().padStart(4, '0');
-    return `A-${sequence}`;
+  async generateAccessionNo(
+    laboratory?: string,
+    stageType?: string,
+    section?: string
+  ): Promise<string> {
+    const sec = (section || '').toString().toLowerCase();
+    const st = (stageType || '').toString().toLowerCase();
+    let secPrefix = 'SB';
+    if (
+      sec.includes('form') ||
+      sec.includes('fm') ||
+      st.includes('[formulation]') ||
+      st.includes('finish') ||
+      st.includes('coat') ||
+      st.includes('fill') ||
+      st.includes('packag') ||
+      st.includes('stabilit')
+    ) {
+      secPrefix = 'F';
+    }
+
+    const lab = (laboratory || 'GENERAL').toString().toUpperCase();
+    let labPrefix = 'GL';
+    if (lab === 'SEF' || lab === 'SAF' || lab === 'CP' || lab.includes('CEPH')) {
+      labPrefix = 'CEPH';
+    } else if (lab.includes('PEN')) {
+      labPrefix = 'PEN';
+    }
+
+    // Match all existing samples in this section and laboratory
+    const existingSamples = await this.prisma.sample.findMany({
+      where: {
+        OR: [
+          { sampleCode: { startsWith: `${labPrefix}/${secPrefix}` } },
+          { sampleId: { startsWith: `${labPrefix}/${secPrefix}` } },
+          { recordNumber: { startsWith: `${labPrefix}/${secPrefix}` } },
+          ...(secPrefix === 'SB'
+            ? [
+                { stageType: { contains: '[Semi Basics]', mode: 'insensitive' as const } },
+                { stageType: { contains: '[Semi Basic]', mode: 'insensitive' as const } },
+              ]
+            : [
+                { stageType: { contains: '[Formulation]', mode: 'insensitive' as const } },
+              ]),
+        ],
+      },
+      select: { sampleCode: true, sampleId: true, recordNumber: true, accessionNo: true },
+    });
+
+    const codeRegex = new RegExp(`^(${labPrefix}|CP|PL|GL)\\/${secPrefix}[-\\/](\\d+)$`, 'i');
+    const accRegex = /^A-(\d+)$/i;
+    let maxNumber = 0;
+
+    for (const item of existingSamples) {
+      const candidates = [item.sampleCode, item.sampleId, item.recordNumber].filter(Boolean);
+      for (const cand of candidates) {
+        const match = cand!.trim().match(codeRegex);
+        if (match && match[1]) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      }
+      if (item.accessionNo) {
+        const matchAcc = item.accessionNo.trim().match(accRegex);
+        if (matchAcc && matchAcc[1]) {
+          const num = parseInt(matchAcc[1], 10);
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      }
+    }
+
+    const nextNumber = maxNumber + 1;
+    return `A-${nextNumber.toString().padStart(4, '0')}`;
   }
 
-  getUserAssignedLab(user?: any): 'GENERAL' | 'ALL' {
-    return 'GENERAL';
+  getUserAssignedLab(user?: any): 'GENERAL' | 'PENICILLIN' | 'CEPHALOSPORIN' | 'ALL' {
+    if (!user) return 'ALL';
+    const role = user.role || '';
+    if (
+      role === 'ADMIN' ||
+      role === 'QA_MANAGER' ||
+      role === 'AUDITOR' ||
+      role === 'MANAGER' ||
+      role === 'DEPUTY_MANAGER' ||
+      role === 'SHIFT_INCHARGE'
+    ) {
+      return 'ALL';
+    }
+    const dept = (user.department || '').toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    const uname = (user.username || '').toLowerCase();
+
+    if (dept.includes('penicillin') || email.includes('pen') || uname.includes('pen')) {
+      return 'PENICILLIN';
+    }
+    if (dept.includes('cephalosporin') || dept.includes('ceph') || email.includes('ceph') || uname.includes('ceph')) {
+      return 'CEPHALOSPORIN';
+    }
+    if (dept.includes('general') || email.includes('gen') || uname.includes('gen')) {
+      return 'GENERAL';
+    }
+    return 'ALL';
   }
 
   async checkSampleIdAvailability(sampleCode: string) {
@@ -108,9 +216,30 @@ export class SamplingService {
   async create(createSampleDto: CreateSampleDto, user: any) {
     const userAssignedLab = this.getUserAssignedLab(user);
     const rawReqLab = createSampleDto.laboratory ? (createSampleDto.laboratory as string).toUpperCase() : undefined;
-    const requestedLab = (rawReqLab === 'SEF' || rawReqLab === 'SAF' || rawReqLab === 'CP' || rawReqLab?.includes('CEPH')) ? 'SAF' : (rawReqLab || 'GENERAL');
+    let targetLab: 'GENERAL' | 'PENICILLIN' | 'CEPHALOSPORIN' = 'GENERAL';
+    if (rawReqLab === 'PENICILLIN' || rawReqLab === 'PEN' || rawReqLab === 'PL') {
+      targetLab = 'PENICILLIN';
+    } else if (rawReqLab === 'CEPHALOSPORIN' || rawReqLab === 'CEPH' || rawReqLab === 'CP' || rawReqLab === 'SAF' || rawReqLab === 'SEF') {
+      targetLab = 'CEPHALOSPORIN';
+    } else {
+      targetLab = 'GENERAL';
+    }
 
-    createSampleDto.laboratory = 'GENERAL' as any;
+    if (userAssignedLab !== 'ALL') {
+      targetLab = userAssignedLab;
+    }
+
+    createSampleDto.laboratory = targetLab as any;
+
+    const labRecord = await this.prisma.laboratory.findFirst({
+      where: {
+        OR: [
+          { code: targetLab === 'PENICILLIN' ? 'PEN' : targetLab === 'CEPHALOSPORIN' ? 'CEPH' : 'GEN' },
+          { code: targetLab === 'CEPHALOSPORIN' ? 'SAF' : targetLab },
+          { name: { contains: targetLab, mode: 'insensitive' } },
+        ],
+      },
+    });
 
     let sampleCode = createSampleDto.sampleCode?.trim();
     if (sampleCode) {
@@ -142,10 +271,15 @@ export class SamplingService {
     }
 
     const barcode = createSampleDto.barcode?.trim() || sampleCode;
-    const accessionNo = createSampleDto.accessionNo || (await this.generateAccessionNo());
-    const samplingDate = createSampleDto.samplingDate ? new Date(createSampleDto.samplingDate) : new Date();
-
     const stageTypeVal = (createSampleDto.stageType || createSampleDto.sampleType || 'Finished Product').toString().trim();
+    const accessionNo =
+      createSampleDto.accessionNo ||
+      (await this.generateAccessionNo(
+        createSampleDto.laboratory,
+        stageTypeVal,
+        (createSampleDto as any).section
+      ));
+    const samplingDate = createSampleDto.samplingDate ? new Date(createSampleDto.samplingDate) : new Date();
     const validEnum = ['RAW_MATERIAL', 'IN_PROCESS', 'FINISHED_PRODUCT', 'STABILITY', 'WATER_PURIFIED', 'ENVIRONMENTAL_SWAB'].includes(stageTypeVal)
       ? (stageTypeVal as any)
       : null;
@@ -177,13 +311,15 @@ export class SamplingService {
           sampleQty: createSampleDto.sampleQty,
           quantity: createSampleDto.sampleQty,
           unit: createSampleDto.unit,
-          priority: (createSampleDto.priority as any) || 'ROUTINE',
+          priority: (createSampleDto.priority as any) || Priority.ROUTINE,
           storageCondition: createSampleDto.storageCondition || 'Controlled Room Temp 20-25°C',
-          laboratoryType: 'GENERAL' as any,
+          laboratoryId: labRecord?.id || null,
+          laboratoryType: ((createSampleDto.laboratory as string)?.toUpperCase() === 'PENICILLIN' ? 'PENICILLIN' : (createSampleDto.laboratory as string)?.toUpperCase() === 'CEPHALOSPORIN' ? 'CEPHALOSPORIN' : 'GENERAL') as any,
           chainOfCustody: createSampleDto.chainOfCustody || `Sample logged by ${user.fullName} (${user.employeeId})`,
           remarks: createSampleDto.remarks,
           accessionedById: user.id,
           assignedToId: createSampleDto.assignedToId || null,
+          status: SampleStatus.RECEIVED,
         },
       });
 
@@ -291,21 +427,27 @@ export class SamplingService {
     if (query.batchId) where.batchId = query.batchId;
 
     if (userAssignedLab !== 'ALL') {
-      where.laboratoryType = userAssignedLab as any;
+      if (userAssignedLab === 'CEPHALOSPORIN') {
+        where.laboratoryType = { in: ['CEPHALOSPORIN', 'SAF'] };
+      } else {
+        where.laboratoryType = userAssignedLab as any;
+      }
     } else {
       const rawLab = query.laboratory || query.lab;
       let lab: string | undefined = undefined;
       if (rawLab) {
         const u = rawLab.toString().toUpperCase();
         if (u === 'SEF' || u === 'SAF' || u === 'CP' || u.includes('CEPH')) {
-          lab = 'SAF';
+          lab = 'CEPHALOSPORIN';
         } else if (u === 'PENICILLIN' || u === 'PEN' || u === 'PL') {
           lab = 'PENICILLIN';
         } else if (u === 'GENERAL' || u === 'GEN' || u === 'GL') {
           lab = 'GENERAL';
         }
       }
-      if (lab && ['SAF', 'PENICILLIN', 'GENERAL'].includes(lab)) {
+      if (lab === 'CEPHALOSPORIN') {
+        where.laboratoryType = { in: ['CEPHALOSPORIN', 'SAF'] };
+      } else if (lab && ['PENICILLIN', 'GENERAL'].includes(lab)) {
         where.laboratoryType = lab as any;
       }
     }
@@ -381,7 +523,6 @@ export class SamplingService {
           { sampleCode: { contains: '/F-', mode: 'insensitive' } },
           { sampleId: { contains: '/F-', mode: 'insensitive' } },
           { stageType: { contains: '[Formulation]', mode: 'insensitive' } },
-          { remarks: { contains: '[Formulation]', mode: 'insensitive' } },
         ];
       } else if (sec === 'formulation' || sec === 'formulations' || sec === 'fm') {
         sectionCond = [
@@ -404,7 +545,6 @@ export class SamplingService {
           { sampleId: { contains: '/SB', mode: 'insensitive' } },
           { stageType: { contains: '[Semi Basic', mode: 'insensitive' } },
           { stageType: { contains: '[Semi Base', mode: 'insensitive' } },
-          { remarks: { contains: '[Semi Basic', mode: 'insensitive' } },
         ];
       }
 
@@ -479,9 +619,9 @@ export class SamplingService {
       'createdAt',
       'status',
     ];
-    const sortBy = allowedSortFields.includes(query.sortBy) ? query.sortBy : 'samplingDate';
-    const sortOrder = query.sortOrder?.toLowerCase() === 'asc' ? 'asc' : 'desc';
-    const orderBy: any = { [sortBy]: sortOrder };
+    const sortBy = allowedSortFields.includes(query.sortBy) ? query.sortBy : 'accessionNo';
+    const sortOrder = query.sortOrder?.toLowerCase() === 'desc' ? 'desc' : 'asc';
+    const orderBy: any = [{ [sortBy]: sortOrder }, { createdAt: sortOrder }];
 
     // Pagination
     const page = Math.max(1, parseInt(query.page || '1', 10));
@@ -578,7 +718,6 @@ export class SamplingService {
     if (!sample) {
       throw new NotFoundException(`Sample with identifier '${idOrCode}' not found`);
     }
-
 
 
     return sample;
@@ -682,14 +821,16 @@ export class SamplingService {
     const rawLab = targetLab?.toUpperCase();
     const normalizedLab =
       (rawLab === 'SEF' || rawLab === 'SAF' || rawLab === 'CP' || rawLab?.includes('CEPH'))
-        ? 'SAF'
+        ? 'CEPHALOSPORIN'
         : (rawLab === 'PENICILLIN' || rawLab === 'PL' || rawLab === 'PEN')
         ? 'PENICILLIN'
         : (rawLab === 'GENERAL' || rawLab === 'GL' || rawLab === 'GEN')
         ? 'GENERAL'
         : undefined;
     const labCondition =
-      normalizedLab && ['SAF', 'PENICILLIN', 'GENERAL'].includes(normalizedLab)
+      normalizedLab === 'CEPHALOSPORIN'
+        ? { laboratoryType: { in: ['CEPHALOSPORIN', 'SAF'] as any } }
+        : normalizedLab && ['PENICILLIN', 'GENERAL'].includes(normalizedLab)
         ? { laboratoryType: normalizedLab as any }
         : {};
 
@@ -707,7 +848,18 @@ export class SamplingService {
       },
     });
 
-    const generalCount = await this.prisma.sample.count();
+    const [generalCount, penicillinCount, cephalosporinCount] = await Promise.all([
+      this.prisma.sample.count({ where: { laboratoryType: 'GENERAL' } }),
+      this.prisma.sample.count({ where: { laboratoryType: 'PENICILLIN' } }),
+      this.prisma.sample.count({
+        where: {
+          OR: [
+            { laboratoryType: 'CEPHALOSPORIN' },
+            { laboratoryType: 'SAF' },
+          ],
+        },
+      }),
+    ]);
 
     const activeBatches = await this.prisma.batch.count({
       where: {
@@ -718,6 +870,8 @@ export class SamplingService {
 
     const byLab = {
       general: generalCount,
+      penicillin: penicillinCount,
+      cephalosporin: cephalosporinCount,
     };
 
     return {

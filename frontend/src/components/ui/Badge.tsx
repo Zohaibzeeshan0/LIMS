@@ -58,6 +58,12 @@ export function StatusBadge({ status }: { status: string }) {
     case 'OUT_OF_SERVICE':
       return <Badge variant="danger">{status.replace(/_/g, ' ')}</Badge>;
 
+    case 'PENDING_SUPERVISOR_ASSIGNMENT':
+      return <Badge variant="warning">AWAITING SUPERVISOR ASSIGNMENT</Badge>;
+
+    case 'ASSIGNED_FOR_TESTING':
+      return <Badge variant="info">ASSIGNED FOR TESTING</Badge>;
+
     case 'QUARANTINE':
     case 'CALIBRATION_DUE':
     case 'PENDING':

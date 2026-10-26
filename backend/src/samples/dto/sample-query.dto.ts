@@ -9,10 +9,10 @@ export class SampleQueryDto {
   @IsOptional()
   search?: string;
 
-  @ApiProperty({ enum: SampleStatus, required: false })
-  @IsEnum(SampleStatus)
+  @ApiProperty({ required: false, description: 'Filter by Status or comma-separated statuses' })
+  @IsString()
   @IsOptional()
-  status?: SampleStatus;
+  status?: string;
 
   @ApiProperty({ required: false, description: 'Filter by stage type (e.g. RAW_MATERIAL, IN_PROCESS, FINISHED_PRODUCT)' })
   @IsString()
@@ -24,10 +24,10 @@ export class SampleQueryDto {
   @IsOptional()
   sampleType?: string;
 
-  @ApiProperty({ enum: Priority, required: false })
-  @IsEnum(Priority)
+  @ApiProperty({ required: false, description: 'Filter by Priority or comma-separated priorities (e.g. STAT,URGENT)' })
+  @IsString()
   @IsOptional()
-  priority?: Priority;
+  priority?: string;
 
   @ApiProperty({ required: false, description: 'Filter by Laboratory UUID' })
   @IsString()
