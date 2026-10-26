@@ -13,8 +13,6 @@ dist/
 */dist/
 
 # Environment Variables & Secrets
-.env
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -39,10 +37,10 @@ Thumbs.db
 desktop.ini
 
 # IDE & Editors
-.vscode/
 .idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+config.bat

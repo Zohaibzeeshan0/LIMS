@@ -345,21 +345,7 @@ View Details: ${sampleDetailUrl}`;
               <span>Print Sample Slip</span>
             </Button>
 
-            {onProceedToSubmit && (
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={() => {
-                  onClose();
-                  onProceedToSubmit(sample);
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs"
-              >
-                <Send className="h-3.5 w-3.5" />
-                <span>Submit to Workflow</span>
-              </Button>
-            )}
+
 
             <Button
               type="button"

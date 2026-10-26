@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { samplingService } from '@/services/sampling.service';
 import { auditService } from '@/services/audit.service';
@@ -37,15 +37,17 @@ import {
   Sparkles,
   Lock,
   ArrowRight,
-  TrendingUp,
-  Radio,
-  Boxes,
   Microscope,
+  ShieldAlert,
   ChevronRight,
+  ChevronLeft,
+  X,
+  Boxes,
 } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, isLoading: authLoading } = useAuth();
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
@@ -67,35 +69,15 @@ export default function DashboardPage() {
   // Other personnel (QC Analyst, Lab Technician, QA Manager, Auditor) are automatically directed to their assigned workspace.
   useEffect(() => {
     if (!authLoading && user && user.role !== 'ADMIN') {
-      router.replace('/samples');
+      router.replace('/laboratories');
     }
   }, [user, authLoading, router]);
 
   if (!authLoading && user && user.role !== 'ADMIN') {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center font-sans">
-        <div className="h-14 w-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 border border-amber-200 shadow-xs">
-          <Lock className="h-7 w-7" />
-        </div>
-        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 uppercase tracking-wider mb-2">
-          Role-Based Access Policy
-        </span>
-        <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-          Executive Dashboard Restricted
-        </h2>
-        <p className="text-xs text-slate-500 max-w-md mt-1 leading-relaxed">
-          The Executive Analytics Dashboard is reserved for Laboratory Administrators. You are signed in as{' '}
-          <strong className="text-slate-800">{user.role.replace(/_/g, ' ')}</strong>. Redirecting you to your assigned operational workspace...
-        </p>
-        <div className="mt-5">
-          <Link
-            href="/samples"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-xs"
-          >
-            <span>Go to My Operational Workspace</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
+      <div className="min-h-[50vh] flex flex-col items-center justify-center text-center">
+        <div className="h-8 w-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
+        <span className="text-xs text-slate-500 font-medium">Entering Analytical Laboratories Portal...</span>
       </div>
     );
   }
@@ -109,12 +91,12 @@ export default function DashboardPage() {
   // Real recent samples query to display latest created samples
   const { data: recentSamplesData } = useQuery({
     queryKey: ['dashboard-recent-samples'],
-    queryFn: () => samplingService.getAll({ limit: 6, sortBy: 'samplingDate', sortOrder: 'desc' }),
+    queryFn: () => samplingService.getAll({ limit: 100, sortBy: 'samplingDate', sortOrder: 'desc' }),
   });
 
   // Dedicated query to fetch ALL active expedited (Immediate / STAT & Urgent) samples
   const { data: expeditedSamplesData } = useQuery({
-    queryKey: ['dashboard-all-expedited-samples'],
+    queryKey: ['active-expedited-urgent-samples'],
     queryFn: () =>
       samplingService.getAll({
         priority: 'STAT,URGENT',
@@ -146,35 +128,220 @@ export default function DashboardPage() {
   // Dynamically compute the last 7 calendar days leading to today
   const recentDays = useMemo(() => getRecentDays(7), [currentTime]);
 
-  // 7-day grouped bar chart data for Samples Overview based on current live calendar
-  const weeklyOverviewData = useMemo(() => [
-    { day: recentDays[0].day, date: recentDays[0].date, received: 45, processing: 35, completed: 28 },
-    { day: recentDays[1].day, date: recentDays[1].date, received: 60, processing: 48, completed: 36 },
-    { day: recentDays[2].day, date: recentDays[2].date, received: 68, processing: 60, completed: 45 },
-    { day: recentDays[3].day, date: recentDays[3].date, received: 70, processing: 62, completed: 48 },
-    { day: recentDays[4].day, date: recentDays[4].date, received: 69, processing: 55, completed: 50 },
-    { day: recentDays[5].day, date: recentDays[5].date, received: 80, processing: 85, completed: 65 },
-    {
-      day: `${recentDays[6].day}`,
-      date: `${recentDays[6].date} (Today)`,
-      received: metrics?.total !== undefined ? Math.max(metrics.total, 82) : 82,
-      processing: metrics?.inTesting !== undefined ? Math.max(metrics.inTesting, 56) : 56,
-      completed: metrics?.approved !== undefined ? Math.max(metrics.approved, 55) : 55,
-    },
-  ], [recentDays, metrics]);
+  // Real sample records list from API
+  const realSamplesList = useMemo(() => {
+    if (!recentSamplesData) return [];
+    return Array.isArray(recentSamplesData)
+      ? recentSamplesData
+      : (recentSamplesData as any)?.data || [];
+  }, [recentSamplesData]);
 
-  // Samples by Type breakdown data
-  const sampleTypes = [
-    { label: 'Raw Material', count: 42, pct: '17%', color: '#0088FE' },
-    { label: 'Packaging Material', count: 38, pct: '15%', color: '#00C49F' },
-    { label: 'In-Process', count: 54, pct: '22%', color: '#06B6D4' },
-    { label: 'Finished Product', count: 76, pct: '31%', color: '#8884D8' },
-    { label: 'Stability', count: 28, pct: '11%', color: '#FFBB28' },
-    { label: 'Microbiology', count: 10, pct: '4%', color: '#EC4899' },
-  ];
+  // Total samples count across all registries
+  const totalSamplesCount = useMemo(() => {
+    if (metrics?.total !== undefined) return metrics.total;
+    return realSamplesList.length;
+  }, [metrics?.total, realSamplesList.length]);
 
-  // Real or fallback Pending Samples Table data with Laboratory mapping
-  const pendingSamples = useMemo(() => {
+  // 7-day grouped bar chart data dynamically computed from real database samples
+  const weeklyOverviewData = useMemo(() => {
+    return recentDays.map((d, index) => {
+      const isToday = index === recentDays.length - 1;
+
+      // Match samples by calendar date (using d.fullDate)
+      const daySamples = realSamplesList.filter((s: any) => {
+        const rawDate = s.samplingDate || s.createdAt;
+        if (!rawDate) return false;
+        try {
+          const sampleDate = new Date(rawDate);
+          return sampleDate.toDateString() === d.fullDate.toDateString();
+        } catch {
+          return false;
+        }
+      });
+
+      const dayReceived = daySamples.filter((s: any) => {
+        const st = (s.status || '').toUpperCase();
+        return st === 'RECEIVED' || st.includes('ASSIGNMENT') || st.includes('QUEUED');
+      }).length;
+
+      const dayProcessing = daySamples.filter((s: any) => {
+        const st = (s.status || '').toUpperCase();
+        return st === 'TESTING_IN_PROGRESS' || st.includes('PROGRESS') || st.includes('REVIEW');
+      }).length;
+
+      const dayCompleted = daySamples.filter((s: any) => {
+        const st = (s.status || '').toUpperCase();
+        return st === 'APPROVED' || st === 'RELEASED';
+      }).length;
+
+      // For today, incorporate live metrics if present
+      const received = isToday && metrics?.received !== undefined ? metrics.received : dayReceived;
+      const processing = isToday && metrics?.inTesting !== undefined ? metrics.inTesting : dayProcessing;
+      const completed = isToday && metrics?.approved !== undefined ? metrics.approved : dayCompleted;
+
+      return {
+        day: d.day,
+        date: isToday ? `${d.date} (Today)` : d.date,
+        received,
+        processing,
+        completed,
+      };
+    });
+  }, [recentDays, realSamplesList, metrics]);
+
+  // Find max value in weeklyOverviewData to scale bars dynamically
+  const maxWeeklyVal = useMemo(() => {
+    const allVals = weeklyOverviewData.flatMap((d) => [d.received, d.processing, d.completed]);
+    const max = Math.max(0, ...allVals);
+    if (max <= 10) return 10;
+    if (max <= 25) return 25;
+    if (max <= 50) return 50;
+    if (max <= 100) return 100;
+    return Math.ceil(max / 50) * 50;
+  }, [weeklyOverviewData]);
+
+  // Dynamic 6 gridlines for the grouped bar chart
+  const gridLabels = useMemo(() => {
+    return [
+      maxWeeklyVal,
+      Math.round(maxWeeklyVal * 0.8),
+      Math.round(maxWeeklyVal * 0.6),
+      Math.round(maxWeeklyVal * 0.4),
+      Math.round(maxWeeklyVal * 0.2),
+      0,
+    ];
+  }, [maxWeeklyVal]);
+
+  // Samples by Type breakdown dynamically computed from real database samples
+  const sampleTypes = useMemo(() => {
+    const categories = [
+      {
+        key: 'RAW_MATERIAL',
+        label: 'Raw Material',
+        color: '#0088FE',
+        match: (s: any) => {
+          const t = (s.stageType || s.sampleType || '').toUpperCase();
+          return t.includes('RAW') || t === 'RM';
+        },
+      },
+      {
+        key: 'PACKAGING_MATERIAL',
+        label: 'Packaging Material',
+        color: '#00C49F',
+        match: (s: any) => {
+          const t = (s.stageType || s.sampleType || '').toUpperCase();
+          return t.includes('PACK') || t === 'PM';
+        },
+      },
+      {
+        key: 'IN_PROCESS',
+        label: 'In-Process',
+        color: '#06B6D4',
+        match: (s: any) => {
+          const t = (s.stageType || s.sampleType || '').toUpperCase();
+          return t.includes('PROCESS') || t === 'IP';
+        },
+      },
+      {
+        key: 'FINISHED_PRODUCT',
+        label: 'Finished Product',
+        color: '#8884D8',
+        match: (s: any) => {
+          const t = (s.stageType || s.sampleType || '').toUpperCase();
+          return (
+            t.includes('FINISH') ||
+            t === 'FP' ||
+            (!t.includes('RAW') &&
+              !t.includes('PACK') &&
+              !t.includes('PROCESS') &&
+              !t.includes('STABIL') &&
+              !t.includes('MICRO') &&
+              realSamplesList.length > 0)
+          );
+        },
+      },
+      {
+        key: 'STABILITY',
+        label: 'Stability',
+        color: '#FFBB28',
+        match: (s: any) => {
+          const t = (s.stageType || s.sampleType || '').toUpperCase();
+          return t.includes('STABIL') || t === 'STB';
+        },
+      },
+      {
+        key: 'MICROBIOLOGY',
+        label: 'Microbiology',
+        color: '#EC4899',
+        match: (s: any) => {
+          const t = (s.stageType || s.sampleType || '').toUpperCase();
+          return t.includes('MICRO') || t === 'MB';
+        },
+      },
+    ];
+
+    const total = realSamplesList.length;
+
+    return categories.map((cat) => {
+      const count = realSamplesList.filter(cat.match).length;
+      const pctNum = total > 0 ? Math.round((count / total) * 100) : 0;
+      return {
+        label: cat.label,
+        count,
+        pct: `${pctNum}%`,
+        color: cat.color,
+        ratio: total > 0 ? count / total : 0,
+      };
+    });
+  }, [realSamplesList]);
+
+  // Compute SVG arc slices dynamically for the donut chart
+  const donutSlices = useMemo(() => {
+    if (totalSamplesCount === 0) return [];
+
+    let accumulated = 0;
+    const C = 238.76;
+
+    return sampleTypes
+      .filter((t) => t.count > 0)
+      .map((t) => {
+        const dashLength = t.ratio * C;
+        const dasharray = `${dashLength.toFixed(1)} ${(C - dashLength).toFixed(1)}`;
+        const dashoffset = (-accumulated).toFixed(1);
+        accumulated += dashLength;
+
+        return {
+          label: t.label,
+          color: t.color,
+          dasharray,
+          dashoffset,
+        };
+      });
+  }, [sampleTypes, totalSamplesCount]);
+
+  // Interface for dashboard pending sample items
+  interface DashboardPendingSample {
+    uuid: string;
+    id: string;
+    type: string;
+    product: string;
+    batch: string;
+    date: string;
+    status: string;
+    rawStatus: string;
+    assignedToId?: string | null;
+    assignedTo?: any;
+    version?: number;
+    priority?: string;
+    rawSample?: any;
+    statusColor: string;
+    labId: string;
+    labName: string;
+    labBadgeColor: string;
+  }
+
+  // Real database Pending Samples Table data with Laboratory mapping
+  const pendingSamples = useMemo<DashboardPendingSample[]>(() => {
     const realList = Array.isArray(recentSamplesData)
       ? recentSamplesData
       : (recentSamplesData as any)?.data || [];
@@ -187,7 +354,7 @@ export default function DashboardPage() {
         return bPending - aPending;
       });
 
-      return sorted.slice(0, 5).map((s: any) => {
+      return sorted.map((s: any): DashboardPendingSample => {
         // Detect analytical laboratory: 'sef' | 'penicillin' | 'general'
         let labId = 'general';
         let labName = 'General Lab';
@@ -218,6 +385,12 @@ export default function DashboardPage() {
           batch: s.lotNumber || s.batchLotNumber || s.batch?.batchNumber || s.batchNumber || 'CP-B9021',
           date: s.samplingDate ? formatShortLiveDate(new Date(s.samplingDate)) : formatShortLiveDate(),
           status: s.status === 'TESTING_IN_PROGRESS' ? 'In Process' : s.status ? s.status.replace(/_/g, ' ') : 'Pending',
+          rawStatus: s.status || 'PENDING_ASSIGNMENT',
+          assignedToId: s.assignedToId,
+          assignedTo: s.assignedTo,
+          version: s.version,
+          priority: s.priority || 'ROUTINE',
+          rawSample: s,
           statusColor:
             s.status === 'APPROVED'
               ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
@@ -233,92 +406,32 @@ export default function DashboardPage() {
       });
     }
 
-    return [
-      {
-        uuid: 'SMP-0034',
-        id: 'SMP-0034',
-        type: 'Finished Product',
-        product: 'Amoxicillin 500mg',
-        batch: 'CP-AMX-204',
-        date: formatShortLiveDate(),
-        status: 'Pending',
-        statusColor: 'bg-amber-100 text-amber-800 border-amber-200',
-        labId: 'penicillin',
-        labName: 'Penicillin Lab',
-        labBadgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
-      },
-      {
-        uuid: 'SMP-0033',
-        id: 'SMP-0033',
-        type: 'Raw Material',
-        product: 'Paracetamol API',
-        batch: 'CP-PCM-901',
-        date: formatShortLiveDate(),
-        status: 'Pending',
-        statusColor: 'bg-amber-100 text-amber-800 border-amber-200',
-        labId: 'general',
-        labName: 'General Lab',
-        labBadgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-      },
-      {
-        uuid: 'SMP-0032',
-        id: 'SMP-0032',
-        type: 'In-Process',
-        product: 'Cefixime Granules',
-        batch: 'CP-CEF-012',
-        date: formatShortLiveDate(),
-        status: 'In Process',
-        statusColor: 'bg-blue-100 text-blue-800 border-blue-200',
-        labId: 'cephalosporin',
-        labName: 'Cephalosporin Lab',
-        labBadgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-      },
-      {
-        uuid: 'SMP-0031',
-        id: 'SMP-0031',
-        type: 'Packaging Material',
-        product: 'Blister Pack',
-        batch: 'CP-BLS-88',
-        date: formatShortLiveDate(),
-        status: 'In Process',
-        statusColor: 'bg-blue-100 text-blue-800 border-blue-200',
-        labId: 'general',
-        labName: 'General Lab',
-        labBadgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-      },
-      {
-        uuid: 'SMP-0030',
-        id: 'SMP-0030',
-        type: 'Microbiology',
-        product: 'Purified Water',
-        batch: 'CP-WTR-04',
-        date: formatShortLiveDate(),
-        status: 'Completed',
-        statusColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-        labId: 'general',
-        labName: 'General Lab',
-        labBadgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-      },
-    ];
+    return [];
   }, [recentSamplesData]);
 
-  // Laboratory Distribution data across Citi Pharma facilities
-  const labDistribution = [
-    { name: 'Cephalosporin Lab', count: 104, rate: 98 },
-    { name: 'Penicillin Laboratory', count: 82, rate: 95 },
-    { name: 'General Pharma Lab', count: 62, rate: 100 },
-    { name: 'Raw Material Section', count: 42, rate: 92 },
-    { name: 'Finished Goods Section', count: 76, rate: 96 },
-  ];
+  // Pagination for Pending Samples table (10 items per page)
+  const [samplePage, setSamplePage] = useState(1);
+  const samplePageSize = 10;
+
+  const totalSamplePages = useMemo(() => {
+    return Math.max(1, Math.ceil(pendingSamples.length / samplePageSize));
+  }, [pendingSamples.length, samplePageSize]);
+
+  const paginatedSamples = useMemo(() => {
+    const start = (samplePage - 1) * samplePageSize;
+    return pendingSamples.slice(start, start + samplePageSize);
+  }, [pendingSamples, samplePage, samplePageSize]);
+
 
   // Real-time live audit logs from database (refreshes every 5 seconds)
   const { data: rawAuditLogs, isLoading: isAuditLoading } = useQuery({
     queryKey: ['dashboard-audit-logs'],
-    queryFn: () => auditService.getAll({ limit: 40 }),
+    queryFn: () => auditService.getAll({ limit: 100 }),
     refetchInterval: 5000,
   });
 
-  const [activityFilter, setActivityFilter] = useState<'all' | 'staff'>('all');
+  const [auditPage, setAuditPage] = useState(1);
+  const auditPageSize = 10;
 
   const formattedLogs: FormattedAuditItem[] = useMemo(() => {
     if (!rawAuditLogs) return [];
@@ -326,88 +439,16 @@ export default function DashboardPage() {
     return list.map(parseAuditItem);
   }, [rawAuditLogs]);
 
-  const displayedLogs = useMemo(() => {
-    if (activityFilter === 'staff') {
-      return formattedLogs.filter((log) => log.isNonAdmin);
-    }
-    return formattedLogs;
-  }, [formattedLogs, activityFilter]);
+  const displayedLogs = formattedLogs;
 
-  // Active Urgent (2 Days SLA) and Immediate (24 Hours SLA) samples for Admin Notice (ALL records)
-  const urgentAdminNotices = useMemo(() => {
-    const expeditedList = Array.isArray(expeditedSamplesData)
-      ? expeditedSamplesData
-      : (expeditedSamplesData as any)?.data || [];
+  const totalAuditPages = useMemo(() => {
+    return Math.max(1, Math.ceil(displayedLogs.length / auditPageSize));
+  }, [displayedLogs.length, auditPageSize]);
 
-    const fallbackList = Array.isArray(recentSamplesData)
-      ? recentSamplesData
-      : (recentSamplesData as any)?.data || [];
-
-    // Merge and deduplicate by sample id / accession
-    const combinedMap = new Map<string, any>();
-    [...expeditedList, ...fallbackList].forEach((s: any) => {
-      const key = s.id || s.sampleCode || s.accessionNo;
-      if (key && !combinedMap.has(key)) {
-        combinedMap.set(key, s);
-      }
-    });
-
-    const urgentList = Array.from(combinedMap.values()).filter(
-      (s: any) =>
-        (s.priority === 'STAT' || s.priority === 'URGENT') &&
-        s.status !== 'APPROVED' &&
-        s.status !== 'REJECTED'
-    );
-
-    // Sort: STAT (Immediate 24h) first, then URGENT (2d), then latest date
-    urgentList.sort((a: any, b: any) => {
-      if (a.priority === 'STAT' && b.priority !== 'STAT') return -1;
-      if (b.priority === 'STAT' && a.priority !== 'STAT') return 1;
-      const aTime = new Date(a.samplingDate || a.createdAt || 0).getTime();
-      const bTime = new Date(b.samplingDate || b.createdAt || 0).getTime();
-      return bTime - aTime;
-    });
-
-    return urgentList.map((s: any) => {
-      let labId = 'general';
-      let labName = 'General Lab';
-      const labType = (s.laboratoryType || s.laboratory?.code || '').toUpperCase();
-      const labText = (s.laboratory?.name || s.samplingLocation || '').toUpperCase();
-      if (labType === 'SAF' || labType === 'SEF' || labType === 'CP' || labText.includes('CEPH')) {
-        labId = 'cephalosporin';
-        labName = 'Cephalosporin Lab';
-      } else if (labType === 'PENICILLIN' || labType === 'PEN') {
-        labId = 'penicillin';
-        labName = 'Penicillin Lab';
-      }
-
-      return {
-        uuid: s.id,
-        id: s.sampleCode || s.sampleId || s.accessionNo || s.id,
-        product: s.nomenclature || s.materialName || 'Pharmaceutical Sample',
-        batch: s.lotNumber || s.batchLotNumber || s.batch?.batchNumber || 'N/A',
-        priority: s.priority as 'STAT' | 'URGENT',
-        slaLabel: s.priority === 'STAT' ? '24 Hours SLA' : '2 Days SLA',
-        labId,
-        labName,
-      };
-    });
-  }, [expeditedSamplesData, recentSamplesData]);
-
-  // Alert logs prioritizing Urgent and Critical Immediate events
-  const priorityAlertLogs = useMemo(() => {
-    return [...formattedLogs].sort((a, b) => {
-      const aUrgent =
-        a.actionRaw.includes('CRITICAL') || a.actionRaw.includes('URGENT') || a.actionRaw.includes('STAT')
-          ? 1
-          : 0;
-      const bUrgent =
-        b.actionRaw.includes('CRITICAL') || b.actionRaw.includes('URGENT') || b.actionRaw.includes('STAT')
-          ? 1
-          : 0;
-      return bUrgent - aUrgent;
-    });
-  }, [formattedLogs]);
+  const paginatedLogs = useMemo(() => {
+    const start = (auditPage - 1) * auditPageSize;
+    return displayedLogs.slice(start, start + auditPageSize);
+  }, [displayedLogs, auditPage, auditPageSize]);
 
   return (
     <div className="space-y-6 font-sans pb-10">
@@ -423,23 +464,10 @@ export default function DashboardPage() {
               QC Central Unit
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time cGMP sample throughput and pharmaceutical laboratory operations.
-          </p>
         </div>
 
-        {/* Live Date & Real-Time Clock Selector Button on the Right */}
+        {/* Calendar Date Range Filter Selector */}
         <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
-          {/* Real-time Ticking Clock Pill with Live Indicator */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50/90 border border-emerald-200 text-emerald-800 text-xs font-semibold shadow-2xs">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="font-mono text-xs font-bold">{formatLiveClock(currentTime)}</span>
-            <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Live</span>
-          </div>
-
           {/* Live Date Selector Dropdown Button */}
           <div className="relative">
             <button
@@ -509,156 +537,203 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Executive Priority Action Notice Banner for Lab Administration */}
-      {urgentAdminNotices.length > 0 && (
-        <div className="rounded-2xl border border-rose-300 bg-linear-to-r from-rose-50 via-amber-50/70 to-orange-50 p-4 shadow-xs animate-in fade-in">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-start sm:items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse">
-                  <AlertCircle className="h-5 w-5" />
+
+      {/* Analytical Laboratory Suites Showcase (General Lab, Cephalosporin Lab, Penicillin Lab) */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+              <FlaskConical className="h-3.5 w-3.5 text-blue-600" />
+              <span>Analytical Laboratory Suites</span>
+            </h2>
+          </div>
+          <Link
+            href="/samples"
+            className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
+          >
+            <span>View All Registries</span>
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+          {/* Lab 1: General Lab */}
+          <Link
+            href="/samples?lab=general"
+            className="relative overflow-hidden rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 p-3 shadow-2xs hover:shadow-xs transition-colors block"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shadow-2xs shrink-0">
+                  <FlaskConical className="h-4 w-4 stroke-[1.8]" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-600 text-white shadow-2xs">
-                      Admin Priority Notice
-                    </span>
-                    <span className="text-xs font-bold text-slate-900">
-                      {urgentAdminNotices.length} Expedited {urgentAdminNotices.length === 1 ? 'Sample Requires' : 'Samples Require'} Lab Testing
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    All active Urgent (1 Hr - 2 Days SLA) samples across the laboratory.
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">General Lab</p>
+                  <p className="text-xl font-black text-slate-900 tracking-tight">
+                    {metrics?.byLab?.general !== undefined ? metrics.byLab.general : 0}
                   </p>
                 </div>
               </div>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                GL
+              </span>
+            </div>
+          </Link>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[11px] font-semibold text-slate-600 bg-white/80 px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
-                  Total Expedited: <strong className="text-rose-700 font-bold">{urgentAdminNotices.length}</strong>
-                </span>
+          {/* Lab 2: Cephalosporin Lab */}
+          <Link
+            href="/samples?lab=cephalosporin"
+            className="relative overflow-hidden rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 p-3 shadow-2xs hover:shadow-xs transition-colors block"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-2xs shrink-0">
+                  <ShieldAlert className="h-4 w-4 stroke-[1.8]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">Cephalosporin Lab</p>
+                  <p className="text-xl font-black text-slate-900 tracking-tight">
+                    {metrics?.byLab?.cephalosporin !== undefined ? metrics.byLab.cephalosporin : 0}
+                  </p>
+                </div>
               </div>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
+                CEPH
+              </span>
             </div>
+          </Link>
 
-            {/* List ALL Expedited Samples (without slicing) */}
-            <div className="flex items-center gap-2 flex-wrap max-h-60 overflow-y-auto p-1.5 rounded-xl bg-white/70 border border-rose-200/80">
-              {urgentAdminNotices.map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/samples?lab=${s.labId}&sampleId=${encodeURIComponent(s.uuid || s.id)}`}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs hover:scale-102',
-                    s.priority === 'STAT'
-                      ? 'bg-rose-600 text-white border-rose-700 hover:bg-rose-700'
-                      : 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600'
-                  )}
-                  title={`Open ${s.id} in ${s.labName}`}
-                >
-                  <span>{s.id}</span>
-                  <span className="text-[10px] opacity-95 font-medium">({s.priority === 'STAT' ? '24h SLA' : '2d SLA'})</span>
-                  <span className="text-[10px] opacity-80 max-w-[140px] truncate hidden sm:inline">• {s.product}</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              ))}
+          {/* Lab 3: Penicillin Lab */}
+          <Link
+            href="/samples?lab=penicillin"
+            className="relative overflow-hidden rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 p-3 shadow-2xs hover:shadow-xs transition-colors block"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-100 shadow-2xs shrink-0">
+                  <Microscope className="h-4 w-4 stroke-[1.8]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">Penicillin Lab</p>
+                  <p className="text-xl font-black text-slate-900 tracking-tight">
+                    {metrics?.byLab?.penicillin !== undefined ? metrics.byLab.penicillin : 0}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 shrink-0">
+                PEN
+              </span>
             </div>
-          </div>
+          </Link>
         </div>
-      )}
+      </div>
 
-      {/* Row 1: 4 Executive KPI Cards with Accent Borders (Clickable to view details) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Row 1: 4 Executive KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         
         {/* Card 1: Total Samples */}
         <Link
           href="/samples"
-          className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all block border border-slate-200/80 hover:border-blue-400 bg-white"
+          className="relative overflow-hidden rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 p-3 shadow-2xs hover:shadow-xs transition-colors block"
           title="Click to view all samples in registry"
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600" />
-          <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100/80 shadow-2xs group-hover:scale-105 transition-transform">
-              <FlaskConical className="h-6 w-6 text-blue-600 stroke-[1.8]" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shadow-2xs shrink-0">
+                <FlaskConical className="h-4 w-4 stroke-[1.8]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">Total Samples</p>
+                <p className="text-xl font-black text-slate-900 tracking-tight">
+                  {metrics?.total !== undefined ? metrics.total : 0}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Samples</p>
-              <p className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                {metrics?.total !== undefined ? metrics.total : 0}
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-blue-600 transition-colors shrink-0" />
+            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+              ALL
+            </span>
           </div>
         </Link>
 
         {/* Card 2: Received Samples */}
         <Link
           href="/samples?status=RECEIVED"
-          className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all block border border-slate-200/80 hover:border-amber-400 bg-white"
+          className="relative overflow-hidden rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 p-3 shadow-2xs hover:shadow-xs transition-colors block"
           title="Click to view all received samples"
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-amber-500" />
-          <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100/80 shadow-2xs group-hover:scale-105 transition-transform">
-              <Clock className="h-6 w-6 text-amber-600 stroke-[1.8]" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 shadow-2xs shrink-0">
+                <Clock className="h-4 w-4 stroke-[1.8]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">Received Samples</p>
+                <p className="text-xl font-black text-slate-900 tracking-tight">
+                  {metrics?.received !== undefined ? metrics.received : 0}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Received Samples</p>
-              <p className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                {metrics?.received !== undefined ? metrics.received : 0}
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-amber-600 transition-colors shrink-0" />
+            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+              QUEUED
+            </span>
           </div>
         </Link>
 
         {/* Card 3: Active Batches */}
         <Link
           href="/batches"
-          className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all block border border-slate-200/80 hover:border-indigo-400 bg-white"
+          className="relative overflow-hidden rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 p-3 shadow-2xs hover:shadow-xs transition-colors block"
           title="Click to view active batches"
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600" />
-          <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/80 shadow-2xs group-hover:scale-105 transition-transform">
-              <Boxes className="h-6 w-6 text-indigo-600 stroke-[1.8]" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-2xs shrink-0">
+                <Boxes className="h-4 w-4 stroke-[1.8]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">Active Batches</p>
+                <p className="text-xl font-black text-slate-900 tracking-tight">
+                  {activeBatchesCount}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Active Batches</p>
-              <p className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                {activeBatchesCount}
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-600 transition-colors shrink-0" />
+            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+              MFG
+            </span>
           </div>
         </Link>
 
         {/* Card 4: Approved Samples */}
         <Link
           href="/samples?status=APPROVED"
-          className="enterprise-card rounded-2xl p-4.5 relative overflow-hidden group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all block border border-slate-200/80 hover:border-emerald-400 bg-white"
+          className="relative overflow-hidden rounded-xl bg-white border border-slate-200/90 hover:border-slate-300 p-3 shadow-2xs hover:shadow-xs transition-colors block"
           title="Click to view approved samples"
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
-          <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/80 shadow-2xs group-hover:scale-105 transition-transform">
-              <CheckCircle2 className="h-6 w-6 text-emerald-600 stroke-[1.8]" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-2xs shrink-0">
+                <CheckCircle2 className="h-4 w-4 stroke-[1.8]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">Approved Samples</p>
+                <p className="text-xl font-black text-slate-900 tracking-tight">
+                  {metrics?.approved !== undefined ? metrics.approved : 0}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Approved Samples</p>
-              <p className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                {metrics?.approved !== undefined ? metrics.approved : 0}
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-emerald-600 transition-colors shrink-0" />
+            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+              CoA
+            </span>
           </div>
         </Link>
 
       </div>
 
-      {/* Row 2: Samples Overview Chart (5 cols) + Samples by Type Donut (4 cols) + Recent Alerts (3 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      {/* Row 2: Samples Overview Chart (70% width) + Samples by Type Donut (30% width) */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-5">
         
-        {/* Card 1: Samples Overview (Grouped Bar Chart) */}
-        <div className="lg:col-span-5 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
+        {/* Card 1: Samples Overview (Grouped Bar Chart - 70% width) */}
+        <div className="lg:col-span-7 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div className="flex items-center gap-2">
@@ -689,54 +764,48 @@ export default function DashboardPage() {
                 
                 {/* Chart Area with Gridlines */}
                 <div className="relative flex-1 flex items-end justify-between px-2 pb-2 border-b border-slate-200">
-                  {/* Grid lines (100, 80, 60, 40, 20, 0) */}
+                  {/* Grid lines dynamically scaled */}
                   <div className="absolute inset-0 flex flex-col justify-between pointer-events-none text-[10px] text-slate-400">
-                    <div className="border-b border-slate-100 flex items-center justify-between pr-1">
-                      <span>100</span>
-                    </div>
-                    <div className="border-b border-slate-100 flex items-center justify-between pr-1">
-                      <span>80</span>
-                    </div>
-                    <div className="border-b border-slate-100 flex items-center justify-between pr-1">
-                      <span>60</span>
-                    </div>
-                    <div className="border-b border-slate-100 flex items-center justify-between pr-1">
-                      <span>40</span>
-                    </div>
-                    <div className="border-b border-slate-100 flex items-center justify-between pr-1">
-                      <span>20</span>
-                    </div>
-                    <div className="flex items-center justify-between pr-1">
-                      <span>0</span>
-                    </div>
+                    {gridLabels.map((val, idx) => (
+                      <div key={idx} className="border-b border-slate-100 flex items-center justify-between pr-1">
+                        <span>{val}</span>
+                      </div>
+                    ))}
                   </div>
 
                   {/* 7 Grouped Bar Columns */}
                   <div className="w-full flex justify-between items-end pl-6 pr-1 z-10 h-full">
-                    {weeklyOverviewData.map((item, idx) => (
-                      <div key={idx} className="flex flex-col items-center gap-1 h-full justify-end group">
-                        <div className="flex items-end gap-1">
-                          {/* Received Bar (Blue) */}
-                          <div
-                            style={{ height: `${item.received * 1.5}px` }}
-                            className="w-2 sm:w-2.5 bg-[#0066FF] rounded-t-xs hover:brightness-110 transition-all duration-300"
-                            title={`Received: ${item.received}`}
-                          />
-                          {/* In Process Bar (Teal) */}
-                          <div
-                            style={{ height: `${item.processing * 1.5}px` }}
-                            className="w-2 sm:w-2.5 bg-[#00C49F] rounded-t-xs hover:brightness-110 transition-all duration-300"
-                            title={`In Process: ${item.processing}`}
-                          />
-                          {/* Completed Bar (Purple) */}
-                          <div
-                            style={{ height: `${item.completed * 1.5}px` }}
-                            className="w-2 sm:w-2.5 bg-[#8884D8] rounded-t-xs hover:brightness-110 transition-all duration-300"
-                            title={`Completed: ${item.completed}`}
-                          />
+                    {weeklyOverviewData.map((item, idx) => {
+                      const getBarHeight = (count: number) => {
+                        if (count <= 0) return '0px';
+                        return `${Math.max(4, Math.min(140, Math.round((count / maxWeeklyVal) * 140)))}px`;
+                      };
+
+                      return (
+                        <div key={idx} className="flex flex-col items-center gap-1 h-full justify-end group">
+                          <div className="flex items-end gap-1.5">
+                            {/* Received Bar (Blue) */}
+                            <div
+                              style={{ height: getBarHeight(item.received) }}
+                              className="w-2.5 sm:w-3.5 bg-[#0066FF] rounded-t-xs hover:brightness-110 transition-all duration-300"
+                              title={`Received: ${item.received}`}
+                            />
+                            {/* In Process Bar (Teal) */}
+                            <div
+                              style={{ height: getBarHeight(item.processing) }}
+                              className="w-2.5 sm:w-3.5 bg-[#00C49F] rounded-t-xs hover:brightness-110 transition-all duration-300"
+                              title={`In Process: ${item.processing}`}
+                            />
+                            {/* Completed Bar (Purple) */}
+                            <div
+                              style={{ height: getBarHeight(item.completed) }}
+                              className="w-2.5 sm:w-3.5 bg-[#8884D8] rounded-t-xs hover:brightness-110 transition-all duration-300"
+                              title={`Completed: ${item.completed}`}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -755,8 +824,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Card 2: Samples by Type (Donut Chart & Legend) */}
-        <div className="lg:col-span-4 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
+        {/* Card 2: Samples by Type (Donut Chart & Legend - 30% width) */}
+        <div className="lg:col-span-3 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div className="flex items-center gap-2">
@@ -765,89 +834,49 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-6 pt-1">
+            <div className="flex flex-col xl:flex-row items-center gap-4 xl:gap-5 pt-1">
               
               {/* Donut Graphic with center text */}
-              <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
+              <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                  {/* SVG Slices styled in concentric donut */}
-                  {/* Finished Product 31% */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    fill="transparent"
-                    stroke="#8884D8"
-                    strokeWidth="14"
-                    strokeDasharray="74 165"
-                    strokeDashoffset="0"
-                  />
-                  {/* In-Process 22% */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    fill="transparent"
-                    stroke="#06B6D4"
-                    strokeWidth="14"
-                    strokeDasharray="52 187"
-                    strokeDashoffset="-74"
-                  />
-                  {/* Raw Material 17% */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    fill="transparent"
-                    stroke="#0088FE"
-                    strokeWidth="14"
-                    strokeDasharray="40 199"
-                    strokeDashoffset="-126"
-                  />
-                  {/* Packaging Material 15% */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    fill="transparent"
-                    stroke="#00C49F"
-                    strokeWidth="14"
-                    strokeDasharray="36 203"
-                    strokeDashoffset="-166"
-                  />
-                  {/* Stability 11% */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    fill="transparent"
-                    stroke="#FFBB28"
-                    strokeWidth="14"
-                    strokeDasharray="26 213"
-                    strokeDashoffset="-202"
-                  />
-                  {/* Microbiology 4% */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    fill="transparent"
-                    stroke="#EC4899"
-                    strokeWidth="14"
-                    strokeDasharray="10 229"
-                    strokeDashoffset="-228"
-                  />
+                  {totalSamplesCount === 0 ? (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      fill="transparent"
+                      stroke="#F1F5F9"
+                      strokeWidth="14"
+                    />
+                  ) : (
+                    donutSlices.map((slice) => (
+                      <circle
+                        key={slice.label}
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        fill="transparent"
+                        stroke={slice.color}
+                        strokeWidth="14"
+                        strokeDasharray={slice.dasharray}
+                        strokeDashoffset={slice.dashoffset}
+                        className="transition-all duration-500"
+                      />
+                    ))
+                  )}
                 </svg>
 
                 {/* Center of Donut */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-xl font-bold text-slate-800 leading-tight">248</span>
+                  <span className="text-xl font-bold text-slate-800 leading-tight">
+                    {totalSamplesCount}
+                  </span>
                   <span className="text-[10px] text-slate-400 font-medium">Total Samples</span>
                 </div>
               </div>
 
               {/* Legend List matching Image 1 */}
-              <div className="flex-1 w-full space-y-2 text-xs">
+              <div className="flex-1 w-full space-y-1.5 text-xs">
                 {sampleTypes.map((type, idx) => (
                   <div key={idx} className="flex items-center justify-between text-slate-600">
                     <div className="flex items-center gap-2">
@@ -868,168 +897,67 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Card 3: Recent Alerts */}
-        <div className="lg:col-span-3 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-              <div className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-blue-600" />
-                <h2 className="font-bold text-sm text-slate-900">Recent Alerts</h2>
-              </div>
-              <Link href="/samples" className="text-xs font-semibold text-blue-600 hover:text-blue-800">
-                View All
-              </Link>
-            </div>
-
-            <div className="space-y-3.5">
-              {priorityAlertLogs.length > 0 ? (
-                priorityAlertLogs
-                  .slice(0, 4)
-                  .map((alert) => {
-                    const isCritical = alert.actionRaw.includes('CRITICAL') || alert.actionRaw.includes('STAT');
-                    const isUrgent = alert.actionRaw.includes('URGENT');
-
-                    return (
-                      <div key={alert.id} className="flex items-start gap-3">
-                        <div
-                          className={cn(
-                            'h-7 w-7 rounded-full text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs shadow-2xs',
-                            isCritical
-                              ? 'bg-rose-600 animate-pulse'
-                              : isUrgent
-                              ? 'bg-amber-500'
-                              : 'bg-blue-600'
-                          )}
-                        >
-                          !
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1">
-                            <div className="flex items-center gap-1.5 truncate">
-                              <p className="text-xs font-bold text-slate-900 truncate">{alert.userName}</p>
-                              <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${alert.roleBadge.badgeClass}`}>
-                                {alert.roleBadge.label}
-                              </span>
-                              {isCritical && (
-                                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-rose-600 text-white uppercase">
-                                  24h SLA
-                                </span>
-                              )}
-                              {isUrgent && !isCritical && (
-                                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-500 text-white uppercase">
-                                  2d SLA
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-slate-400 shrink-0 font-mono">{alert.relativeTime}</span>
-                          </div>
-                          <p className="text-[11px] text-slate-600 truncate mt-0.5" title={alert.details}>
-                            <span
-                              className={cn(
-                                'font-semibold',
-                                isCritical ? 'text-rose-600' : isUrgent ? 'text-amber-600' : 'text-blue-600'
-                              )}
-                            >
-                              {alert.actionLabel.label}:
-                            </span>{' '}
-                            {alert.details}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
-              ) : (
-                <>
-                  <div className="flex items-start gap-3">
-                    <div className="h-7 w-7 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                      !
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="text-xs font-semibold text-slate-900 truncate">Priority Batch Notice</p>
-                        <span className="text-[10px] text-slate-400 shrink-0 font-mono">Live</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                        Sample: SMP-0034 | Batch: CP-AMX-204
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="h-7 w-7 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                      !
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="text-xs font-semibold text-slate-900 truncate">Intake Verification Pending</p>
-                        <span className="text-[10px] text-slate-400 shrink-0 font-mono">Live</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                        Sample: SMP-0033 | Raw Material Paracetamol
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="h-7 w-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                      <Check className="h-3.5 w-3.5 stroke-[3]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="text-xs font-semibold text-slate-900 truncate">Batch Release Approved</p>
-                        <span className="text-[10px] text-slate-400 shrink-0 font-mono">Live</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                        Sample: SMP-0021 | Purified Water System
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
       </div>
 
-      {/* Row 3: Pending Samples Table (7 cols) + Top Tests with progress bars (5 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        
-        {/* Card 1: Pending Samples Table */}
-        <div className="lg:col-span-8 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-              <div className="flex items-center gap-2">
-                <FlaskConical className="h-4 w-4 text-blue-600" />
-                <h2 className="font-bold text-sm text-slate-900">Pending Samples</h2>
-              </div>
-              <Link href="/samples" className="text-xs font-semibold text-blue-600 hover:text-blue-800">
-                View All
-              </Link>
+      {/* Row 3: Pending Samples Table (Full Screen Width) */}
+      <div className="w-full enterprise-card rounded-2xl p-5 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="h-4 w-4 text-blue-600" />
+              <h2 className="font-bold text-sm text-slate-900">Pending Samples</h2>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                {pendingSamples.length}
+              </span>
             </div>
+            <Link href="/samples" className="text-xs font-semibold text-blue-600 hover:text-blue-800">
+              View All
+            </Link>
+          </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50/80 text-slate-500 font-semibold border-b border-slate-100">
-                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Sample ID</th>
-                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Laboratory</th>
-                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Sample Type</th>
-                    <th className="py-2.5 px-2.5 font-medium">Product</th>
-                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Batch No</th>
-                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Received Date</th>
-                    <th className="py-2.5 px-2.5 font-medium whitespace-nowrap">Status</th>
-                    <th className="py-2.5 px-2.5 font-medium text-right whitespace-nowrap">Action</th>
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50/80 text-slate-500 font-semibold border-b border-slate-100">
+                  <th className="py-2.5 px-3 font-medium whitespace-nowrap">Sample ID</th>
+                  <th className="py-2.5 px-3 font-medium whitespace-nowrap">Laboratory</th>
+                  <th className="py-2.5 px-3 font-medium whitespace-nowrap">Sample Type</th>
+                  <th className="py-2.5 px-3 font-medium">Product</th>
+                  <th className="py-2.5 px-3 font-medium whitespace-nowrap">Batch No</th>
+                  <th className="py-2.5 px-3 font-medium whitespace-nowrap">Received Date</th>
+                  <th className="py-2.5 px-3 font-medium whitespace-nowrap">Status</th>
+                  <th className="py-2.5 px-3 font-medium text-right whitespace-nowrap">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedSamples.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-slate-400">
+                      <div className="flex flex-col items-center justify-center">
+                        <FlaskConical className="h-8 w-8 text-slate-300 mb-2 stroke-[1.5]" />
+                        <p className="font-semibold text-slate-600 text-sm">No Pending Samples Found</p>
+                        <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                          Database is currently reset. Accession your first sample using + Accession New Sample to begin testing.
+                        </p>
+                        <div className="mt-4">
+                          <Link
+                            href="/samples?action=new"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-2xs"
+                          >
+                            <span>+ Accession New Sample</span>
+                          </Link>
+                        </div>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {pendingSamples.map((sample) => {
+                ) : (
+                  paginatedSamples.map((sample) => {
                     const sampleUrl = `/samples?lab=${sample.labId}&sampleId=${encodeURIComponent(sample.uuid || sample.id)}`;
 
                     return (
                       <tr key={sample.id} className="hover:bg-blue-50/40 transition-colors group">
-                        <td className="py-3 px-2.5 font-semibold text-slate-800 font-mono text-[11px] whitespace-nowrap">
+                        <td className="py-3 px-3 font-semibold text-slate-800 font-mono text-[11px] whitespace-nowrap">
                           <Link
                             href={sampleUrl}
                             className="text-blue-600 hover:text-blue-800 hover:underline font-bold"
@@ -1038,7 +966,7 @@ export default function DashboardPage() {
                             {sample.id}
                           </Link>
                         </td>
-                        <td className="py-3 px-2.5 whitespace-nowrap">
+                        <td className="py-3 px-3 whitespace-nowrap">
                           <Link
                             href={`/samples?lab=${sample.labId}`}
                             className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${sample.labBadgeColor} hover:opacity-80 transition-opacity`}
@@ -1047,262 +975,251 @@ export default function DashboardPage() {
                             {sample.labName}
                           </Link>
                         </td>
-                        <td className="py-3 px-2.5 text-slate-600 whitespace-nowrap">{sample.type}</td>
-                        <td className="py-3 px-2.5 font-medium text-slate-800">{sample.product}</td>
-                        <td className="py-3 px-2.5 text-slate-600 font-mono text-[11px] whitespace-nowrap">{sample.batch}</td>
-                        <td className="py-3 px-2.5 text-slate-500 font-mono text-[11px] whitespace-nowrap">{sample.date}</td>
-                        <td className="py-3 px-2.5 whitespace-nowrap">
+                        <td className="py-3 px-3 text-slate-600 whitespace-nowrap">{sample.type}</td>
+                        <td className="py-3 px-3 font-medium text-slate-800">{sample.product}</td>
+                        <td className="py-3 px-3 text-slate-600 font-mono text-[11px] whitespace-nowrap">{sample.batch}</td>
+                        <td className="py-3 px-3 text-slate-500 font-mono text-[11px] whitespace-nowrap">{sample.date}</td>
+                        <td className="py-3 px-3 whitespace-nowrap">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${sample.statusColor}`}
                           >
                             {sample.status}
                           </span>
                         </td>
-                        <td className="py-3 px-2.5 text-right whitespace-nowrap">
-                          <Link
-                            href={sampleUrl}
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 transition-colors shadow-2xs group-hover:shadow-xs"
-                            title={`View sample dossier in ${sample.labName}`}
-                          >
-                            <span>View</span>
-                            <ArrowRight className="h-3 w-3" />
-                          </Link>
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Link
+                              href={sampleUrl}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 transition-colors shadow-2xs group-hover:shadow-xs"
+                              title={`View sample dossier in ${sample.labName}`}
+                            >
+                              <span>View</span>
+                              <ArrowRight className="h-3 w-3" />
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
 
-        {/* Card 2: Laboratory Distribution */}
-        <div className="lg:col-span-4 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-blue-600" />
-                <h2 className="font-bold text-sm text-slate-900">Laboratory Distribution</h2>
+          {/* Pagination Controls */}
+          {pendingSamples.length > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 mt-3 border-t border-slate-100 text-xs text-slate-500">
+              <div className="flex items-center gap-1.5 font-medium">
+                <span>
+                  Showing <strong className="text-slate-800 font-semibold">{Math.min((samplePage - 1) * samplePageSize + 1, pendingSamples.length)}</strong> to{' '}
+                  <strong className="text-slate-800 font-semibold">{Math.min(samplePage * samplePageSize, pendingSamples.length)}</strong> of{' '}
+                  <strong className="text-slate-800 font-semibold">{pendingSamples.length}</strong> samples
+                </span>
               </div>
-              <Link href="/samples" className="text-xs font-semibold text-blue-600 hover:text-blue-800">
-                View All
-              </Link>
-            </div>
 
-            {/* List Headers */}
-            <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium pb-2 border-b border-slate-100">
-              <span className="w-1/2">Laboratory Section</span>
-              <span className="w-16 text-center">Samples</span>
-              <span className="flex-1 text-right">Throughput</span>
-            </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={samplePage <= 1}
+                  onClick={() => setSamplePage((prev) => Math.max(prev - 1, 1))}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium text-xs cursor-pointer shadow-2xs"
+                  aria-label="Previous Page"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span>Prev</span>
+                </button>
 
-            {/* Laboratory Items with Progress Bars */}
-            <div className="space-y-4 pt-3">
-              {labDistribution.map((lab, idx) => (
-                <div key={idx} className="flex items-center justify-between text-xs gap-2">
-                  <span className="w-1/2 font-medium text-slate-800 truncate">{lab.name}</span>
-                  <span className="w-16 text-center text-slate-600 font-semibold">{lab.count}</span>
-                  
-                  {/* Progress bar matching Image 1 green meter */}
-                  <div className="flex-1 flex items-center justify-end gap-2">
-                    <span className="text-[11px] font-semibold text-slate-700 w-8 text-right">
-                      {lab.rate}%
-                    </span>
-                    <div className="w-20 sm:w-24 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                        style={{ width: `${lab.rate}%` }}
-                      />
-                    </div>
-                  </div>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalSamplePages }, (_, idx) => idx + 1)
+                    .filter((p) => {
+                      if (totalSamplePages <= 5) return true;
+                      if (p === 1 || p === totalSamplePages) return true;
+                      return Math.abs(p - samplePage) <= 1;
+                    })
+                    .map((pageNum, index, arr) => {
+                      const showEllipsisBefore = index > 0 && pageNum - arr[index - 1] > 1;
+                      return (
+                        <React.Fragment key={pageNum}>
+                          {showEllipsisBefore && (
+                            <span className="px-1 text-slate-400 text-xs">...</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setSamplePage(pageNum)}
+                            className={cn(
+                              'h-7 w-7 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                              samplePage === pageNum
+                                ? 'bg-blue-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:bg-slate-100'
+                            )}
+                          >
+                            {pageNum}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
+                <button
+                  type="button"
+                  disabled={samplePage >= totalSamplePages}
+                  onClick={() => setSamplePage((prev) => Math.min(prev + 1, totalSamplePages))}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium text-xs cursor-pointer shadow-2xs"
+                  aria-label="Next Page"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Row 4: Quick Actions (4 cols) + Lab Activity Log (8 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        
-        {/* Card 1: Quick Actions */}
-        <div className="lg:col-span-4 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <div className="flex items-center gap-2">
-                <FileEdit className="h-4 w-4 text-blue-600" />
-                <h2 className="font-bold text-sm text-slate-900">Quick Actions</h2>
-              </div>
-            </div>
-
-            {/* 4 Action Buttons with Enterprise Styling */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              
-              <button
-                onClick={() => setIsRegisterModalOpen(true)}
-                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-blue-500 hover:bg-blue-50/60 transition-all text-center group shadow-2xs cursor-pointer"
-              >
-                <div className="p-2 rounded-xl bg-blue-100/60 text-blue-600 group-hover:scale-105 transition-transform">
-                  <QrCode className="h-5 w-5 stroke-[1.8]" />
-                </div>
-                <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
-                  Register
-                </span>
-                <span className="text-[9px] text-slate-400 mt-0.5">Sample</span>
-              </button>
-
-              <button
-                onClick={() => router.push('/samples?section=semi-base')}
-                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-blue-500 hover:bg-blue-50/60 transition-all text-center group shadow-2xs cursor-pointer"
-              >
-                <div className="p-2 rounded-xl bg-blue-100/60 text-blue-600 group-hover:scale-105 transition-transform">
-                  <Layers className="h-5 w-5 stroke-[1.8]" />
-                </div>
-                <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
-                  Semi Basics
-                </span>
-                <span className="text-[9px] text-slate-400 mt-0.5">Section 1</span>
-              </button>
-
-              <button
-                onClick={() => router.push('/samples?section=formulation')}
-                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-emerald-500 hover:bg-emerald-50/60 transition-all text-center group shadow-2xs cursor-pointer"
-              >
-                <div className="p-2 rounded-xl bg-emerald-100/60 text-emerald-600 group-hover:scale-105 transition-transform">
-                  <Sparkles className="h-5 w-5 stroke-[1.8]" />
-                </div>
-                <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
-                  Formulation
-                </span>
-                <span className="text-[9px] text-slate-400 mt-0.5">Section 2</span>
-              </button>
-
-              <button
-                onClick={() => router.push('/samples')}
-                className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:border-sky-500 hover:bg-sky-50/60 transition-all text-center group shadow-2xs cursor-pointer"
-              >
-                <div className="p-2 rounded-xl bg-sky-100/60 text-sky-600 group-hover:scale-105 transition-transform">
-                  <FlaskConical className="h-5 w-5 stroke-[1.8]" />
-                </div>
-                <span className="text-[11px] font-bold text-slate-800 mt-2 leading-tight">
-                  General Lab
-                </span>
-                <span className="text-[9px] text-slate-400 mt-0.5">All Samples</span>
-              </button>
-
+      {/* Lab Activity Log (Live Real-Time Operational Audit Feed - Full Screen Width) */}
+      <div className="w-full enterprise-card rounded-2xl p-5 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-blue-600 shrink-0" />
+              <h2 className="font-bold text-sm text-slate-900">Lab Activity Log</h2>
             </div>
           </div>
-        </div>
 
-        {/* Card 2: Lab Activity Log (Live Real-Time Operational Audit Feed - Expanded 8 Columns) */}
-        <div className="lg:col-span-8 enterprise-card rounded-2xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 mb-3 gap-2">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-blue-600 shrink-0" />
-                <h2 className="font-bold text-sm text-slate-900">Lab Activity Log</h2>
-                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                  </span>
-                  Live
-                </span>
-              </div>
-
-              {/* Activity Filter: All vs Non-Admin Staff Only */}
-              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[10px] font-bold">
-                <button
-                  type="button"
-                  onClick={() => setActivityFilter('all')}
-                  className={`px-3 py-1 rounded-md transition-all ${
-                    activityFilter === 'all'
-                      ? 'bg-white text-slate-800 shadow-2xs font-bold'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivityFilter('staff')}
-                  className={`px-3 py-1 rounded-md transition-all ${
-                    activityFilter === 'staff'
-                      ? 'bg-amber-500 text-white shadow-2xs font-bold'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Staff
-                </button>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto max-h-84 overflow-y-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="sticky top-0 bg-white z-10">
-                  <tr className="bg-slate-50/90 text-slate-500 font-semibold border-b border-slate-100">
-                    <th className="py-2.5 px-3 font-medium whitespace-nowrap">Time & Date</th>
-                    <th className="py-2.5 px-3 font-medium whitespace-nowrap">Personnel & Role</th>
-                    <th className="py-2.5 px-3 font-medium whitespace-nowrap">Activity</th>
-                    <th className="py-2.5 px-3 font-medium">Change Details</th>
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-white z-10">
+                <tr className="bg-slate-50/90 text-slate-500 font-semibold border-b border-slate-100">
+                  <th className="py-2.5 px-3 font-medium whitespace-nowrap">Time & Date</th>
+                  <th className="py-2.5 px-3 font-medium whitespace-nowrap">Personnel & Role</th>
+                  <th className="py-2.5 px-3 font-medium whitespace-nowrap">Activity</th>
+                  <th className="py-2.5 px-3 font-medium">Change Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {isAuditLoading ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-slate-400">
+                      Loading real-time operational activity...
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {isAuditLoading ? (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-slate-400">
-                        Loading real-time operational activity...
+                ) : displayedLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-slate-400">
+                      No activity found for this filter.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <span className="font-bold text-slate-900 block font-mono text-[11px]">
+                          {log.timeDisplay}
+                        </span>
+                        <span className="text-[10px] text-slate-400 block font-mono">
+                          {log.dateDisplay}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <div className="font-bold text-slate-900 text-xs">
+                          {log.userName}
+                        </div>
+                        <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider ${log.roleBadge.badgeClass}`}>
+                          {log.roleBadge.label}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${log.actionLabel.colorClass}`}>
+                          {log.actionLabel.label}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <p className="text-slate-800 font-medium text-[11px] leading-tight">
+                          {log.details}
+                        </p>
+                        {log.reason && log.reason !== log.details && (
+                          <span className="text-[10px] text-slate-400 italic block mt-0.5">
+                            Reason: {log.reason}
+                          </span>
+                        )}
                       </td>
                     </tr>
-                  ) : displayedLogs.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-slate-400">
-                        No activity found for this filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    displayedLogs.slice(0, 15).map((log) => (
-                      <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <span className="font-bold text-slate-900 block font-mono text-[11px]">
-                            {log.timeDisplay}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block font-mono">
-                            {log.dateDisplay}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <div className="font-bold text-slate-900 text-xs">
-                            {log.userName}
-                          </div>
-                          <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider ${log.roleBadge.badgeClass}`}>
-                            {log.roleBadge.label}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${log.actionLabel.colorClass}`}>
-                            {log.actionLabel.label}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <p className="text-slate-800 font-medium text-[11px] leading-tight">
-                            {log.details}
-                          </p>
-                          {log.reason && log.reason !== log.details && (
-                            <span className="text-[10px] text-slate-400 italic block mt-0.5">
-                              Reason: {log.reason}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
+
+          {/* Clean Pagination Controls */}
+          {displayedLogs.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-3.5 mt-3 border-t border-slate-100 gap-2.5 text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <span>
+                  Showing <strong className="text-slate-900 font-bold">{(auditPage - 1) * auditPageSize + 1}</strong> to{' '}
+                  <strong className="text-slate-900 font-bold">{Math.min(auditPage * auditPageSize, displayedLogs.length)}</strong> of{' '}
+                  <strong className="text-slate-900 font-bold">{displayedLogs.length}</strong> activity records
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                  10 per page
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={auditPage <= 1}
+                  onClick={() => setAuditPage((prev) => Math.max(prev - 1, 1))}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium text-xs cursor-pointer shadow-2xs"
+                  aria-label="Previous Page"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span>Prev</span>
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalAuditPages }, (_, idx) => idx + 1)
+                    .filter((p) => {
+                      if (totalAuditPages <= 5) return true;
+                      if (p === 1 || p === totalAuditPages) return true;
+                      return Math.abs(p - auditPage) <= 1;
+                    })
+                    .map((pageNum, index, arr) => {
+                      const showEllipsisBefore = index > 0 && pageNum - arr[index - 1] > 1;
+                      return (
+                        <React.Fragment key={pageNum}>
+                          {showEllipsisBefore && (
+                            <span className="px-1 text-slate-400 text-xs">...</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setAuditPage(pageNum)}
+                            className={cn(
+                              'h-7 w-7 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                              auditPage === pageNum
+                                ? 'bg-blue-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:bg-slate-100'
+                            )}
+                          >
+                            {pageNum}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={auditPage >= totalAuditPages}
+                  onClick={() => setAuditPage((prev) => Math.min(prev + 1, totalAuditPages))}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium text-xs cursor-pointer shadow-2xs"
+                  aria-label="Next Page"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

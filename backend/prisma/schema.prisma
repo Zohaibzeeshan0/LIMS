@@ -9,6 +9,11 @@ generator client {
 
 enum Role {
   ADMIN
+  MANAGER
+  DEPUTY_MANAGER
+  SHIFT_INCHARGE
+  TESTING_ANALYST
+  ANALYST
   QA_MANAGER
   QC_ANALYST
   LAB_TECHNICIAN
@@ -34,12 +39,15 @@ enum SampleType {
 enum Priority {
   ROUTINE
   URGENT
+  STABILITY
   STAT
 }
 
 enum SampleStatus {
   RECEIVED
   LOGGED
+  PENDING_SUPERVISOR_ASSIGNMENT
+  ASSIGNED_FOR_TESTING
   ASSIGNED
   TESTING_IN_PROGRESS
   REVIEW_PENDING
@@ -82,6 +90,7 @@ enum InstrumentStatus {
 enum LaboratoryType {
   SAF
   PENICILLIN
+  CEPHALOSPORIN
   GENERAL
 }
 
@@ -109,6 +118,8 @@ model User {
   department         String
   role               Role      @default(QC_ANALYST)
   isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(true) @map("must_change_password")
+  assignedLab        String?   @map("assigned_lab")
   lastLogin          DateTime?
   hashedRefreshToken String?
   createdAt          DateTime  @default(now())
@@ -118,6 +129,7 @@ model User {
   receivedSamples    Sample[]                @relation("ReceivedSamples")
   accessionedSamples Sample[]                @relation("AccessionedBy")
   assignedSamples    Sample[]                @relation("AssignedTo")
+  supervisedAssignments Sample[]             @relation("AssignedBy")
   performedTests     SampleTest[]            @relation("PerformedBy")
   calibrations       CalibrationLog[]        @relation("CalibratedBy")
   reportedOos        OosIncident[]           @relation("ReportedBy")
@@ -155,7 +167,7 @@ model Batch {
 
 model Sample {
   id                 String       @id @default(uuid())
-  recordNumber       String?      @unique
+  recordNumber       String?
   laboratoryId       String?
   laboratory         Laboratory?  @relation(fields: [laboratoryId], references: [id], onDelete: SetNull)
   nomenclature       String
@@ -171,7 +183,7 @@ model Sample {
   receivedByUserId   String?
   receivedByUser     User?        @relation("ReceivedSamples", fields: [receivedByUserId], references: [id], onDelete: SetNull)
   sampledAt          DateTime     @default(now())
-  status             SampleStatus @default(RECEIVED)
+  status             SampleStatus @default(PENDING_SUPERVISOR_ASSIGNMENT)
   isArchived         Boolean      @default(false)
   archivedAt         DateTime?
   archivedByUserId   String?
@@ -179,7 +191,7 @@ model Sample {
 
   // Compatibility fields for legacy workflows & frontend
   sampleType       SampleType?     @default(FINISHED_PRODUCT)
-  accessionNo      String?         @unique
+  accessionNo      String?
   sampleCode       String?         @unique
   materialName     String?
   lotNumber        String?
@@ -197,7 +209,11 @@ model Sample {
   chainOfCustody   String?
   barcode          String?
   accessionedById  String?
+  assignedById     String?
   assignedToId     String?
+  assignedAt       DateTime?
+  assignmentNotes  String?
+  version          Int             @default(1)
   remarks          String?
   batchId          String?
   createdAt        DateTime        @default(now())
@@ -205,6 +221,7 @@ model Sample {
 
   batch         Batch?                  @relation(fields: [batchId], references: [id], onDelete: SetNull)
   accessionedBy User?                   @relation("AccessionedBy", fields: [accessionedById], references: [id], onDelete: SetNull)
+  assignedBy    User?                   @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
   assignedTo    User?                   @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
   tests         SampleTest[]
   oosIncidents  OosIncident[]
@@ -213,9 +230,12 @@ model Sample {
 
   @@index([sampleId])
   @@index([recordNumber])
+  @@index([accessionNo])
   @@index([batchLotNumber])
   @@index([laboratoryId])
   @@index([status])
+  @@index([assignedById])
+  @@index([assignedToId])
   @@index([sampledAt])
   @@index([createdAt])
   @@map("samples")

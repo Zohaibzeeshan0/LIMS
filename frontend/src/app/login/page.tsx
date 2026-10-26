@@ -1,32 +1,22 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth, DEMO_USERS } from '@/context/AuthContext';
 import { CityPharmaLogo } from '@/components/ui/CityPharmaLogo';
-import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-  FlaskConical,
-  BarChart3,
-  ShieldCheck,
-  FileText,
-  Settings,
+  ArrowLeft,
   Eye,
   EyeOff,
-  Lock,
-  User,
   AlertCircle,
   Loader2,
-  CheckCircle2,
-  Users,
-  Globe,
-  Leaf,
-  ChevronDown,
   Sparkles,
-  ChevronUp,
+  ShieldCheck,
 } from 'lucide-react';
 
 const loginSchema = z.object({
@@ -47,10 +37,10 @@ function LoginFormContent() {
   const { login, rememberedIdentifier, isLoading: authLoading } = useAuth();
   const searchParams = useSearchParams();
 
+  const [activeTab, setActiveTab] = useState<'credentials' | 'quick_access'>('credentials');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showDemoProfiles, setShowDemoProfiles] = useState(true);
 
   const {
     register,
@@ -119,189 +109,143 @@ function LoginFormContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F0F5FA] flex flex-col justify-between font-sans">
-      <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        
-        {/* ================= LEFT COLUMN: HERO & BRAND SHOWCASE ================= */}
-        <div className="lg:col-span-7 flex flex-col justify-between space-y-6">
-          {/* Logo Header */}
-          <div>
-            <CityPharmaLogo
-              variant="full"
-              size="lg"
-              theme="light"
-              subtitle="Care to Cure"
-            />
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-white font-sans antialiased">
+      
+      {/* ================= LEFT HALF: FULL-BLEED PHOTOGRAPHIC HERO (Expanded Picture Size) ================= */}
+      <div className="w-full lg:w-[58%] relative min-h-[480px] lg:min-h-screen bg-slate-950 flex flex-col justify-between p-6 sm:p-10 lg:p-12 xl:p-14 overflow-hidden">
+        {/* Full-bleed laboratory background image */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/pharma-hero.jpg"
+          alt="Citi Pharma Laboratory Quality Control"
+          className="absolute inset-0 w-full h-full object-cover object-top sm:object-center"
+        />
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#0A192F] tracking-tight mt-6 leading-tight">
-              Laboratory<br />Management<br />System
-            </h1>
+        {/* Ambient Dark Gradient Layer for Optimal Contrast */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/35 to-slate-950/15" />
+        <div className="absolute inset-0 bg-blue-950/10 mix-blend-multiply" />
 
-            <p className="text-base sm:text-lg text-[#0066FF] font-semibold mt-2.5">
-              Quality Testing for a Healthier Tomorrow
-            </p>
-
-            {/* 5 Feature Badges in Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-6 max-w-xl">
-              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs backdrop-blur-xs">
-                <div className="h-8 w-8 rounded-lg bg-[#0066FF] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <FlaskConical className="h-4 w-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-800">Sample Management</span>
-              </div>
-
-              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs backdrop-blur-xs">
-                <div className="h-8 w-8 rounded-lg bg-[#0066FF] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <BarChart3 className="h-4 w-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-800">Accurate Test Results</span>
-              </div>
-
-              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs backdrop-blur-xs">
-                <div className="h-8 w-8 rounded-lg bg-[#0066FF] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <ShieldCheck className="h-4 w-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-800">Regulatory Compliance</span>
-              </div>
-
-              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs backdrop-blur-xs">
-                <div className="h-8 w-8 rounded-lg bg-[#0066FF] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-800">Complete Traceability</span>
-              </div>
-
-              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs backdrop-blur-xs sm:col-span-2">
-                <div className="h-8 w-8 rounded-lg bg-[#0066FF] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Settings className="h-4 w-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-800">Efficient Automated Workflow</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Laboratory Scientist Microscope Image Feature */}
-          <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 shadow-md bg-white max-w-2xl h-64 sm:h-72">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/lab-scientist.jpg"
-              alt="Quality Control Scientist in Pharmaceutical Laboratory"
-              className="w-full h-full object-cover object-center"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent flex items-end p-5">
-              <div className="text-white">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-600/90 text-white px-2 py-0.5 rounded-full">
-                  ISO 17025 & cGMP Suite
-                </span>
-                <p className="text-xs sm:text-sm font-semibold text-white/95 mt-1">
-                  High-Precision Chromatography, Monograph Testing & Sample Custody
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom 4 Assurance Badges */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-200/80 text-slate-600 text-[11px]">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-[#0066FF] shrink-0" />
-              <div>
-                <span className="font-bold text-slate-800 block">Quality</span>
-                <span className="text-[10px] text-slate-400">Assured Testing</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-[#0066FF] shrink-0" />
-              <div>
-                <span className="font-bold text-slate-800 block">Trusted</span>
-                <span className="text-[10px] text-slate-400">by Professionals</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4 text-[#0066FF] shrink-0" />
-              <div>
-                <span className="font-bold text-slate-800 block">Compliant</span>
-                <span className="text-[10px] text-slate-400">with Global Standards</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Leaf className="h-4 w-4 text-emerald-600 shrink-0" />
-              <div>
-                <span className="font-bold text-slate-800 block">Care to Cure</span>
-                <span className="text-[10px] text-slate-400">Pharmaceutical Excellence</span>
-              </div>
-            </div>
+        {/* Top Header Row of Left Side */}
+        <div className="relative z-10 flex items-center justify-between gap-3">
+          {/* Floating Logo Card (Compact, sleek & well-proportioned) */}
+          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white/95 backdrop-blur-md shadow-md border border-white/20">
+            <CityPharmaLogo variant="mark-only" size="sm" />
+            <span className="text-xs sm:text-sm font-black text-[#0A192F] tracking-tight leading-none">Citi Pharma</span>
           </div>
         </div>
 
-        {/* ================= RIGHT COLUMN: CLEAN FLOATING CARD ================= */}
-        <div className="lg:col-span-5 flex flex-col justify-center">
-          {/* Top Language Pill matching design */}
-          <div className="flex justify-end mb-3">
-            <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs cursor-pointer hover:bg-slate-50 transition-colors">
-              <Globe className="h-3.5 w-3.5 text-slate-500" />
-              <span className="font-medium">English</span>
-              <ChevronDown className="h-3 w-3 text-slate-400" />
-            </div>
+        {/* Bottom Content of Left Side - Clean, uncluttered 2-line title */}
+        <div className="relative z-10 max-w-2xl pt-6 sm:pt-8 lg:pt-10">
+          <h1 className="text-2xl sm:text-3xl lg:text-[2.2rem] xl:text-[2.55rem] font-black text-white tracking-tight leading-[1.15]">
+            <span className="block">Excellence in Quality Testing &amp;</span>
+            <span className="block text-white">Pharmaceutical Analysis.</span>
+          </h1>
+        </div>
+      </div>
+
+      {/* ================= RIGHT HALF: CLEAN WHITE CANVAS ================= */}
+      <div className="w-full lg:w-[42%] min-h-screen bg-white flex flex-col justify-between p-6 sm:p-10 lg:p-12 xl:p-14 overflow-y-auto">
+        <div className="w-full max-w-lg mx-auto flex-1 flex flex-col justify-center py-4">
+          
+          {/* Top Bar: Return button */}
+          <div className="flex items-center justify-between mb-8">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs hover:shadow-xs transition-all cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 text-slate-500" />
+              <span>Back to Dashboard</span>
+            </Link>
           </div>
 
-          {/* Floating White Authentication Card */}
-          <div className="bg-white rounded-3xl p-7 sm:p-9 shadow-xl shadow-slate-200/70 border border-slate-200/80">
-            {/* Center Citi Pharma Logo */}
-            <div className="flex flex-col items-center justify-center text-center">
-              <CityPharmaLogo
-                variant="mark-only"
-                size="lg"
-                className="mb-1"
-              />
-              <span className="font-black text-2xl tracking-tight text-[#0A192F]">
-                Citi Pharma
+          {/* Header matching reference: Colored dot kicker + Bold Title + Subtitle */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="h-2 w-2 rounded-full bg-rose-600 animate-pulse"></span>
+              <span className="text-[11px] font-black uppercase tracking-wider text-rose-600">
+                AUTHORIZED LIMS ACCESS
               </span>
-              <span className="text-[11px] font-medium text-slate-500">
-                Care to Cure
-              </span>
-
-              <h2 className="text-xl sm:text-2xl font-black text-[#0A192F] tracking-tight mt-5">
-                Welcome Back
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Login to your Laboratory Management System
-              </p>
             </div>
 
-            {/* Error Banner */}
-            {errorMessage && (
-              <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5">
-                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-                <div className="text-xs text-rose-800 font-medium">
-                  {errorMessage}
-                </div>
-              </div>
-            )}
+            <h2 className="text-3xl sm:text-4xl font-black text-[#0A192F] tracking-tight">
+              Sign in to your account
+            </h2>
 
-            {/* Form */}
+            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1.5">
+              Enter your analytical credentials to enter laboratory workspaces
+            </p>
+          </div>
+
+          {/* Segmented Pill Tabs matching reference: [1 Credenziali] [2 Dati personali] */}
+          <div className="mt-6 p-1 rounded-2xl bg-slate-100 flex items-center gap-1 border border-slate-200/60">
+            <button
+              type="button"
+              onClick={() => setActiveTab('credentials')}
+              className={cn(
+                'flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer',
+                activeTab === 'credentials'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-900'
+              )}
+            >
+              <span className={cn(
+                'h-5 w-5 rounded-full text-[10px] font-black flex items-center justify-center',
+                activeTab === 'credentials' ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-600'
+              )}>
+                1
+              </span>
+              <span>Credentials</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('quick_access')}
+              className={cn(
+                'flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer',
+                activeTab === 'quick_access'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-900'
+              )}
+            >
+              <span className={cn(
+                'h-5 w-5 rounded-full text-[10px] font-black flex items-center justify-center',
+                activeTab === 'quick_access' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+              )}>
+                2
+              </span>
+              <span>Quick Staff Roles</span>
+            </button>
+          </div>
+
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-rose-800 font-medium">
+                {errorMessage}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 1: Credentials Form matching reference field styling */}
+          {activeTab === 'credentials' && (
             <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4" noValidate>
-              {/* Username or Email */}
+              {/* Username or Email with uppercase label & asterisk */}
               <div>
                 <label
                   htmlFor="identifier"
-                  className="block text-xs font-bold text-slate-700 mb-1.5"
+                  className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1.5"
                 >
-                  Username or Email
+                  Username or Email <span className="text-rose-500">*</span>
                 </label>
-                <div className="relative rounded-xl shadow-2xs">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <User className="h-4 w-4" />
-                  </div>
+                <div className="relative">
                   <input
                     id="identifier"
                     type="text"
                     autoComplete="username"
                     disabled={isSubmitting || authLoading}
-                    placeholder="Enter your username or email"
-                    className={`block w-full pl-10 pr-3 py-2.5 text-xs rounded-xl border bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0066FF] transition-all ${
+                    placeholder="e.g. admin@citypharma.com"
+                    className={`block w-full px-4 py-3 text-xs rounded-xl border bg-slate-50/40 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0066FF] transition-all ${
                       errors.identifier
                         ? 'border-rose-300 focus:ring-rose-500'
                         : 'border-slate-200 focus:border-[#0066FF]'
@@ -316,25 +260,22 @@ function LoginFormContent() {
                 )}
               </div>
 
-              {/* Password */}
+              {/* Password with uppercase label & asterisk */}
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-xs font-bold text-slate-700 mb-1.5"
+                  className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1.5"
                 >
-                  Password
+                  Password <span className="text-rose-500">*</span>
                 </label>
-                <div className="relative rounded-xl shadow-2xs">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Lock className="h-4 w-4" />
-                  </div>
+                <div className="relative">
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     disabled={isSubmitting || authLoading}
-                    placeholder="Enter your password"
-                    className={`block w-full pl-10 pr-10 py-2.5 text-xs rounded-xl border bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0066FF] transition-all ${
+                    placeholder="Min. 8 characters"
+                    className={`block w-full px-4 py-3 pr-11 text-xs rounded-xl border bg-slate-50/40 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0066FF] transition-all ${
                       errors.password
                         ? 'border-rose-300 focus:ring-rose-500'
                         : 'border-slate-200 focus:border-[#0066FF]'
@@ -346,7 +287,7 @@ function LoginFormContent() {
                     tabIndex={-1}
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -363,7 +304,7 @@ function LoginFormContent() {
               </div>
 
               {/* Remember Me & Forgot Password Row */}
-              <div className="flex items-center justify-between text-xs pt-0.5">
+              <div className="flex items-center justify-between text-xs pt-1">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     id="rememberMe"
@@ -387,7 +328,7 @@ function LoginFormContent() {
               <button
                 type="submit"
                 disabled={isSubmitting || authLoading}
-                className="w-full mt-3 py-3 px-4 rounded-xl text-xs font-bold text-white bg-[#0066FF] hover:bg-[#0055D4] active:scale-[0.99] transition-all shadow-md shadow-blue-500/25 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full mt-2 py-3.5 px-4 rounded-xl text-xs font-bold text-white bg-[#0066FF] hover:bg-[#0055D4] active:scale-[0.99] transition-all shadow-md shadow-blue-500/25 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isSubmitting || authLoading ? (
                   <>
@@ -395,112 +336,121 @@ function LoginFormContent() {
                     <span>Signing in...</span>
                   </>
                 ) : (
-                  <span>Login</span>
+                  <span>Sign In to LIMS</span>
                 )}
               </button>
 
-              {/* Static Laboratory Credentials Panel (Strict RBAC) */}
-              <div className="pt-3 border-t border-slate-100">
+              <div className="pt-2 text-center">
                 <button
                   type="button"
-                  onClick={() => setShowDemoProfiles(!showDemoProfiles)}
-                  className="w-full flex items-center justify-between text-[11px] font-bold text-slate-700 hover:text-[#0066FF] py-1 transition-colors cursor-pointer"
+                  onClick={() => setActiveTab('quick_access')}
+                  className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-[#0066FF] font-medium transition-colors"
                 >
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-[#0066FF]" />
-                    <span>Quick Login Credentials</span>
-                  </span>
-                  {showDemoProfiles ? (
-                    <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
-                  ) : (
-                    <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-                  )}
+                  <Sparkles className="h-3.5 w-3.5 text-[#0066FF]" />
+                  <span>Looking for demo profiles? <strong>Switch to Quick Roles →</strong></span>
                 </button>
-
-                {showDemoProfiles && (
-                  <div className="mt-2.5 space-y-1.5 animate-in fade-in duration-200">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {DEMO_USERS.map((demo) => {
-                        const targetUser = demo.username || demo.email;
-                        const targetPass = (demo as any).password || 'Password@123';
-                        const isCeph = (demo as any).labId === 'cephalosporin';
-                        const isPen = (demo as any).labId === 'penicillin';
-                        const isGen = (demo as any).labId === 'general';
-                        const isAdmin = (demo as any).labId === 'all';
-
-                        return (
-                          <div
-                            key={demo.email}
-                            className="p-2.5 rounded-xl border border-slate-200/90 bg-white hover:border-blue-400 hover:shadow-xs transition-all flex flex-col justify-between"
-                          >
-                            <div>
-                              <div className="flex items-center justify-between gap-1 mb-1">
-                                <span
-                                  className={cn(
-                                    'text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider',
-                                    isCeph
-                                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                      : isPen
-                                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                      : isGen
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                      : 'bg-purple-50 text-purple-700 border border-purple-200'
-                                  )}
-                                >
-                                  {(demo as any).labBadge}
-                                </span>
-                                {isAdmin ? (
-                                  <span className="text-[9px] font-bold text-purple-600">All Labs</span>
-                                ) : (
-                                  <span className="text-[9px] font-bold text-slate-500">1 Lab Only</span>
-                                )}
-                              </div>
-
-                              <div className="text-[11px] font-bold text-slate-800 leading-tight">
-                                {demo.name}
-                              </div>
-
-                              <div className="mt-1 space-y-0.5 text-[10px] text-slate-600 font-mono bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-slate-400 font-sans">User:</span>
-                                  <strong className="text-slate-900">{targetUser}</strong>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-slate-400 font-sans">Pass:</span>
-                                  <strong className="text-slate-900">{targetPass}</strong>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="mt-2 flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => fillCredentials(targetUser, targetPass)}
-                                className="flex-1 py-1 px-2 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors text-center cursor-pointer"
-                              >
-                                Fill Form
-                              </button>
-                              <button
-                                type="button"
-                                disabled={isSubmitting || authLoading}
-                                onClick={() => fillAndLogin(targetUser, targetPass)}
-                                className="flex-1 py-1 px-2 rounded-lg text-[10px] font-bold bg-[#0066FF] hover:bg-[#0055D4] text-white transition-colors text-center shadow-2xs cursor-pointer"
-                              >
-                                1-Click Login
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             </form>
-          </div>
+          )}
+
+          {/* TAB 2: Quick Staff Roles */}
+          {activeTab === 'quick_access' && (
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500 font-medium">
+                  Select a predefined testing persona to test RBAC routing:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('credentials')}
+                  className="text-xs font-bold text-[#0066FF] hover:underline cursor-pointer"
+                >
+                  ← Manual Form
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[460px] overflow-y-auto pr-1">
+                {DEMO_USERS.map((demo) => {
+                  const targetUser = demo.username || demo.email;
+                  const targetPass = (demo as any).password || 'Password@123';
+                  const isAdmin = demo.role === 'ADMIN';
+
+                  return (
+                    <div
+                      key={demo.email}
+                      className="p-3 rounded-xl border border-slate-200/90 bg-white hover:border-blue-400 hover:shadow-xs transition-all flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span
+                            className={cn(
+                              'text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider',
+                              isAdmin
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            )}
+                          >
+                            {(demo as any).labBadge}
+                          </span>
+                          {isAdmin ? (
+                            <span className="text-[9px] font-bold text-purple-600">Master Admin</span>
+                          ) : (
+                            <span className="text-[9px] font-bold text-blue-600">QC Analyst</span>
+                          )}
+                        </div>
+
+                        <div className="text-[11px] font-bold text-slate-800 leading-tight">
+                          {demo.name}
+                        </div>
+
+                        <div className="mt-1.5 space-y-0.5 text-[10px] text-slate-600 font-mono bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400 font-sans">User:</span>
+                            <strong className="text-slate-900 truncate max-w-[130px]">{targetUser}</strong>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400 font-sans">Pass:</span>
+                            <strong className="text-slate-900">{targetPass}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-2.5 flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            fillCredentials(targetUser, targetPass);
+                            setActiveTab('credentials');
+                          }}
+                          className="flex-1 py-1 px-2 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors text-center cursor-pointer"
+                        >
+                          Fill Form
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSubmitting || authLoading}
+                          onClick={() => fillAndLogin(targetUser, targetPass)}
+                          className="flex-1 py-1 px-2 rounded-lg text-[10px] font-bold bg-[#0066FF] hover:bg-[#0055D4] text-white transition-colors text-center shadow-2xs cursor-pointer"
+                        >
+                          1-Click Login
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Bottom Footer */}
+        <div className="pt-6 border-t border-slate-100 text-center text-[11px] text-slate-400">
+          <span>Citi Pharma Quality Control LIMS • 21 CFR Part 11 & cGMP Certified</span>
         </div>
 
       </div>
+
     </div>
   );
 }
@@ -509,7 +459,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#F0F5FA] flex items-center justify-center">
+        <div className="min-h-screen bg-white flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-[#0066FF]" />
         </div>
       }

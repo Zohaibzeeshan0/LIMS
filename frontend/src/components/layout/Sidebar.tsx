@@ -1,20 +1,23 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { getUserLabAccess } from '@/types/lims';
+import { samplingService } from '@/services/sampling.service';
+import { cn } from '@/lib/utils';
 import {
   Home,
   FlaskConical,
   FileText,
   X,
-  ChevronDown,
-  ChevronRight,
   ShieldAlert,
   Microscope,
+  Users,
+  AlertCircle,
+  ArrowRight,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,8 +31,27 @@ export const LABORATORIES = [
     name: 'General Lab',
     shortLabel: 'General Lab',
     code: 'GENERAL',
-    href: '/samples',
+    href: '/samples?lab=general',
     icon: FlaskConical,
+    badge: 'GL',
+  },
+  {
+    id: 'cephalosporin',
+    name: 'Cephalosporin Lab',
+    shortLabel: 'Cephalosporin Lab',
+    code: 'CEPHALOSPORIN',
+    href: '/samples?lab=cephalosporin',
+    icon: ShieldAlert,
+    badge: 'CEPH',
+  },
+  {
+    id: 'penicillin',
+    name: 'Penicillin Lab',
+    shortLabel: 'Penicillin Lab',
+    code: 'PENICILLIN',
+    href: '/samples?lab=penicillin',
+    icon: Microscope,
+    badge: 'PEN',
   },
 ];
 
@@ -41,42 +63,139 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
   const role = user?.role || 'QC_ANALYST';
 
   const isOnSamples = pathname.startsWith('/samples');
-  const [isSamplingExpanded, setIsSamplingExpanded] = useState(true);
 
-  const visibleLaboratories = LABORATORIES;
-  const labBadgeLabel = 'General Lab';
+  const userAccess = getUserLabAccess(user);
+  const visibleLaboratories = React.useMemo(() => {
+    if (userAccess === 'ALL') return LABORATORIES;
+    return LABORATORIES.filter((l) => l.code === userAccess);
+  }, [userAccess]);
 
-  // Sidebar navigation items
+  const activeLabParam =
+    searchParams.get('lab')?.toLowerCase() ||
+    (userAccess === 'ALL' ? 'general' : userAccess.toLowerCase());
+
+  const labBadgeLabel =
+    userAccess === 'ALL'
+      ? '3 Labs'
+      : userAccess === 'PENICILLIN'
+      ? 'Penicillin Lab'
+      : userAccess === 'CEPHALOSPORIN'
+      ? 'Cephalosporin Lab'
+      : 'General Lab';
+
+  // Dedicated query to fetch ALL active expedited (Immediate / STAT & Urgent) samples
+  const { data: expeditedSamplesData } = useQuery({
+    queryKey: ['active-expedited-urgent-samples'],
+    queryFn: () =>
+      samplingService.getAll({
+        priority: 'STAT,URGENT',
+        limit: 100,
+        sortBy: 'samplingDate',
+        sortOrder: 'desc',
+      }),
+    refetchInterval: 5000,
+  });
+
+  const urgentAdminNotices = React.useMemo(() => {
+    const list = Array.isArray(expeditedSamplesData)
+      ? expeditedSamplesData
+      : (expeditedSamplesData as any)?.data || [];
+
+    const urgentList = list.filter(
+      (s: any) =>
+        (s.priority === 'STAT' || s.priority === 'URGENT') &&
+        s.status !== 'APPROVED' &&
+        s.status !== 'REJECTED' &&
+        s.status !== 'ARCHIVED'
+    );
+
+    // Sort: STAT (Immediate 24h) first, then URGENT (2d), then latest date
+    urgentList.sort((a: any, b: any) => {
+      if (a.priority === 'STAT' && b.priority !== 'STAT') return -1;
+      if (b.priority === 'STAT' && a.priority !== 'STAT') return 1;
+      const aTime = new Date(a.samplingDate || a.createdAt || 0).getTime();
+      const bTime = new Date(b.samplingDate || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+
+    const mapped = urgentList.map((s: any) => {
+      let labId = 'general';
+      let labName = 'General Lab';
+      const labType = (s.laboratoryType || s.laboratory?.code || '').toUpperCase();
+      const labText = (s.laboratory?.name || s.samplingLocation || '').toUpperCase();
+      if (labType === 'SAF' || labType === 'SEF' || labType === 'CP' || labText.includes('CEPH')) {
+        labId = 'cephalosporin';
+        labName = 'Cephalosporin Lab';
+      } else if (labType === 'PENICILLIN' || labType === 'PEN') {
+        labId = 'penicillin';
+        labName = 'Penicillin Lab';
+      }
+
+      return {
+        uuid: s.id,
+        id: s.sampleCode || s.sampleId || s.accessionNo || s.id,
+        product: s.nomenclature || s.materialName || 'Pharmaceutical Sample',
+        priority: s.priority || 'URGENT',
+        labId,
+        labName,
+      };
+    });
+
+    // If restricted staff, only show samples matching their lab
+    if (userAccess === 'GENERAL') {
+      return mapped.filter((s: any) => s.labId === 'general');
+    }
+    if (userAccess === 'CEPHALOSPORIN') {
+      return mapped.filter((s: any) => s.labId === 'cephalosporin');
+    }
+    if (userAccess === 'PENICILLIN') {
+      return mapped.filter((s: any) => s.labId === 'penicillin');
+    }
+    return mapped;
+  }, [expeditedSamplesData, userAccess]);
+
+  // Sidebar navigation items tailored to RBAC
   const menuItems: Array<{
     name: string;
     href: string;
     icon: any;
     adminOnly?: boolean;
     roles?: string[];
-    hasSubmenu?: boolean;
     badge?: string;
+    isPriority?: boolean;
   }> = [
-    {
-      name: 'Dashboard',
-      href: '/',
-      icon: Home,
-      adminOnly: true,
-    },
-    {
-      name: 'Samples',
-      href: '/samples',
-      icon: FileText,
-      hasSubmenu: true,
-      badge: labBadgeLabel,
-    },
-  ];
+      {
+        name: 'Dashboard',
+        href: '/',
+        icon: Home,
+        adminOnly: true,
+      },
+      {
+        name: 'Priority Notice',
+        href: '/priority-notice',
+        icon: AlertCircle,
+        badge: urgentAdminNotices.length > 0 ? `${urgentAdminNotices.length}` : undefined,
+        isPriority: true,
+      },
+      {
+        name: 'All Samples Registry',
+        href: '/samples',
+        icon: FileText,
+        badge: labBadgeLabel,
+      },
+      {
+        name: 'Analytical Tests',
+        href: '/testing',
+        icon: Microscope,
+      },
+    ];
 
   // Filter items by role so users only see their authorized tools
   const visibleItems = menuItems.filter((item) => {
-    if (item.adminOnly && !isAdmin) return false;
-    if (item.roles && !item.roles.includes(role) && !isAdmin) return false;
-    return true;
-  });
+        if (item.adminOnly && !isAdmin) return false;
+        if (item.roles && !item.roles.includes(role) && !isAdmin) return false;
+        return true;
+      });
 
   return (
     <>
@@ -133,83 +252,13 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
 
         {/* Navigation Content */}
         <div className="flex-1 px-3 py-3.5 space-y-1 overflow-y-auto custom-scrollbar">
+          {/* Main Top Navigation Items */}
           {visibleItems.map((item) => {
             const Icon = item.icon;
             const isDashboard = item.href === '/';
             const isActive = isDashboard
               ? pathname === '/'
-              : pathname.startsWith(item.href);
-
-            if (item.name === 'Samples') {
-              return (
-                <div key={item.name} className="space-y-1">
-                  <div
-                    onClick={() => setIsSamplingExpanded(!isSamplingExpanded)}
-                    className={cn(
-                      'group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all duration-150 select-none',
-                      isActive
-                        ? 'bg-[#0066FF] text-white shadow-md shadow-blue-500/25 font-bold'
-                        : 'text-slate-300 hover:text-white hover:bg-white/10'
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon
-                        className={cn(
-                          'h-4 w-4 transition-colors shrink-0',
-                          isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'
-                        )}
-                      />
-                      <span>Samples</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={cn(
-                          'text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase',
-                          isActive
-                            ? 'bg-white/20 text-white'
-                            : 'bg-white/10 text-slate-300'
-                        )}
-                      >
-                        {labBadgeLabel}
-                      </span>
-                      {isSamplingExpanded ? (
-                        <ChevronDown className="h-3.5 w-3.5 text-white/80" />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5 text-white/80" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Laboratory Sub-items (Restricted users only see their assigned laboratory) */}
-                  {/* Laboratory Sub-item (General Lab) */}
-                  {isSamplingExpanded && (
-                    <div className="pl-3.5 space-y-1 py-1 border-l border-white/15 ml-4 animate-in fade-in duration-150">
-                      <Link
-                        href="/samples"
-                        onClick={() => onClose && onClose()}
-                        className={cn(
-                          'group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors',
-                          isOnSamples
-                            ? 'bg-white/20 text-white font-bold border border-white/25 shadow-xs'
-                            : 'text-slate-300 hover:text-white hover:bg-white/10'
-                        )}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <FlaskConical
-                            className={cn(
-                              'h-3.5 w-3.5 shrink-0',
-                              isOnSamples ? 'text-blue-300' : 'text-slate-400 group-hover:text-blue-300'
-                            )}
-                          />
-                          <span className="truncate">General Lab</span>
-                        </div>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              );
-            }
+              : pathname === item.href || (item.href === '/samples' && pathname === '/samples' && !searchParams.get('lab'));
 
             return (
               <Link
@@ -219,22 +268,103 @@ function SidebarInner({ isOpen, onClose }: SidebarProps) {
                 className={cn(
                   'group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150',
                   isActive
-                    ? 'bg-[#0066FF] text-white shadow-md shadow-blue-500/25 font-bold'
+                    ? item.isPriority
+                      ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 font-bold ring-1 ring-white/20'
+                      : 'bg-[#0066FF] text-white shadow-md shadow-blue-500/25 font-bold'
+                    : item.isPriority
+                    ? 'text-rose-200 hover:text-white hover:bg-rose-950/40'
                     : 'text-slate-300 hover:text-white hover:bg-white/10'
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <Icon
-                    className={cn(
-                      'h-4 w-4 transition-colors shrink-0',
-                      isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'
+                  <div className="relative flex items-center justify-center">
+                    <Icon
+                      className={cn(
+                        'h-4 w-4 transition-colors shrink-0',
+                        isActive
+                          ? 'text-white'
+                          : item.isPriority
+                          ? 'text-rose-400 group-hover:text-rose-300'
+                          : 'text-slate-300 group-hover:text-white'
+                      )}
+                    />
+                    {item.isPriority && (
+                      <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping" />
                     )}
-                  />
+                  </div>
                   <span>{item.name}</span>
                 </div>
+                {item.badge && (
+                  <span
+                    className={cn(
+                      'text-[9px] font-bold px-1.5 py-0.5 rounded uppercase',
+                      item.isPriority
+                        ? 'bg-rose-600 text-white shadow-2xs font-mono font-bold'
+                        : isActive
+                        ? 'bg-white/20 text-white'
+                        : 'bg-white/10 text-slate-300'
+                    )}
+                  >
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             );
           })}
+
+          {/* Dedicated Analytical Laboratories Section (Always Visible) */}
+          <div className="pt-4 pb-1.5 px-3">
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+              <span>Analytical Laboratories</span>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold">
+                {visibleLaboratories.length} Units
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            {visibleLaboratories.map((lab) => {
+              const LabIcon = lab.icon;
+              const isThisLabActive =
+                isOnSamples &&
+                (activeLabParam === lab.id ||
+                  (lab.id === 'cephalosporin' && (activeLabParam === 'ceph' || activeLabParam === 'cp' || activeLabParam === 'saf')) ||
+                  (lab.id === 'penicillin' && (activeLabParam === 'pen' || activeLabParam === 'pl')) ||
+                  (lab.id === 'general' && (activeLabParam === 'gen' || activeLabParam === 'gl' || (!searchParams.get('lab') && pathname === '/samples'))));
+
+              return (
+                <Link
+                  key={lab.id}
+                  href={lab.href}
+                  onClick={() => onClose && onClose()}
+                  className={cn(
+                    'group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150',
+                    isThisLabActive
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 font-bold ring-1 ring-white/20'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
+                  )}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <LabIcon
+                      className={cn(
+                        'h-4 w-4 shrink-0 transition-colors',
+                        isThisLabActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-300'
+                      )}
+                    />
+                    <span className="truncate">{lab.name}</span>
+                  </div>
+                  <span
+                    className={cn(
+                      'text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase shrink-0',
+                      isThisLabActive ? 'bg-white/25 text-white' : 'bg-white/10 text-slate-300'
+                    )}
+                  >
+                    {lab.badge}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
       </aside>

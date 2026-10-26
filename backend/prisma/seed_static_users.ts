@@ -4,135 +4,78 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('--- SEEDING / UPDATING STATIC 3-LAB USERS ---');
+  console.log('--- SEEDING / UPDATING STATIC WORKFLOW USERS (Admin & Analyst) ---');
 
   const salt = await bcrypt.genSalt(10);
-  const analystPasswordHash = await bcrypt.hash('Password@123', salt);
-  const adminPasswordHash = await bcrypt.hash('Admin@1234', salt);
+  const passwordHash = await bcrypt.hash('Password@123', salt);
 
-  // 1. Cephalosporin Lab Static User: ceph.analyst
-  const cephUser = await prisma.user.upsert({
-    where: { email: 'ceph.analyst@citypharma.com' },
-    update: {
-      username: 'ceph.analyst',
-      passwordHash: analystPasswordHash,
-      fullName: 'Cephalosporin Lab Analyst',
-      department: 'Cephalosporin Laboratory',
-      role: Role.QC_ANALYST,
-      isActive: true,
-    },
-    create: {
-      email: 'ceph.analyst@citypharma.com',
-      username: 'ceph.analyst',
-      passwordHash: analystPasswordHash,
-      fullName: 'Cephalosporin Lab Analyst',
-      employeeId: 'EMP-CP-01',
-      department: 'Cephalosporin Laboratory',
-      role: Role.QC_ANALYST,
-      isActive: true,
-    },
-  });
-  console.log('✓ Configured Cephalosporin Lab User:', cephUser.username, cephUser.email);
-
-  // 2. Penicillin Lab Static User: pen.analyst
-  const penUser = await prisma.user.upsert({
-    where: { email: 'pen.analyst@citypharma.com' },
-    update: {
-      username: 'pen.analyst',
-      passwordHash: analystPasswordHash,
-      fullName: 'Penicillin Lab Analyst',
-      department: 'Penicillin Laboratory',
-      role: Role.QC_ANALYST,
-      isActive: true,
-    },
-    create: {
-      email: 'pen.analyst@citypharma.com',
-      username: 'pen.analyst',
-      passwordHash: analystPasswordHash,
-      fullName: 'Penicillin Lab Analyst',
-      employeeId: 'EMP-PEN-02',
-      department: 'Penicillin Laboratory',
-      role: Role.QC_ANALYST,
-      isActive: true,
-    },
-  });
-  console.log('✓ Configured Penicillin Lab User:', penUser.username, penUser.email);
-
-  // 3. General Lab Static User: gen.analyst
-  const genUser = await prisma.user.upsert({
-    where: { email: 'gen.analyst@citypharma.com' },
-    update: {
-      username: 'gen.analyst',
-      passwordHash: analystPasswordHash,
-      fullName: 'General Lab Analyst',
-      department: 'General Laboratory',
-      role: Role.QC_ANALYST,
-      isActive: true,
-    },
-    create: {
-      email: 'gen.analyst@citypharma.com',
-      username: 'gen.analyst',
-      passwordHash: analystPasswordHash,
-      fullName: 'General Lab Analyst',
-      employeeId: 'EMP-GEN-02',
-      department: 'General Laboratory',
-      role: Role.QC_ANALYST,
-      isActive: true,
-    },
-  });
-  console.log('✓ Configured General Lab User:', genUser.username, genUser.email);
-
-  // 4. Admin User: admin
+  // 1. Admin User
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@citypharma.com' },
     update: {
       username: 'admin',
-      passwordHash: adminPasswordHash,
-      department: 'QC & Regulatory Affairs',
+      passwordHash,
+      fullName: 'Dr. Tariq Mahmood (Administrator)',
+      department: 'QC & Administration',
       role: Role.ADMIN,
       isActive: true,
     },
     create: {
       email: 'admin@citypharma.com',
       username: 'admin',
-      passwordHash: adminPasswordHash,
-      fullName: 'Dr. Tariq Mahmood',
+      passwordHash,
+      fullName: 'Dr. Tariq Mahmood (Administrator)',
       employeeId: 'EMP-001',
-      department: 'QC & Regulatory Affairs',
+      department: 'QC & Administration',
       role: Role.ADMIN,
       isActive: true,
     },
   });
   console.log('✓ Configured Administrator User:', adminUser.username, adminUser.email);
 
-  // Synchronize existing aliases so legacy logins also work with Password@123
-  await prisma.user.updateMany({
-    where: {
-      email: {
-        in: [
-          'saf.analyst@citypharma.com',
-          'penicillin.analyst@citypharma.com',
-          'general.analyst@citypharma.com',
-          'qc.analyst@citypharma.com',
-          'lab.tech@citypharma.com',
-          'qa.manager@citypharma.com',
-        ],
-      },
+  // 2. Analyst User
+  const analystUser = await prisma.user.upsert({
+    where: { email: 'analyst@citypharma.com' },
+    update: {
+      username: 'analyst',
+      passwordHash,
+      fullName: 'Muhammad Ali (QC Analyst)',
+      department: 'Quality Control Laboratory',
+      role: Role.ANALYST,
+      isActive: true,
     },
-    data: {
-      passwordHash: analystPasswordHash,
+    create: {
+      email: 'analyst@citypharma.com',
+      username: 'analyst',
+      passwordHash,
+      fullName: 'Muhammad Ali (QC Analyst)',
+      employeeId: 'EMP-ANL-01',
+      department: 'Quality Control Laboratory',
+      role: Role.ANALYST,
+      isActive: true,
     },
   });
-  console.log('✓ Synchronized legacy user hashes with Password@123');
+  console.log('✓ Configured Analyst User:', analystUser.username, analystUser.email);
+
+  // Purge any other users so only these two exist
+  await prisma.user.deleteMany({
+    where: {
+      email: {
+        notIn: ['admin@citypharma.com', 'analyst@citypharma.com'],
+      },
+    },
+  });
 
   const allUsers = await prisma.user.findMany({
     select: {
       id: true,
       username: true,
       email: true,
+      fullName: true,
       department: true,
       role: true,
     },
+    orderBy: { role: 'asc' },
   });
   console.table(allUsers);
 }

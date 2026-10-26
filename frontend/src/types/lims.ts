@@ -1,8 +1,20 @@
-export type Role = 'ADMIN' | 'QA_MANAGER' | 'QC_ANALYST' | 'LAB_TECHNICIAN' | 'AUDITOR';
+export type Role =
+  | 'ADMIN'
+  | 'QA_MANAGER'
+  | 'QC_ANALYST'
+  | 'LAB_TECHNICIAN'
+  | 'AUDITOR'
+  | 'MANAGER'
+  | 'DEPUTY_MANAGER'
+  | 'SHIFT_INCHARGE'
+  | 'TESTING_ANALYST'
+  | 'ANALYST';
 
 export type SampleStatus =
   | 'RECEIVED'
   | 'LOGGED'
+  | 'PENDING_SUPERVISOR_ASSIGNMENT'
+  | 'ASSIGNED_FOR_TESTING'
   | 'ASSIGNED'
   | 'TESTING_IN_PROGRESS'
   | 'REVIEW_PENDING'
@@ -10,16 +22,63 @@ export type SampleStatus =
   | 'REJECTED'
   | 'ARCHIVED';
 
-export type Priority = 'ROUTINE' | 'URGENT' | 'STAT';
+export type Priority = 'ROUTINE' | 'URGENT' | 'STAT' | 'STABILITY';
 
-export type LaboratoryType = 'GENERAL';
+export type LaboratoryType = 'GENERAL' | 'PENICILLIN' | 'CEPHALOSPORIN';
 
-export type LaboratoryAccess = 'GENERAL' | 'ALL';
+export type LaboratoryAccess = 'GENERAL' | 'PENICILLIN' | 'CEPHALOSPORIN' | 'ALL';
 
 export function getUserLabAccess(
-  _user: { role?: string; department?: string; email?: string; username?: string } | null | undefined
+  user: { role?: string; department?: string; email?: string; username?: string; assignedLab?: string } | null | undefined
 ): LaboratoryAccess {
-  return 'GENERAL';
+  if (!user) return 'ALL';
+
+  const role = (user.role || '').toUpperCase();
+  // QC Analysts, Administrators, and Managers have full operational access across all 3 laboratories
+  if (
+    role === 'ADMIN' ||
+    role === 'ANALYST' ||
+    role === 'QC_ANALYST' ||
+    role === 'QC_OFFICER' ||
+    role === 'LAB_TECHNICIAN' ||
+    role === 'QA_MANAGER' ||
+    role === 'AUDITOR' ||
+    role === 'MANAGER' ||
+    role === 'DEPUTY_MANAGER' ||
+    role === 'SHIFT_INCHARGE'
+  ) {
+    return 'ALL';
+  }
+
+  const dept = (user.department || '').toLowerCase();
+  const email = (user.email || '').toLowerCase();
+  const uname = (user.username || '').toLowerCase();
+
+  if (email.includes('pen.analyst') || uname.includes('pen.analyst') || dept === 'penicillin lab' || dept === 'penicillin') {
+    return 'PENICILLIN';
+  }
+  if (
+    email.includes('ceph.analyst') ||
+    uname.includes('ceph.analyst') ||
+    dept === 'cephalosporin lab' ||
+    dept === 'cephalosporin' ||
+    email.includes('saf.analyst') ||
+    dept === 'saf lab'
+  ) {
+    return 'CEPHALOSPORIN';
+  }
+  if (email.includes('gen.analyst') || dept === 'general lab') {
+    return 'GENERAL';
+  }
+
+  if (user.assignedLab) {
+    const a = user.assignedLab.toUpperCase();
+    if (a.includes('PEN')) return 'PENICILLIN';
+    if (a.includes('CEPH') || a.includes('SAF')) return 'CEPHALOSPORIN';
+    if (a.includes('GEN')) return 'GENERAL';
+  }
+
+  return 'ALL';
 }
 
 export const SEMI_BASICS_STAGES = [
@@ -255,13 +314,22 @@ export interface Sample {
   remarks?: string | null;
   accessionedById?: string | null;
   accessionedBy?: { id: string; fullName: string; employeeId: string; department?: string } | null;
+  assignedById?: string | null;
+  assignedBy?: { id: string; fullName: string; employeeId?: string; role?: Role } | null;
   assignedToId?: string | null;
-  assignedTo?: User | null;
+  assignedTo?: User | { id: string; fullName: string; employeeId?: string; role?: Role } | null;
+  assignedAt?: string | null;
+  assignmentNotes?: string | null;
+  version?: number;
   tests?: SampleTest[];
   oosIncidents?: any[];
   submissions?: SampleSubmission[];
   createdAt: string;
   updatedAt: string;
+}
+
+export function isLoggingAnalyst(role?: Role | string | null): boolean {
+  return role === 'ANALYST' || role === 'QC_ANALYST' || role === 'ADMIN';
 }
 
 export type SubmissionDestination = 'MICROBIOLOGY' | 'CHEMICAL' | 'PHYSICAL';

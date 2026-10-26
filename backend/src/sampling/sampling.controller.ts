@@ -29,7 +29,7 @@ export class SamplingController {
   constructor(private readonly samplingService: SamplingService) {}
 
   @Post()
-  @Roles(Role.ADMIN, Role.QA_MANAGER, Role.QC_ANALYST, Role.LAB_TECHNICIAN)
+  @Roles(Role.ADMIN, Role.QA_MANAGER, Role.QC_ANALYST, Role.LAB_TECHNICIAN, Role.ANALYST)
   @ApiOperation({ summary: 'Accession / intake a new pharmaceutical sample' })
   create(@Body() createSampleDto: CreateSampleDto, @Request() req: any) {
     return this.samplingService.create(createSampleDto, req.user);
@@ -82,7 +82,7 @@ export class SamplingController {
   }
 
   @Post(':id/submit')
-  @Roles(Role.ADMIN, Role.QA_MANAGER, Role.QC_ANALYST, Role.LAB_TECHNICIAN)
+  @Roles(Role.ADMIN, Role.QA_MANAGER, Role.QC_ANALYST, Role.LAB_TECHNICIAN, Role.ANALYST)
   @ApiOperation({ summary: 'Route and submit a sample to Microbiology, Chemical, or Physical Lab' })
   submitToWorkflow(
     @Param('id') id: string,
@@ -98,6 +98,7 @@ export class SamplingController {
     return this.samplingService.getSampleSubmissions(id);
   }
 
+
   @Get('by-code')
   @ApiOperation({ summary: 'Get sample record by sampleCode, sampleId, accessionNo, or id' })
   findByCode(@Query('code') code: string, @Request() req: any) {
@@ -109,6 +110,7 @@ export class SamplingController {
   findOne(@Param('id') id: string, @Request() req: any) {
     return this.samplingService.findOne(id, req.user);
   }
+
 
   @Patch(':id')
   @Roles(Role.ADMIN)
